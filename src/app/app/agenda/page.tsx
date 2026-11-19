@@ -381,10 +381,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
                         }`}
                       >
                         <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${it.done ? "bg-gain" : DOT[it.kind]}`} />
-                        <span className="truncate">
-                          {it.time ? `${it.time} ` : ""}
-                          {it.title}
-                        </span>
+                        <span className="truncate">{it.title}</span>
                       </span>
                     ))}
                     {items.length > 2 ? (
