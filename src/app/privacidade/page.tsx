@@ -18,10 +18,6 @@ export default function PrivacyPage() {
       <h2>Quais dados coletamos</h2>
       <ul>
         <li>
-          <strong>Lista de espera:</strong> seu e-mail, se você aceitou receber novidades e de onde veio o acesso (por
-          exemplo, um link do Instagram).
-        </li>
-        <li>
           <strong>Conta no app:</strong> e-mail, nome que você escolher e as informações que você mesmo lançar
           (entradas, gastos, cartões, contas, metas, prazos e hábitos).
         </li>
@@ -34,8 +30,7 @@ export default function PrivacyPage() {
 
       <h2>Para que usamos</h2>
       <ul>
-        <li>Avisar você quando o app abrir (lista de espera).</li>
-        <li>Mandar novidades e ofertas, somente se você marcou essa opção.</li>
+        <li>Mandar o link de acesso e avisos importantes sobre a sua conta.</li>
         <li>Fazer o app funcionar: calcular seu ciclo, faturas e o valor livre para gastar.</li>
         <li>Entender como o site é usado, para melhorar o produto.</li>
       </ul>
@@ -49,14 +44,14 @@ export default function PrivacyPage() {
 
       <h2>Por quanto tempo</h2>
       <p>
-        Mantemos os dados enquanto sua inscrição ou sua conta existir. Quando você pede a exclusão, apagamos em até 30
+        Mantemos os dados enquanto sua conta existir. Quando você pede a exclusão, apagamos em até 30
         dias, exceto o que a lei exigir guardar.
       </p>
 
       <h2>Seus direitos</h2>
       <p>
-        Você pode pedir acesso, correção, exclusão dos seus dados ou sair da lista de espera a qualquer momento,
-        escrevendo para {SITE.contactEmail}. Também pode retirar o consentimento para receber novidades, sem custo.
+        Você pode pedir acesso, correção ou exclusão dos seus dados a qualquer momento, escrevendo para{" "}
+        {SITE.contactEmail}.
       </p>
 
       <h2>Mudanças nesta política</h2>

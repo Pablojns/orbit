@@ -6,14 +6,14 @@ PWA feito com Next.js 16 + Supabase, publicado na Vercel. Funciona no navegador 
 
 | Endereço | O que é |
 |---|---|
-| `/` | Site público com lista de espera |
+| `/` | Site público com botão de criar conta |
 | `/app` | O app (exige login) |
 | `/login` | Entrada sem senha |
 | `/privacidade`, `/termos` | Páginas legais |
 
 ## Status: Fase 1 (fundação)
 
-- [x] Site público com lista de espera salva no Supabase
+- [x] Site público que leva direto para criar conta
 - [x] App responsivo: barra inferior no celular, menu lateral no computador
 
 - [x] Login sem senha (link por e-mail) e com Google
@@ -37,9 +37,7 @@ No painel do Supabase, abra o projeto **orbit** → **Project Settings → API K
 > Essas duas chaves são públicas e podem ficar no navegador. **Nunca** use a `service_role`/`secret` key neste projeto.
 
 ### 2. Criar as tabelas
-No Supabase: **SQL Editor → New query**, cole o conteúdo inteiro de [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) e clique em **Run**. Deve aparecer "Success". Depois faça o mesmo com [`supabase/migrations/0002_waitlist.sql`](supabase/migrations/0002_waitlist.sql) (lista de espera).
-
-Os e-mails da lista ficam em **Table Editor → waitlist**. A coluna `source` mostra de onde a pessoa veio: use links como `seusite.com/?origem=tiktok` em cada rede para saber qual traz mais gente.
+No Supabase: **SQL Editor → New query**, cole o conteúdo inteiro de [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) e clique em **Run**. Deve aparecer "Success". Depois rode os outros arquivos da pasta, em ordem (`0002`, `0003`).
 
 ### 3. Publicar na Vercel
 1. Na Vercel: **Add New → Project → Import** o repositório `orbit`.
@@ -63,7 +61,7 @@ Sem esse passo, o link do e-mail volta para o lugar errado.
 
 ### 6. Antes de divulgar
 - Preencha **nome/CNPJ** e **e-mail de contato** em [`src/lib/site.ts`](src/lib/site.ts). Eles aparecem na Política de Privacidade.
-- Na Vercel, abra o projeto → **Analytics → Enable**. É isso que conta os visitantes do site (conversão = inscritos ÷ visitantes).
+- Na Vercel, abra o projeto → **Analytics → Enable**. É isso que conta os visitantes do site (conversão = contas criadas ÷ visitantes).
 
 ### (Opcional) Login com Google
 Exige criar credenciais no Google Cloud. Siga o guia do Supabase em **Authentication → Providers → Google**. Até lá, o botão mostra um aviso e o link por e-mail continua funcionando.
@@ -84,7 +82,7 @@ npm run dev                  # http://localhost:3000
 src/
   app/
     page.tsx          site público (página inicial)
-    _site/            peças do site: lista de espera, prévia, rodapé, páginas legais
+    _site/            peças do site: prévia do app, rodapé, páginas legais
     app/              telas logadas: Início, dinheiro, agenda, habitos, perfil
     privacidade/      Política de Privacidade
     termos/           Termos de Uso

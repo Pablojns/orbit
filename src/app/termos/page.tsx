@@ -17,9 +17,9 @@ export default function TermsPage() {
         investimento. As decisões sobre o seu dinheiro são suas.
       </p>
 
-      <h2>Fase de teste</h2>
+      <h2>Fase de lançamento</h2>
       <p>
-        O app está em teste fechado. Funcionalidades podem mudar, falhar ou ser retiradas. Recomendamos conferir valores
+        O app está em desenvolvimento ativo. Funcionalidades podem mudar, falhar ou ser retiradas. Recomendamos conferir valores
         importantes, como faturas, diretamente no seu banco.
       </p>
 

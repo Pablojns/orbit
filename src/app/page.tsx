@@ -3,7 +3,6 @@ import { CalendarClock, CreditCard, Flame, Laptop, PiggyBank, Smartphone } from 
 import { Logo } from "@/components/logo";
 import { PhonePreview } from "./_site/phone-preview";
 import { SiteFooter } from "./_site/site-footer";
-import { WaitlistForm } from "./_site/waitlist-form";
 
 export const metadata = {
   title: { absolute: "Orbit · Saiba quanto você pode gastar até o próximo salário" },
@@ -78,12 +77,12 @@ const FAQ = [
     a: "Cada conta só enxerga os próprios dados, e essa regra é aplicada direto no banco de dados. O Orbit não pede senha de banco nem de cartão.",
   },
   {
-    q: "Quando o Orbit abre?",
-    a: "Estamos testando com um grupo pequeno. Quem está na lista de espera recebe o convite primeiro, por e-mail.",
+    q: "Preciso pagar para começar?",
+    a: "Não. Você cria a conta de graça, só com o e-mail, e usa o plano gratuito pelo tempo que quiser.",
   },
   {
     q: "Quanto vai custar?",
-    a: "Vai ter um plano gratuito com o essencial. O plano Premium deve custar R$ 19,90 por mês; o preço final é confirmado no lançamento.",
+    a: "O plano gratuito tem o essencial. O Premium vai custar R$ 19,90 por mês e chega em breve; até lá, tudo é gratuito.",
   },
 ];
 
@@ -96,9 +95,9 @@ export default function SitePage() {
           <Link href="/login" className="rounded-2xl px-4 py-2 font-medium text-ink-soft hover:text-ink">
             Entrar
           </Link>
-          <a href="#lista" className="hidden rounded-2xl bg-ink px-4 py-2 font-semibold text-white sm:inline-block">
-            Lista de espera
-          </a>
+          <Link href="/login" className="hidden rounded-2xl bg-ink px-4 py-2 font-semibold text-white sm:inline-block">
+            Criar conta grátis
+          </Link>
         </nav>
       </header>
 
@@ -113,8 +112,14 @@ export default function SitePage() {
               O Orbit junta seu dinheiro, seus cartões, seus prazos e seus hábitos, e organiza tudo pelo dia em que o
               seu dinheiro entra.
             </p>
-            <div id="lista" className="mt-8 scroll-mt-8">
-              <WaitlistForm />
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Link
+                href="/login"
+                className="rounded-2xl bg-cobalt px-6 py-3.5 text-center text-base font-semibold text-white"
+              >
+                Criar conta grátis
+              </Link>
+              <p className="text-sm text-ink-soft">Sem senha e sem cartão: você entra pelo link que chega no e-mail.</p>
             </div>
           </div>
           <PhonePreview />
@@ -201,9 +206,9 @@ export default function SitePage() {
 
         {/* Planos */}
         <section className="mx-auto max-w-6xl px-6 pb-16 lg:pb-24">
-          <h2 className="text-3xl leading-tight font-bold sm:text-4xl">Planos previstos</h2>
+          <h2 className="text-3xl leading-tight font-bold sm:text-4xl">Planos</h2>
           <p className="mt-3 max-w-[56ch] text-ink-soft">
-            Durante o teste fechado, tudo é gratuito. Os preços abaixo são os previstos para o lançamento.
+            Comece de graça. O Premium chega em breve; até lá, você usa tudo sem pagar.
           </p>
           <div className="mt-10 grid gap-5 md:grid-cols-2">
             <article className="rounded-[2rem] border border-line bg-card p-7">
@@ -217,7 +222,12 @@ export default function SitePage() {
               </ul>
             </article>
             <article className="rounded-[2rem] border-2 border-ink bg-card p-7">
-              <h3 className="text-xl font-semibold">Premium</h3>
+              <h3 className="text-xl font-semibold">
+                Premium{" "}
+                <span className="ml-1 rounded-full bg-sun/30 px-2 py-0.5 align-middle text-xs font-semibold">
+                  em breve
+                </span>
+              </h3>
               <p className="font-display mt-3 text-4xl font-bold">
                 R$ 19,90<span className="text-lg font-medium text-ink-soft">/mês</span>
               </p>
@@ -258,14 +268,15 @@ export default function SitePage() {
         <section className="bg-ink text-white">
           <div className="mx-auto max-w-6xl px-6 py-16 lg:py-24">
             <h2 className="max-w-[18ch] text-3xl leading-tight font-bold sm:text-5xl">
-              Entre na lista e seja dos primeiros a testar.
+              Descubra hoje quanto você pode gastar até o próximo salário.
             </h2>
-            <p className="mt-4 max-w-[48ch] text-lg text-white/75">
-              O convite chega por e-mail quando o teste abrir. Sem spam.
-            </p>
-            <div className="mt-8">
-              <WaitlistForm tone="dark" />
-            </div>
+            <p className="mt-4 max-w-[48ch] text-lg text-white/75">Leva um minuto para criar a conta. É grátis.</p>
+            <Link
+              href="/login"
+              className="mt-8 inline-block rounded-2xl bg-sun px-6 py-3.5 text-base font-semibold text-ink"
+            >
+              Criar conta grátis
+            </Link>
           </div>
         </section>
       </main>

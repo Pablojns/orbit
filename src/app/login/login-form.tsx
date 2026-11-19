@@ -96,7 +96,7 @@ export function LoginForm() {
         </p>
       ) : null}
 
-      <p className="pt-2 text-center text-xs text-ink-soft">Sem senha: você entra pelo link que chega no e-mail.</p>
+      <p className="pt-2 text-center text-xs text-ink-soft">Primeira vez? A conta é criada quando você abre o link do e-mail.</p>
     </div>
   );
 }
