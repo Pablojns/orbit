@@ -243,7 +243,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
         {/* Lado esquerdo: a lista */}
-        <section className="glass flex flex-col rounded-[1.75rem] p-5 lg:sticky lg:top-6 lg:max-h-[calc(100dvh-3rem)]">
+        <section className="glass flex min-w-0 flex-col rounded-[1.75rem] p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h2 className="text-lg font-semibold">{selected ? weekdayLong(selected) : "O que vem por aí"}</h2>
@@ -276,7 +276,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
             </FormSheet>
           </div>
 
-          <div className="-mx-1 flex-1 overflow-y-auto px-1">
+          <div className="-mx-1 flex-1 overflow-y-auto px-1 lg:max-h-[34rem]">
             {selected ? (
               dayItems.length ? (
                 <ul className="mt-3 divide-y divide-white/[0.06]">
