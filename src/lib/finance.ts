@@ -47,7 +47,7 @@ export type Statement = {
   totalCents: number;
   paidCents: number;
   remainingCents: number;
-  status: "open" | "closed" | "paid";
+  status: "open" | "closed" | "paid" | "future"; // future: fecha depois da fatura aberta
   items: { description: string; amountCents: number; number: number; count: number; purchasedOn: string }[];
 };
 
@@ -302,17 +302,28 @@ export async function getFinance(cycleStartDay: number): Promise<Finance> {
     if (st) st.paidCents += Number(p.amount_cents);
     if (inRange(p.paid_on, cycle.start, cycle.end)) cardPaidInCycle += Number(p.amount_cents);
   }
-  const allStatements = [...statementMap.values()].map((st) => {
-    const remaining = Math.max(0, st.totalCents - st.paidCents);
-    const closed = diffInDays(st.closingDate, today) >= 0;
-    return {
-      ...st,
-      remainingCents: remaining,
-      status: (remaining === 0 ? "paid" : closed ? "closed" : "open") as Statement["status"],
-    };
-  });
+  const allStatements = [...statementMap.values()]
+    .sort((a, b) => (a.month < b.month ? -1 : 1))
+    .map((st) => {
+      const remaining = Math.max(0, st.totalCents - st.paidCents);
+      const closed = diffInDays(st.closingDate, today) >= 0;
+      return {
+        ...st,
+        remainingCents: remaining,
+        status: (remaining === 0 ? "paid" : closed ? "closed" : "open") as Statement["status"],
+      };
+    });
+  // Só a primeira fatura ainda não fechada de cada cartão é a "aberta"; as seguintes são futuras.
+  const seenOpen = new Set<string>();
+  for (const st of allStatements) {
+    if (st.status !== "open") continue;
+    if (seenOpen.has(st.cardId)) st.status = "future";
+    else seenOpen.add(st.cardId);
+  }
   const statements = allStatements
-    .filter((st) => inRange(toISODate(st.dueDate), cycle.start, cycle.end) || st.status === "open")
+    .filter(
+      (st) => inRange(toISODate(st.dueDate), cycle.start, cycle.end) || st.status === "open" || st.status === "future",
+    )
     .sort((a, b) => diffInDays(b.dueDate, a.dueDate));
 
   // Contas fixas no ciclo

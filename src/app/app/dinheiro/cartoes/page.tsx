@@ -15,6 +15,7 @@ const STATUS: Record<Statement["status"], { label: string; tone: string }> = {
   open: { label: "Aberta", tone: "bg-cobalt-soft text-cobalt" },
   closed: { label: "Fechada", tone: "bg-sun/20 text-sun" },
   paid: { label: "Paga", tone: "bg-gain/15 text-gain" },
+  future: { label: "Próxima", tone: "bg-white/[0.06] text-ink-soft" },
 };
 
 export default async function CardsPage() {
@@ -58,9 +59,13 @@ export default async function CardsPage() {
       ) : null}
 
       {f.cards.map((card) => {
-        const statements = f.statements.filter((st) => st.cardId === card.id);
+        const cardStatements = f.statements.filter((st) => st.cardId === card.id);
+        const statements = cardStatements.filter((st) => st.status !== "future");
+        const future = cardStatements.filter((st) => st.status === "future");
         const open = statements.find((st) => st.status === "open");
-        const usedCents = statements.filter((st) => st.status !== "paid").reduce((a, st) => a + st.remainingCents, 0);
+        const usedCents = cardStatements
+          .filter((st) => st.status !== "paid")
+          .reduce((a, st) => a + st.remainingCents, 0);
         return (
           <section key={card.id} className="glass overflow-hidden rounded-[1.75rem]">
             <div className="relative overflow-hidden bg-gradient-to-br from-[#2a2f6b] via-[#3b2a78] to-[#0f4a6b] p-5">
@@ -174,6 +179,22 @@ export default async function CardsPage() {
                 </li>
               )}
             </ul>
+            {future.length ? (
+              <details className="border-t border-white/[0.06] px-5 py-3">
+                <summary className="cursor-pointer text-[13px] text-ink-soft">
+                  Próximas faturas ({future.length}): {formatCents(future.reduce((a, st) => a + st.totalCents, 0))} já
+                  comprometidos
+                </summary>
+                <ul className="mt-2 space-y-1.5 text-[13px]">
+                  {future.map((st) => (
+                    <li key={st.month} className="flex justify-between text-ink-soft">
+                      <span>Vence {formatShort(st.dueDate)}</span>
+                      <span className="text-ink">{formatCents(st.totalCents)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
           </section>
         );
       })}
