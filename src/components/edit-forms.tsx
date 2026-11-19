@@ -230,7 +230,7 @@ export const EVENT_KINDS = [
 export function EditEvent({ e }: { e: AgendaEvent }) {
   return (
     <FormSheet
-      title="Editar prazo"
+      title="Editar item da agenda"
       trigger={`Editar ${e.title}`}
       submitLabel="Salvar alterações"
       action={updateEvent}

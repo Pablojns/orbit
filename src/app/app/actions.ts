@@ -802,3 +802,13 @@ export async function deletePushSubscription(endpoint: string) {
   await supabase.from("push_subscriptions").delete().eq("endpoint", endpoint).eq("user_id", OWNER_ID);
   return { ok: true };
 }
+
+// Um botão só na Agenda: "Tarefa" vira uma tarefa (data opcional); o resto vira um item com data.
+export async function saveAgendaItem(prev: FormState, fd: FormData): Promise<FormState> {
+  if (str(fd, "kind") === "task") {
+    fd.set("due_on", str(fd, "date"));
+    if (!fd.get("priority")) fd.set("priority", "2");
+    return saveTask(prev, fd);
+  }
+  return saveEvent(prev, fd);
+}

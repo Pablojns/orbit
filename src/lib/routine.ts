@@ -45,7 +45,7 @@ function localParts(iso: string) {
 
 export async function getAgenda(today: CalendarDate = todayInSaoPaulo()) {
   const supabase = await createClient();
-  const from = toISODate(addDays(today, -7));
+  const from = toISODate(addDays(today, -30)); // atrasados do último mês
   const [events, tasks] = await Promise.all([
     supabase
       .from("events")
@@ -143,10 +143,11 @@ export type CalendarItem = {
   date: string; // AAAA-MM-DD
   time: string | null;
   title: string;
-  kind: "exam" | "appointment" | "deadline" | "bill" | "other" | "fixed_bill" | "statement";
+  kind: "exam" | "appointment" | "deadline" | "bill" | "other" | "fixed_bill" | "statement" | "task";
   amountCents?: number;
   done: boolean;
   event?: AgendaEvent; // presente quando é um prazo editável
+  task?: Task; // presente quando é uma tarefa com data
 };
 
 export async function getAgendaMonth(year: number, month: number, today: CalendarDate = todayInSaoPaulo()) {
@@ -156,7 +157,7 @@ export async function getAgendaMonth(year: number, month: number, today: Calenda
   const endISO = `${year}-${String(month).padStart(2, "0")}-${String(last).padStart(2, "0")}`;
   const monthISO = firstOfMonthISO(year, month);
 
-  const [events, bills, billPays, inst, cards, payments] = await Promise.all([
+  const [events, bills, billPays, inst, cards, payments, tasks] = await Promise.all([
     supabase
       .from("events")
       .select("id, title, kind, starts_at, all_day, notes, done_at")
@@ -181,9 +182,20 @@ export async function getAgendaMonth(year: number, month: number, today: Calenda
       .select("card_id, amount_cents")
       .eq("user_id", OWNER_ID)
       .eq("statement_month", monthISO),
+    supabase
+      .from("tasks")
+      .select("id, title, priority, due_on, done_at")
+      .eq("user_id", OWNER_ID)
+      .gte("due_on", startISO)
+      .lte("due_on", endISO),
   ]);
 
   const items: CalendarItem[] = [];
+
+  for (const t of tasks.data ?? []) {
+    const task: Task = { id: t.id, title: t.title, priority: t.priority, dueOn: t.due_on, done: Boolean(t.done_at) };
+    items.push({ key: `t-${t.id}`, date: t.due_on, time: null, title: t.title, kind: "task", done: task.done, task });
+  }
 
   for (const e of events.data ?? []) {
     const { date, time } = localParts(e.starts_at);

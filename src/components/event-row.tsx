@@ -6,7 +6,7 @@ import { EditEvent } from "./edit-forms";
 export const KIND = {
   exam: { label: "Prova", icon: BookOpen },
   appointment: { label: "Compromisso", icon: CalendarCheck },
-  deadline: { label: "Prazo", icon: FileWarning },
+  deadline: { label: "Entrega", icon: FileWarning },
   bill: { label: "Conta", icon: Receipt },
   other: { label: "Outro", icon: Clock },
 } as const;
