@@ -22,7 +22,7 @@ export function LoginForm() {
     if (error) {
       setError(
         error.status === 429
-          ? "Muitos pedidos seguidos. Espere um minuto e tente de novo."
+          ? "Limite de e-mails de acesso atingido por agora. Tente de novo em até 1 hora e use o último link que chegar."
           : "Não foi possível enviar o link. Confira o e-mail e tente de novo.",
       );
       setStatus("error");
