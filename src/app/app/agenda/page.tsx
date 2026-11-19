@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, CreditCard, ListTodo, Receipt, Check, Trash2 } from "lucide-react";
-import { EmptyState } from "@/components/empty-state";
+import { ChevronLeft, ChevronRight, CreditCard, Receipt, Check, Trash2 } from "lucide-react";
 import { EditTask, EVENT_KINDS } from "@/components/edit-forms";
 import { EventRow } from "@/components/event-row";
 import { Field, Select, TextInput } from "@/components/fields";
@@ -32,6 +31,7 @@ const DOT: Record<CalendarItem["kind"], string> = {
 };
 
 const WEEK = ["D", "S", "T", "Q", "Q", "S", "S"];
+const WEEK_FULL = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const pad = (n: number) => String(n).padStart(2, "0");
 const monthKey = (y: number, m: number) => `${y}-${pad(m)}`;
 
@@ -78,6 +78,9 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
   );
   const monthTitle = monthRaw.charAt(0).toUpperCase() + monthRaw.slice(1);
 
+  const panel = "glass flex flex-col rounded-[1.75rem] p-5";
+  const listBox = "-mx-1 mt-3 max-h-[26rem] flex-1 overflow-y-auto px-1";
+
   return (
     <>
       <PageHeader title="Agenda" subtitle="Provas, compromissos, contas e tarefas no calendário." />
@@ -93,111 +96,117 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
         </div>
       ) : null}
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
-        {/* Calendário */}
-        <section className="glass h-fit rounded-[1.75rem] p-4 lg:sticky lg:top-6">
-          <div className="flex items-center justify-between">
-            <Link
-              href={`/app/agenda?mes=${monthKey(prev.year, prev.month)}`}
-              aria-label="Mês anterior"
-              className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/[0.06]"
-            >
-              <ChevronLeft size={18} aria-hidden />
-            </Link>
-            <div className="text-center">
-              <p className="font-display text-lg font-semibold">{monthTitle}</p>
-              {key !== monthKey(today.year, today.month) ? (
-                <Link href="/app/agenda" className="text-xs text-cobalt">
-                  Voltar para hoje
-                </Link>
-              ) : null}
+      <div className="grid gap-5 lg:grid-cols-2">
+        {/* Tarefas */}
+        <section className={panel}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">Tarefas</h2>
+              <p className="text-sm text-ink-soft">
+                {openTasks.length
+                  ? `${openTasks.length} ${openTasks.length === 1 ? "pendente" : "pendentes"}`
+                  : "Nada pendente."}
+              </p>
             </div>
-            <Link
-              href={`/app/agenda?mes=${monthKey(next.year, next.month)}`}
-              aria-label="Próximo mês"
-              className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/[0.06]"
+            <FormSheet
+              title="Nova tarefa"
+              trigger="Tarefa"
+              submitLabel="Salvar tarefa"
+              action={saveTask}
+              variant="glass"
             >
-              <ChevronRight size={18} aria-hidden />
-            </Link>
+              <Field label="Tarefa">
+                <TextInput name="title" required maxLength={120} placeholder="Ex.: Enviar atividade de extensão" />
+              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Prioridade">
+                  <Select
+                    name="priority"
+                    defaultValue="2"
+                    options={[
+                      { value: "1", label: "Alta" },
+                      { value: "2", label: "Média" },
+                      { value: "3", label: "Baixa" },
+                    ]}
+                  />
+                </Field>
+                <Field label="Para quando (opcional)">
+                  <TextInput name="due_on" type="date" />
+                </Field>
+              </div>
+            </FormSheet>
           </div>
-
-          <div className="mt-3 grid grid-cols-7 gap-1 text-center text-xs text-ink-soft">
-            {WEEK.map((w, i) => (
-              <span key={i} className="py-1">
-                {w}
-              </span>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-1">
-            {cells.map((d, i) => {
-              if (!d) return <span key={i} />;
-              const iso = `${key}-${pad(d)}`;
-              const items = byDay.get(iso) ?? [];
-              const isToday = iso === todayISO;
-              const isSel = iso === selected;
-              return (
-                <Link
-                  key={i}
-                  href={isSel ? `/app/agenda?mes=${key}` : `/app/agenda?mes=${key}&dia=${iso}`}
-                  aria-label={`${weekdayLong(iso)}${items.length ? `, ${items.length} item(s)` : ""}`}
-                  className={`flex aspect-square flex-col items-center justify-center gap-1 rounded-xl text-sm transition ${
-                    isSel
-                      ? "grad-primary font-semibold text-white"
-                      : isToday
-                        ? "bg-white/[0.08] font-semibold ring-1 ring-cobalt/60"
-                        : "hover:bg-white/[0.05]"
-                  }`}
-                >
-                  <span>{d}</span>
-                  <span className="flex h-1.5 gap-0.5">
-                    {items.slice(0, 3).map((it) => (
-                      <span key={it.key} className={`h-1.5 w-1.5 rounded-full ${it.done ? "bg-gain" : DOT[it.kind]}`} />
-                    ))}
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 border-t border-white/[0.06] pt-3 text-xs text-ink-soft">
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-cobalt" />
-              Prova
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-[#c9a7ff]" />
-              Compromisso
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-loss" />
-              Prazo
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-sun" />
-              Conta
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-[#5fd4ff]" />
-              Fatura
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-gain" />
-              Feito
-            </span>
-          </div>
+          {a.tasks.length ? (
+            <ul className={`${listBox} divide-y divide-white/[0.06]`}>
+              {[...openTasks, ...doneTasks].map((t) => (
+                <li key={t.id} className="flex items-center gap-3 py-3">
+                  <form action={toggleTask}>
+                    <input type="hidden" name="id" value={t.id} />
+                    <input type="hidden" name="done" value={String(t.done)} />
+                    <button
+                      type="submit"
+                      aria-label={t.done ? `Reabrir ${t.title}` : `Concluir ${t.title}`}
+                      className={`grid h-7 w-7 place-items-center rounded-lg border ${
+                        t.done
+                          ? "border-gain bg-gain text-[#05201a]"
+                          : "border-white/25 text-transparent hover:text-ink-soft"
+                      }`}
+                    >
+                      <Check size={15} strokeWidth={3} aria-hidden />
+                    </button>
+                  </form>
+                  <div className="min-w-0 flex-1">
+                    <p className={`truncate text-[15px] ${t.done ? "text-ink-soft line-through" : ""}`}>{t.title}</p>
+                    {t.dueOn ? (
+                      <p className="text-[13px] text-ink-soft">
+                        Até{" "}
+                        {new Intl.DateTimeFormat("pt-BR", { day: "numeric", month: "short", timeZone: "UTC" })
+                          .format(new Date(`${t.dueOn}T12:00:00Z`))
+                          .replace(".", "")}
+                      </p>
+                    ) : null}
+                  </div>
+                  {!t.done ? (
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${PRIORITY[t.priority].tone}`}>
+                      {PRIORITY[t.priority].label}
+                    </span>
+                  ) : null}
+                  <EditTask t={t} />
+                  <form action={deleteTask}>
+                    <input type="hidden" name="id" value={t.id} />
+                    <button
+                      type="submit"
+                      aria-label={`Excluir ${t.title}`}
+                      className="grid h-9 w-9 place-items-center rounded-full text-ink-soft hover:text-loss"
+                    >
+                      <Trash2 size={15} aria-hidden />
+                    </button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-4 text-[15px] leading-relaxed text-ink-soft">
+              Anote o que precisa fazer, com prioridade e data se quiser.
+            </p>
+          )}
         </section>
 
         {/* Cards do mês / do dia */}
-        <section>
-          <div className="flex items-center justify-between gap-3">
+        <section className={panel}>
+          <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="truncate text-lg font-semibold">{selected ? weekdayLong(selected) : "Tudo deste mês"}</h2>
+              <h2 className="truncate text-lg font-semibold">{selected ? weekdayLong(selected) : monthTitle}</h2>
               {selected ? (
-                <Link href={`/app/agenda?mes=${key}`} className="text-xs text-cobalt">
+                <Link href={`/app/agenda?mes=${key}`} className="text-sm text-cobalt">
                   Ver o mês inteiro
                 </Link>
               ) : (
-                <p className="text-sm text-ink-soft">Toque num dia para ver só ele.</p>
+                <p className="text-sm text-ink-soft">
+                  {cal.items.length
+                    ? `${cal.items.length} ${cal.items.length === 1 ? "item" : "itens"} no mês`
+                    : "Mês livre"}
+                </p>
               )}
             </div>
             <FormSheet title="Novo prazo" trigger="Prazo" submitLabel="Salvar prazo" action={saveEvent}>
@@ -222,18 +231,18 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
           </div>
 
           {groups.length ? (
-            <div className="mt-3 space-y-4">
+            <div className={`${listBox} space-y-3`}>
               {groups.map((date) => {
                 const days = diffInDays(today, fromISODate(date));
                 return (
                   <div key={date}>
                     {!selected ? (
-                      <p className={`mb-1.5 text-sm font-semibold ${days === 0 ? "text-cobalt" : "text-ink-soft"}`}>
+                      <p className={`text-sm font-semibold ${days === 0 ? "text-cobalt" : "text-ink-soft"}`}>
                         {weekdayLong(date)}
                         {days === 0 ? ", hoje" : days === 1 ? ", amanhã" : ""}
                       </p>
                     ) : null}
-                    <ul className="glass divide-y divide-white/[0.06] rounded-[1.5rem] px-5">
+                    <ul className="divide-y divide-white/[0.06]">
                       {visible
                         .filter((i) => i.date === date)
                         .map((it) =>
@@ -284,110 +293,133 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
               })}
             </div>
           ) : (
-            <div className="mt-3">
-              <EmptyState
-                icon={ListTodo}
-                title={selected ? "Nada neste dia" : "Mês livre"}
-                description="Cadastre provas, entregas e compromissos. Contas fixas e faturas aparecem aqui sozinhas."
-              />
-            </div>
+            <p className="mt-4 text-[15px] leading-relaxed text-ink-soft">
+              {selected ? "Nada neste dia. " : ""}Cadastre provas, entregas e compromissos. Contas fixas e faturas do
+              cartão aparecem aqui sozinhas.
+            </p>
           )}
         </section>
       </div>
 
-      <div className="mt-8 max-w-3xl">
-        <section>
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold">Tarefas</h2>
-            <FormSheet
-              title="Nova tarefa"
-              trigger="Tarefa"
-              submitLabel="Salvar tarefa"
-              action={saveTask}
-              variant="glass"
-            >
-              <Field label="Tarefa">
-                <TextInput name="title" required maxLength={120} placeholder="Ex.: Enviar atividade de extensão" />
-              </Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Prioridade">
-                  <Select
-                    name="priority"
-                    defaultValue="2"
-                    options={[
-                      { value: "1", label: "Alta" },
-                      { value: "2", label: "Média" },
-                      { value: "3", label: "Baixa" },
-                    ]}
-                  />
-                </Field>
-                <Field label="Para quando (opcional)">
-                  <TextInput name="due_on" type="date" />
-                </Field>
-              </div>
-            </FormSheet>
+      {/* Calendário largo */}
+      <section className={`${panel} mt-5`}>
+        <div className="flex items-center justify-between gap-3">
+          <Link
+            href={`/app/agenda?mes=${monthKey(prev.year, prev.month)}`}
+            aria-label="Mês anterior"
+            className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/[0.06]"
+          >
+            <ChevronLeft size={18} aria-hidden />
+          </Link>
+          <div className="text-center">
+            <p className="font-display text-xl font-semibold">{monthTitle}</p>
+            {key !== monthKey(today.year, today.month) ? (
+              <Link href="/app/agenda" className="text-xs text-cobalt">
+                Voltar para hoje
+              </Link>
+            ) : null}
           </div>
+          <Link
+            href={`/app/agenda?mes=${monthKey(next.year, next.month)}`}
+            aria-label="Próximo mês"
+            className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/[0.06]"
+          >
+            <ChevronRight size={18} aria-hidden />
+          </Link>
+        </div>
 
-          {a.tasks.length ? (
-            <ul className="glass mt-3 divide-y divide-white/[0.06] rounded-[1.75rem] px-5">
-              {[...openTasks, ...doneTasks].map((t) => (
-                <li key={t.id} className="flex items-center gap-3 py-3">
-                  <form action={toggleTask}>
-                    <input type="hidden" name="id" value={t.id} />
-                    <input type="hidden" name="done" value={String(t.done)} />
-                    <button
-                      type="submit"
-                      aria-label={t.done ? `Reabrir ${t.title}` : `Concluir ${t.title}`}
-                      className={`grid h-7 w-7 place-items-center rounded-lg border ${
-                        t.done
-                          ? "border-gain bg-gain text-[#05201a]"
-                          : "border-white/25 text-transparent hover:text-ink-soft"
+        <div className="mt-4 grid grid-cols-7 gap-1.5 text-center text-xs font-semibold text-ink-soft">
+          {WEEK_FULL.map((w, i) => (
+            <span key={i} className="py-1">
+              <span className="sm:hidden">{WEEK[i]}</span>
+              <span className="hidden sm:inline">{w}</span>
+            </span>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-1.5">
+          {cells.map((d, i) => {
+            if (!d) return <span key={i} className="min-h-14 sm:min-h-24" />;
+            const iso = `${key}-${pad(d)}`;
+            const items = byDay.get(iso) ?? [];
+            const isToday = iso === todayISO;
+            const isSel = iso === selected;
+            return (
+              <Link
+                key={i}
+                href={isSel ? `/app/agenda?mes=${key}` : `/app/agenda?mes=${key}&dia=${iso}`}
+                aria-label={`${weekdayLong(iso)}${items.length ? `, ${items.length} item(s)` : ""}`}
+                className={`flex min-h-14 flex-col gap-1 rounded-xl p-1.5 text-left transition sm:min-h-24 sm:p-2 ${
+                  isSel
+                    ? "bg-cobalt/20 ring-1 ring-cobalt"
+                    : isToday
+                      ? "bg-white/[0.07] ring-1 ring-cobalt/50"
+                      : "bg-white/[0.025] hover:bg-white/[0.06]"
+                }`}
+              >
+                <span
+                  className={`grid h-6 w-6 place-items-center rounded-full text-sm ${
+                    isToday ? "grad-primary font-semibold text-white" : isSel ? "font-semibold" : ""
+                  }`}
+                >
+                  {d}
+                </span>
+                {/* Celular: pontinhos. Computador: nomes. */}
+                <span className="flex flex-wrap gap-0.5 sm:hidden">
+                  {items.slice(0, 3).map((it) => (
+                    <span key={it.key} className={`h-1.5 w-1.5 rounded-full ${it.done ? "bg-gain" : DOT[it.kind]}`} />
+                  ))}
+                </span>
+                <span className="hidden min-w-0 flex-col gap-0.5 sm:flex">
+                  {items.slice(0, 2).map((it) => (
+                    <span
+                      key={it.key}
+                      className={`flex min-w-0 items-center gap-1 rounded-md bg-white/[0.05] px-1.5 py-0.5 text-[11px] ${
+                        it.done ? "text-ink-soft line-through" : ""
                       }`}
                     >
-                      <Check size={15} strokeWidth={3} aria-hidden />
-                    </button>
-                  </form>
-                  <div className="min-w-0 flex-1">
-                    <p className={`truncate text-[15px] ${t.done ? "text-ink-soft line-through" : ""}`}>{t.title}</p>
-                    {t.dueOn ? (
-                      <p className="text-[13px] text-ink-soft">
-                        Até{" "}
-                        {new Intl.DateTimeFormat("pt-BR", { day: "numeric", month: "short", timeZone: "UTC" })
-                          .format(new Date(`${t.dueOn}T12:00:00Z`))
-                          .replace(".", "")}
-                      </p>
-                    ) : null}
-                  </div>
-                  {!t.done ? (
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${PRIORITY[t.priority].tone}`}>
-                      {PRIORITY[t.priority].label}
+                      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${it.done ? "bg-gain" : DOT[it.kind]}`} />
+                      <span className="truncate">
+                        {it.time ? `${it.time} ` : ""}
+                        {it.title}
+                      </span>
                     </span>
+                  ))}
+                  {items.length > 2 ? (
+                    <span className="px-1 text-[11px] text-ink-soft">+{items.length - 2}</span>
                   ) : null}
-                  <EditTask t={t} />
-                  <form action={deleteTask}>
-                    <input type="hidden" name="id" value={t.id} />
-                    <button
-                      type="submit"
-                      aria-label={`Excluir ${t.title}`}
-                      className="grid h-9 w-9 place-items-center rounded-full text-ink-soft hover:text-loss"
-                    >
-                      <Trash2 size={15} aria-hidden />
-                    </button>
-                  </form>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="mt-3">
-              <EmptyState
-                icon={ListTodo}
-                title="Nenhuma tarefa"
-                description="Anote o que precisa fazer, com prioridade e data se quiser."
-              />
-            </div>
-          )}
-        </section>
-      </div>
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 border-t border-white/[0.06] pt-3 text-xs text-ink-soft">
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-cobalt" />
+            Prova
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-[#c9a7ff]" />
+            Compromisso
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-loss" />
+            Prazo
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-sun" />
+            Conta
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-[#5fd4ff]" />
+            Fatura
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-gain" />
+            Feito
+          </span>
+        </div>
+      </section>
     </>
   );
 }
