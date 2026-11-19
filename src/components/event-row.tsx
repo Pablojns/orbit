@@ -42,7 +42,7 @@ export function EventRow({ e, compact }: { e: AgendaEvent; compact?: boolean }) 
       </span>
       <div className="min-w-0 flex-1">
         <p className={`truncate text-[15px] font-medium ${e.done ? "text-ink-soft line-through" : ""}`}>{e.title}</p>
-        <p className="truncate text-[13px] text-ink-soft">
+        <p className="text-[13px] leading-snug text-ink-soft">
           {!e.done ? (
             <span className={`font-semibold ${e.daysLeft < 0 ? "text-loss" : urgent ? "text-sun" : "text-ink"}`}>
               {countdown(e.daysLeft)}

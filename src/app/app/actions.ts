@@ -6,6 +6,15 @@ import { OWNER_ID } from "@/lib/owner";
 import { parseToCents } from "@/lib/money";
 import { fromISODate, todayInSaoPaulo, toISODate } from "@/lib/dates";
 import { installmentPlan } from "@/lib/schedule";
+import { currentCycle } from "@/lib/cycle";
+import { requireProfile } from "@/lib/profile";
+
+// Fixos valem a partir do início do ciclo em que foram cadastrados:
+// contam no ciclo atual (mesmo se o dia já passou), mas não aparecem em ciclos antigos.
+async function currentCycleStartISO() {
+  const profile = await requireProfile();
+  return toISODate(currentCycle(todayInSaoPaulo(), profile.cycleStartDay).start);
+}
 
 export type FormState = { status: "idle" | "saved" | "error"; message?: string };
 export type MovementFormState = FormState;
@@ -185,7 +194,7 @@ export async function saveBill(_prev: FormState, fd: FormData): Promise<FormStat
     amount_cents: amount,
     due_day: due,
     category_id: optUuid(str(fd, "category_id")),
-    starts_on: "2000-01-01",
+    starts_on: await currentCycleStartISO(),
     ends_on: ISO_DATE.test(endsOn) ? endsOn : null,
   });
   if (error) return fail("Não foi possível salvar a conta.");
@@ -237,7 +246,7 @@ export async function saveIncome(_prev: FormState, fd: FormData): Promise<FormSt
     name,
     amount_cents: amount,
     day_of_month: dom,
-    starts_on: "2000-01-01",
+    starts_on: await currentCycleStartISO(),
     ends_on: ISO_DATE.test(endsOn) ? endsOn : null,
   });
   if (error) return fail("Não foi possível salvar a entrada.");
