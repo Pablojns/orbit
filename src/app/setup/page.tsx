@@ -6,8 +6,8 @@ export default function SetupPage() {
     <main className="mx-auto max-w-md px-6 pt-16 pb-10">
       <h1 className="text-[2rem] leading-tight font-bold">Falta conectar o Supabase</h1>
       <p className="mt-3 text-[15px] leading-relaxed text-ink-soft">
-        O app precisa de duas variáveis de ambiente para funcionar. Na Vercel: Settings → Environment Variables.
-        No computador: arquivo <code>.env.local</code>.
+        O app precisa de duas variáveis de ambiente para funcionar. Na Vercel: Settings → Environment Variables. No
+        computador: arquivo <code>.env.local</code>.
       </p>
       <pre className="mt-6 overflow-x-auto rounded-2xl bg-card p-4 text-sm">
         {`NEXT_PUBLIC_SUPABASE_URL=...

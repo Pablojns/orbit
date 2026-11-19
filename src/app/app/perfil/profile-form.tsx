@@ -47,10 +47,7 @@ export function ProfileForm({ displayName, cycleStartDay }: { displayName: strin
         >
           {pending ? "Salvando…" : "Salvar perfil"}
         </button>
-        <p
-          role="status"
-          className={`text-sm ${state.status === "error" ? "text-loss" : "text-gain"}`}
-        >
+        <p role="status" className={`text-sm ${state.status === "error" ? "text-loss" : "text-gain"}`}>
           {state.message}
         </p>
       </div>

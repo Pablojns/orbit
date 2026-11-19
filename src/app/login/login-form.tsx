@@ -47,14 +47,10 @@ export function LoginForm() {
       <div role="status" className="rounded-3xl bg-card p-5">
         <p className="text-lg font-semibold">Confira seu e-mail</p>
         <p className="mt-1 text-[15px] leading-relaxed text-ink-soft">
-          Mandamos um link de acesso para <strong className="text-ink">{email}</strong>. Abra no mesmo aparelho
-          para entrar.
+          Mandamos um link de acesso para <strong className="text-ink">{email}</strong>. Abra no mesmo aparelho para
+          entrar.
         </p>
-        <button
-          type="button"
-          onClick={() => setStatus("idle")}
-          className="mt-4 text-sm font-medium text-cobalt"
-        >
+        <button type="button" onClick={() => setStatus("idle")} className="mt-4 text-sm font-medium text-cobalt">
           Usar outro e-mail
         </button>
       </div>

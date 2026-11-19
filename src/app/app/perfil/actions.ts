@@ -29,6 +29,6 @@ export async function saveProfile(_prev: ProfileFormState, formData: FormData): 
     };
   }
 
-  revalidatePath("/", "layout");
+  revalidatePath("/app", "layout");
   return { status: "saved", message: "Perfil salvo." };
 }

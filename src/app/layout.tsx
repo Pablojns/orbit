@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import "@fontsource-variable/bricolage-grotesque/wdth.css";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 
 export const metadata: Metadata = {
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-full bg-sky text-ink">
         {children}
         <ServiceWorkerRegister />
+        <Analytics />
       </body>
     </html>
   );

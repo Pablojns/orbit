@@ -26,6 +26,6 @@ export async function GET(request: NextRequest) {
 // Só aceita caminhos internos, para ninguém usar o link para redirecionar
 // a pessoa para outro site.
 function safeNext(value: string | null) {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/";
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/app";
   return value;
 }

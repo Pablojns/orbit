@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "Orbit",
     description: "Seu dinheiro, seus prazos e seus hábitos no mesmo lugar.",
     lang: "pt-BR",
-    start_url: "/",
+    start_url: "/app",
     scope: "/",
     display: "standalone",
     orientation: "portrait",

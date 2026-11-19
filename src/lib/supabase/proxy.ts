@@ -2,10 +2,10 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseEnv } from "./env";
 
-const PUBLIC_PATHS = ["/login", "/auth", "/setup"];
-
-function isPublic(pathname: string) {
-  return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+// Só o app (/app) exige login. O site público, a página de login e as
+// páginas legais ficam abertas.
+function isProtected(pathname: string) {
+  return pathname === "/app" || pathname.startsWith("/app/");
 }
 
 // Renova a sessão do Supabase e manda quem não está logado para /login.
@@ -13,10 +13,12 @@ export async function updateSession(request: NextRequest) {
   const env = getSupabaseEnv();
   const { pathname } = request.nextUrl;
 
-  // Sem variáveis configuradas: mostra a tela de configuração.
+  // Sem variáveis configuradas: o site abre, mas app e login mostram a tela de configuração.
   if (!env) {
-    if (pathname === "/setup") return NextResponse.next();
-    return NextResponse.redirect(new URL("/setup", request.url));
+    if (isProtected(pathname) || pathname === "/login") {
+      return NextResponse.redirect(new URL("/setup", request.url));
+    }
+    return NextResponse.next();
   }
 
   let response = NextResponse.next({ request });
@@ -43,7 +45,7 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getClaims();
   const loggedIn = Boolean(data?.claims?.sub);
 
-  if (!loggedIn && !isPublic(pathname)) {
+  if (!loggedIn && isProtected(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = "";
@@ -51,7 +53,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (loggedIn && pathname === "/login") {
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(new URL("/app", request.url));
   }
 
   return response;
