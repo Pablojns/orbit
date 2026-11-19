@@ -8,6 +8,7 @@ const TABS = [
   { href: "/app/dinheiro/cartoes", label: "Cartões" },
   { href: "/app/dinheiro/contas", label: "Fixos" },
   { href: "/app/dinheiro/metas", label: "Metas" },
+  { href: "/app/dinheiro/pessoas", label: "Pessoas" },
 ];
 
 export function MoneyTabs() {

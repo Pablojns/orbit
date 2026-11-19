@@ -20,6 +20,7 @@ import { HabitCheck } from "@/components/habit-card";
 import { MovementRow } from "@/components/movement-list";
 import { OrbitRing } from "@/components/orbit-ring";
 import { QuickAdd } from "@/components/quick-add";
+import { QuickText } from "@/components/quick-text";
 import { diffInDays, formatShort } from "@/lib/dates";
 import { getFinance } from "@/lib/finance";
 import { formatCents } from "@/lib/money";
@@ -73,7 +74,15 @@ export default async function HomePage() {
   ].sort((a, b) => diffInDays(b.date, a.date));
 
   const pendingIncomes = f.incomesInCycle.filter((i) => !i.received);
-  const nextEvents = [...agenda.overdue, ...agenda.upcoming].slice(0, 3);
+  const nextEvents = agenda.upcoming.filter((e) => e.daysLeft >= 1 && e.daysLeft <= 7).slice(0, 5);
+
+  // "Seu dia": o que é para hoje ou já passou, de tudo junto.
+  const todayEvents = [...agenda.overdue, ...agenda.upcoming.filter((e) => e.daysLeft === 0)];
+  const todayISO = `${today.year}-${String(today.month).padStart(2, "0")}-${String(today.day).padStart(2, "0")}`;
+  const todayTasks = agenda.tasks.filter((t) => !t.done && t.dueOn && t.dueOn <= todayISO);
+  const todayDues = dues.filter((d) => diffInDays(today, d.date) <= 0);
+  const weekExams = agenda.upcoming.filter((e) => e.kind === "exam" && e.daysLeft <= 7).length;
+  const dayCount = todayEvents.length + todayTasks.length + todayDues.length;
   const topCategories = s.byCategory.slice(0, 5);
   const maxCategory = topCategories[0]?.cents ?? 1;
   const categoryTotal = s.byCategory.reduce((a, c) => a + c.cents, 0);
@@ -144,6 +153,71 @@ export default async function HomePage() {
           </ol>
         </section>
       ) : null}
+
+      <section className="glass rounded-[1.75rem] p-5">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold">Seu dia</h2>
+          <Link href="/app/agenda" className="flex items-center text-sm font-medium text-cobalt">
+            Agenda <ChevronRight size={16} aria-hidden />
+          </Link>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-2 text-xs">
+          <span className="rounded-full bg-white/[0.06] px-3 py-1">
+            {dayCount ? `${dayCount} para hoje` : "Nada pendente para hoje"}
+          </span>
+          {weekExams ? (
+            <span className="rounded-full bg-cobalt/15 px-3 py-1 text-cobalt">
+              {weekExams} {weekExams === 1 ? "prova" : "provas"} nos próximos 7 dias
+            </span>
+          ) : null}
+          {hasMoney && !negative ? (
+            <span className="rounded-full bg-gain/15 px-3 py-1 text-gain">
+              Pode gastar {formatCents(s.perDayCents)} hoje
+            </span>
+          ) : null}
+          {habits.length ? (
+            <span className="rounded-full bg-sun/15 px-3 py-1 text-sun">
+              Hábitos {habits.filter((h) => h.checkedToday).length}/{habits.length}
+            </span>
+          ) : null}
+        </div>
+        {dayCount ? (
+          <ul className="mt-2 divide-y divide-white/[0.06]">
+            {todayEvents.map((e) => (
+              <EventRow key={e.id} e={e} compact />
+            ))}
+            {todayTasks.map((t) => (
+              <li key={t.id} className="flex items-center gap-3 py-3">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-white/[0.06]">
+                  <Check size={18} aria-hidden />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[15px] font-medium">{t.title}</p>
+                  <p className={`text-[13px] ${t.dueOn! < todayISO ? "text-loss" : "text-ink-soft"}`}>
+                    Tarefa, {t.dueOn! < todayISO ? "atrasada" : "para hoje"}
+                  </p>
+                </div>
+              </li>
+            ))}
+            {todayDues.map((d) => (
+              <li key={d.key} className="flex items-center gap-3 py-3">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-sun/15 text-sun">
+                  {d.card ? <CreditCard size={18} aria-hidden /> : <Receipt size={18} aria-hidden />}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[15px] font-medium">{d.name}</p>
+                  <p className={`text-[13px] ${diffInDays(today, d.date) < 0 ? "text-loss" : "text-sun"}`}>
+                    {diffInDays(today, d.date) < 0 ? "Vencida" : "Vence hoje"}
+                  </p>
+                </div>
+                <p className="text-[15px] font-semibold">{formatCents(d.cents)}</p>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </section>
+
+      <QuickText />
 
       <div className="space-y-5 lg:grid lg:grid-cols-[1.1fr_1fr] lg:gap-5 lg:space-y-0">
         <div className="space-y-5">
@@ -310,7 +384,7 @@ export default async function HomePage() {
 
           <section className="glass rounded-[1.75rem] p-5">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Próximos prazos</h2>
+              <h2 className="text-lg font-semibold">Próximos 7 dias</h2>
               <Link href="/app/agenda" className="flex items-center text-sm font-medium text-cobalt">
                 Agenda <ChevronRight size={16} aria-hidden />
               </Link>
@@ -323,7 +397,7 @@ export default async function HomePage() {
               </ul>
             ) : (
               <p className="mt-2 flex items-center gap-2 text-[15px] text-ink-soft">
-                <CalendarClock size={18} aria-hidden /> Nenhum prazo chegando.
+                <CalendarClock size={18} aria-hidden /> Nada marcado nos próximos 7 dias.
               </p>
             )}
           </section>

@@ -13,6 +13,26 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: "portrait",
     background_color: "#070a1a",
     theme_color: "#070a1a",
+    shortcuts: [
+      {
+        name: "Lançar gasto",
+        short_name: "Gasto",
+        url: "/app?abrir=gasto",
+        icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }],
+      },
+      {
+        name: "Lançar escrevendo",
+        short_name: "Escrever",
+        url: "/app/dinheiro?abrir=frase",
+        icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }],
+      },
+      {
+        name: "Novo na agenda",
+        short_name: "Agenda",
+        url: "/app/agenda?abrir=novo",
+        icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }],
+      },
+    ],
     icons: [
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
       { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },

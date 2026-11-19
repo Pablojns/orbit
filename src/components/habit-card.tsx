@@ -1,4 +1,5 @@
 import { Check, Flame } from "lucide-react";
+import { DeleteButton } from "@/components/undo";
 import { archiveHabit, toggleHabit } from "@/app/app/actions";
 import type { Habit } from "@/lib/routine";
 import { EditHabit } from "./edit-forms";
@@ -65,12 +66,13 @@ export function HabitCard({ h }: { h: Habit }) {
         </ol>
         <div className="flex items-center gap-1">
           <EditHabit habit={h} />
-          <form action={archiveHabit}>
-            <input type="hidden" name="id" value={h.id} />
-            <button type="submit" className="text-xs text-ink-soft hover:text-loss">
-              Arquivar
-            </button>
-          </form>
+          <DeleteButton
+            action={archiveHabit}
+            fields={{ id: h.id }}
+            label={`Arquivar ${h.name}`}
+            variant="text"
+            text="Arquivar"
+          />
         </div>
       </div>
     </li>

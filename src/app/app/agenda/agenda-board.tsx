@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { saveAgendaItem } from "@/app/app/actions";
-import { Field, Select, TextInput } from "@/components/fields";
+import { Field, inputClass, Select, TextInput } from "@/components/fields";
 import { FormSheet } from "@/components/form-sheet";
 
 export type Cell = {
@@ -18,6 +18,7 @@ const NEW_KINDS = [
   { value: "appointment", label: "Compromisso" },
   { value: "deadline", label: "Entrega / prazo" },
   { value: "task", label: "Tarefa (pode ficar sem data)" },
+  { value: "study", label: "Sessão de estudo" },
   { value: "bill", label: "Conta / boleto avulso" },
   { value: "other", label: "Outro" },
 ];
@@ -90,24 +91,9 @@ export function AgendaBoard({
             trigger="Novo"
             submitLabel="Salvar"
             action={saveAgendaItem}
+            autoOpen="novo"
           >
-            <Field label="O que é">
-              <TextInput name="title" required maxLength={120} placeholder="Ex.: Prova de Estatística, Dentista" />
-            </Field>
-            <Field label="Tipo">
-              <Select name="kind" defaultValue="exam" options={NEW_KINDS} />
-            </Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Data" hint="Só a tarefa pode ficar sem.">
-                <TextInput name="date" type="date" defaultValue={selected ?? undefined} />
-              </Field>
-              <Field label="Hora (opcional)">
-                <TextInput name="time" type="time" />
-              </Field>
-            </div>
-            <Field label="Anotação (opcional)">
-              <TextInput name="notes" maxLength={500} placeholder="Ex.: levar documento, sala 12" />
-            </Field>
+            <NewItemFields date={selected} />
           </FormSheet>
         </div>
         <div className="-mx-1 flex-1 overflow-y-auto px-1 lg:max-h-[34rem]">
@@ -211,5 +197,109 @@ export function AgendaBoard({
         {legend}
       </section>
     </div>
+  );
+}
+
+const REMIND = [
+  { value: "0", label: "Só no dia e na véspera" },
+  { value: "2", label: "2 dias antes" },
+  { value: "3", label: "3 dias antes" },
+  { value: "7", label: "1 semana antes" },
+  { value: "14", label: "2 semanas antes" },
+];
+
+// Campos do "Novo": mudam conforme o tipo (tarefa pode ficar sem data; prova pode ganhar sessões de estudo).
+function NewItemFields({ date }: { date: string | null }) {
+  const [kind, setKind] = useState("exam");
+  const [repeat, setRepeat] = useState("none");
+  const isTask = kind === "task";
+  return (
+    <>
+      <Field label="O que é">
+        <TextInput name="title" required maxLength={120} placeholder="Ex.: Prova de Estatística, Dentista" />
+      </Field>
+      <Field label="Tipo">
+        <select name="kind" value={kind} onChange={(e) => setKind(e.target.value)} className={inputClass}>
+          {NEW_KINDS.map((o) => (
+            <option key={o.value} value={o.value} className="bg-[#0d1126]">
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Data" hint={isTask ? "Pode ficar sem." : undefined}>
+          <TextInput name="date" type="date" required={!isTask} defaultValue={date ?? undefined} />
+        </Field>
+        {!isTask ? (
+          <Field label="Hora (opcional)">
+            <TextInput name="time" type="time" />
+          </Field>
+        ) : (
+          <Field label="Prioridade">
+            <Select
+              name="priority"
+              defaultValue="2"
+              options={[
+                { value: "1", label: "Alta" },
+                { value: "2", label: "Média" },
+                { value: "3", label: "Baixa" },
+              ]}
+            />
+          </Field>
+        )}
+      </div>
+      {!isTask ? (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Repete?">
+              <select name="repeat" value={repeat} onChange={(e) => setRepeat(e.target.value)} className={inputClass}>
+                <option value="none" className="bg-[#0d1126]">
+                  Não
+                </option>
+                <option value="weekly" className="bg-[#0d1126]">
+                  Toda semana
+                </option>
+                <option value="biweekly" className="bg-[#0d1126]">
+                  A cada 2 semanas
+                </option>
+                <option value="monthly" className="bg-[#0d1126]">
+                  Todo mês
+                </option>
+              </select>
+            </Field>
+            {repeat !== "none" ? (
+              <Field label="Até quando">
+                <TextInput name="repeat_until" type="date" required />
+              </Field>
+            ) : (
+              <Field label="Me avisar">
+                <Select key={kind} name="remind_days" defaultValue={kind === "exam" ? "3" : "0"} options={REMIND} />
+              </Field>
+            )}
+          </div>
+          {repeat !== "none" ? (
+            <Field label="Me avisar">
+              <Select name="remind_days" defaultValue="0" options={REMIND} />
+            </Field>
+          ) : null}
+          {kind === "exam" && repeat === "none" ? (
+            <Field label="Sessões de estudo antes da prova" hint="O Orbit espalha nos dias livres até a véspera.">
+              <Select
+                name="study_sessions"
+                defaultValue="0"
+                options={[0, 1, 2, 3, 4, 5, 6, 8].map((n) => ({
+                  value: String(n),
+                  label: n === 0 ? "Nenhuma" : `${n} ${n === 1 ? "sessão" : "sessões"}`,
+                }))}
+              />
+            </Field>
+          ) : null}
+          <Field label="Anotação (opcional)">
+            <TextInput name="notes" maxLength={500} placeholder="Ex.: levar documento, sala 12" />
+          </Field>
+        </>
+      ) : null}
+    </>
   );
 }

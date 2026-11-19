@@ -1,4 +1,5 @@
 import { PiggyBank, Target } from "lucide-react";
+import { DeleteButton } from "@/components/undo";
 import { EditGoal } from "@/components/edit-forms";
 import { EmptyState } from "@/components/empty-state";
 import { Field, MoneyInput, Select, TextInput } from "@/components/fields";
@@ -61,9 +62,6 @@ export default async function GoalsPage() {
         {f.goals.map((g) => {
           const pct = Math.min(100, Math.max(0, (g.savedCents / g.targetCents) * 100));
           const missing = Math.max(0, g.targetCents - g.savedCents);
-          const monthsLeft = g.targetDate
-            ? Math.max(1, Math.ceil(diffInDays(f.today, fromISODate(g.targetDate)) / 30))
-            : null;
           return (
             <li key={g.id} className="glass rounded-[1.75rem] p-5">
               <div className="flex items-start justify-between gap-3">
@@ -78,23 +76,25 @@ export default async function GoalsPage() {
                 </div>
                 <div className="flex items-center gap-1">
                   <EditGoal goal={g} />
-                  <form action={archiveGoal}>
-                    <input type="hidden" name="id" value={g.id} />
-                    <button type="submit" className="text-xs text-ink-soft hover:text-loss">
-                      Arquivar
-                    </button>
-                  </form>
+                  <DeleteButton
+                    action={archiveGoal}
+                    fields={{ id: g.id }}
+                    label={`Arquivar ${g.name}`}
+                    variant="text"
+                    text="Arquivar"
+                  />
                 </div>
               </div>
               <p className="font-display metal-text mt-4 text-3xl font-bold">{formatCents(g.savedCents)}</p>
               <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/[0.07]">
                 <div className="grad-sun h-full rounded-full" style={{ width: `${pct}%` }} />
               </div>
-              <p className="mt-2 text-[13px] text-ink-soft">
-                {missing === 0
-                  ? "Meta alcançada."
-                  : `Faltam ${formatCents(missing)}${monthsLeft ? `: cerca de ${formatCents(Math.ceil(missing / monthsLeft))} por mês` : ""}.`}
-              </p>
+              <GoalPlan
+                missing={missing}
+                targetDate={g.targetDate}
+                daysLeft={g.targetDate ? diffInDays(f.today, fromISODate(g.targetDate)) : null}
+                freeCents={f.summary.freeCents}
+              />
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <FormSheet
                   title={`Guardar em ${g.name}`}
@@ -124,6 +124,55 @@ export default async function GoalsPage() {
           );
         })}
       </ul>
+    </div>
+  );
+}
+
+// Diz quanto guardar por mês e por semana para chegar no prazo.
+function GoalPlan({
+  missing,
+  targetDate,
+  daysLeft,
+  freeCents,
+}: {
+  missing: number;
+  targetDate: string | null;
+  daysLeft: number | null;
+  freeCents: number;
+}) {
+  if (missing === 0) return <p className="mt-2 text-[13px] font-semibold text-gain">Meta alcançada.</p>;
+  if (!targetDate || daysLeft === null) {
+    return (
+      <p className="mt-2 text-[13px] text-ink-soft">
+        Faltam {formatCents(missing)}. Coloque um “até quando” no lápis para o Orbit dizer quanto guardar.
+      </p>
+    );
+  }
+  if (daysLeft < 0) {
+    return (
+      <p className="mt-2 text-[13px] text-loss">
+        O prazo passou e faltam {formatCents(missing)}. Mude a data no lápis para recalcular.
+      </p>
+    );
+  }
+  const weeks = Math.max(1, Math.ceil((daysLeft + 1) / 7));
+  const months = Math.max(1, Math.ceil((daysLeft + 1) / 30.4));
+  const perMonth = Math.ceil(missing / months);
+  const perWeek = Math.ceil(missing / weeks);
+  const tight = perMonth > Math.max(0, freeCents);
+  return (
+    <div className="mt-3 rounded-2xl bg-white/[0.04] p-3 text-[13px]">
+      <p className="text-ink-soft">
+        Faltam <strong className="text-ink">{formatCents(missing)}</strong> em {daysLeft}{" "}
+        {daysLeft === 1 ? "dia" : "dias"}.
+      </p>
+      <p className="mt-1">
+        Guarde <strong className="text-sun">{formatCents(perMonth)} por mês</strong> ou{" "}
+        <strong className="text-sun">{formatCents(perWeek)} por semana</strong>.
+      </p>
+      {tight ? (
+        <p className="mt-1 text-loss">É mais do que você tem livre neste ciclo. Talvez valha esticar o prazo.</p>
+      ) : null}
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { createPortal } from "react-dom";
 import { Pencil, Plus, X } from "lucide-react";
+import { useAutoOpen } from "./use-auto-open";
 import type { FormState } from "@/app/app/actions";
 
 type Action = (prev: FormState, fd: FormData) => Promise<FormState>;
@@ -16,6 +17,7 @@ export function FormSheet({
   children,
   hidden,
   variant = "primary",
+  autoOpen,
 }: {
   title: string;
   trigger: string;
@@ -24,8 +26,10 @@ export function FormSheet({
   children: React.ReactNode;
   hidden?: Record<string, string>;
   variant?: "primary" | "glass" | "link" | "edit";
+  autoOpen?: string;
 }) {
   const [open, setOpen] = useState(false);
+  useAutoOpen(autoOpen, () => setOpen(true));
   const [state, formAction, pending] = useActionState<FormState, FormData>(
     async (prev, fd) => {
       const result = await action(prev, fd);

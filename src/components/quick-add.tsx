@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useAutoOpen } from "./use-auto-open";
 import { createPortal } from "react-dom";
 import { ArrowDownLeft, ArrowUpRight, Plus, X } from "lucide-react";
 import { addMovement, type MovementFormState } from "@/app/app/actions";
@@ -32,6 +33,7 @@ export function QuickAdd({
   variant: "fab" | "expense" | "income" | "sidebar";
 }) {
   const [open, setOpen] = useState(false);
+  useAutoOpen(variant === "fab" ? "gasto" : undefined, () => setOpen(true));
   const [kind, setKind] = useState<Kind>(variant === "income" ? "income" : "expense");
   const [categoryId, setCategoryId] = useState<string>("");
   const [method, setMethod] = useState<string>("pix");

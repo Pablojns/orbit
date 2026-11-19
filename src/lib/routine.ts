@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { OWNER_ID } from "@/lib/owner";
+import { billShare } from "@/lib/finance";
 import { firstOfMonthISO, monthlyOccurrences, statementDueDate } from "@/lib/schedule";
 import {
   addDays,
@@ -16,13 +17,30 @@ import {
 export type AgendaEvent = {
   id: string;
   title: string;
-  kind: "exam" | "appointment" | "deadline" | "bill" | "other";
+  kind: "exam" | "appointment" | "deadline" | "bill" | "other" | "study";
   date: string; // AAAA-MM-DD no fuso de São Paulo
   time: string | null; // HH:MM
   notes: string | null;
   done: boolean;
   daysLeft: number;
+  seriesId: string | null;
+  remindDays: number;
 };
+
+export type ChecklistItem = { id: string; text: string; done: boolean };
+
+// Passos (checklist) de provas e tarefas, agrupados pelo item dono.
+export async function getChecklists() {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("checklist_items")
+    .select("id, parent_id, text, done")
+    .eq("user_id", OWNER_ID)
+    .order("created_at");
+  const map: Record<string, ChecklistItem[]> = {};
+  for (const r of data ?? []) (map[r.parent_id] ??= []).push({ id: r.id, text: r.text, done: r.done });
+  return map;
+}
 
 export type Task = { id: string; title: string; priority: number; dueOn: string | null; done: boolean };
 
@@ -49,7 +67,7 @@ export async function getAgenda(today: CalendarDate = todayInSaoPaulo()) {
   const [events, tasks] = await Promise.all([
     supabase
       .from("events")
-      .select("id, title, kind, starts_at, all_day, notes, done_at")
+      .select("id, title, kind, starts_at, all_day, notes, done_at, series_id, remind_days")
       .eq("user_id", OWNER_ID)
       .gte("starts_at", `${from}T00:00:00-03:00`)
       .order("starts_at"),
@@ -73,6 +91,8 @@ export async function getAgenda(today: CalendarDate = todayInSaoPaulo()) {
       notes: e.notes,
       done: Boolean(e.done_at),
       daysLeft: diffInDays(today, fromISODate(date)),
+      seriesId: e.series_id,
+      remindDays: e.remind_days ?? 0,
     };
   });
 
@@ -143,7 +163,7 @@ export type CalendarItem = {
   date: string; // AAAA-MM-DD
   time: string | null;
   title: string;
-  kind: "exam" | "appointment" | "deadline" | "bill" | "other" | "fixed_bill" | "statement" | "task";
+  kind: "exam" | "appointment" | "deadline" | "bill" | "other" | "study" | "fixed_bill" | "statement" | "task";
   amountCents?: number;
   done: boolean;
   event?: AgendaEvent; // presente quando é um prazo editável
@@ -160,14 +180,14 @@ export async function getAgendaMonth(year: number, month: number, today: Calenda
   const [events, bills, billPays, inst, cards, payments, tasks] = await Promise.all([
     supabase
       .from("events")
-      .select("id, title, kind, starts_at, all_day, notes, done_at")
+      .select("id, title, kind, starts_at, all_day, notes, done_at, series_id, remind_days")
       .eq("user_id", OWNER_ID)
       .gte("starts_at", `${startISO}T00:00:00-03:00`)
       .lte("starts_at", `${endISO}T23:59:59-03:00`)
       .order("starts_at"),
     supabase
       .from("bills")
-      .select("id, name, amount_cents, due_day, starts_on, ends_on")
+      .select("id, name, amount_cents, due_day, starts_on, ends_on, split, my_share_cents")
       .eq("user_id", OWNER_ID)
       .eq("is_active", true),
     supabase.from("bill_payments").select("bill_id").eq("user_id", OWNER_ID).eq("reference_month", monthISO),
@@ -208,6 +228,8 @@ export async function getAgendaMonth(year: number, month: number, today: Calenda
       notes: e.notes,
       done: Boolean(e.done_at),
       daysLeft: diffInDays(today, fromISODate(date)),
+      seriesId: e.series_id,
+      remindDays: e.remind_days ?? 0,
     };
     items.push({ key: `e-${e.id}`, date, time: ev.time, title: e.title, kind: e.kind, done: ev.done, event: ev });
   }
@@ -223,7 +245,11 @@ export async function getAgendaMonth(year: number, month: number, today: Calenda
         time: null,
         title: b.name,
         kind: "fixed_bill",
-        amountCents: Number(b.amount_cents),
+        amountCents: billShare(
+          Number(b.amount_cents),
+          b.split,
+          b.my_share_cents === null ? null : Number(b.my_share_cents),
+        ),
         done: paid.has(b.id),
       });
     }

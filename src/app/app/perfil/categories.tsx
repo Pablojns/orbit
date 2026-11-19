@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { DeleteButton } from "@/components/undo";
 import { archiveCategory, saveCategory } from "@/app/app/actions";
 import { CATEGORY_ICON_NAMES, CategoryIcon } from "@/components/category-icon";
 import { Field, Select, TextInput } from "@/components/fields";
@@ -12,16 +12,7 @@ function Chips({ list }: { list: Category[] }) {
         <li key={c.id} className="flex items-center gap-2 rounded-full bg-white/[0.05] py-1.5 pr-1.5 pl-3 text-sm">
           <CategoryIcon name={c.icon ?? "circle"} size={15} />
           {c.name}
-          <form action={archiveCategory}>
-            <input type="hidden" name="id" value={c.id} />
-            <button
-              type="submit"
-              aria-label={`Remover categoria ${c.name}`}
-              className="grid h-6 w-6 place-items-center rounded-full text-ink-soft hover:bg-loss/15 hover:text-loss"
-            >
-              <X size={13} aria-hidden />
-            </button>
-          </form>
+          <DeleteButton action={archiveCategory} fields={{ id: c.id }} label={`Remover categoria ${c.name}`} />
         </li>
       ))}
     </ul>

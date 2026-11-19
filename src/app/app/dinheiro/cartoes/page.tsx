@@ -1,4 +1,5 @@
 import { CreditCard } from "lucide-react";
+import { DeleteButton } from "@/components/undo";
 import { EditCard } from "@/components/edit-forms";
 import { EmptyState } from "@/components/empty-state";
 import { DaySelect, Field, MoneyInput, TextInput } from "@/components/fields";
@@ -80,12 +81,12 @@ export default async function CardsPage() {
                 </div>
                 <div className="flex items-center gap-1">
                   <EditCard card={card} />
-                  <form action={archiveCard}>
-                    <input type="hidden" name="id" value={card.id} />
-                    <button type="submit" className="text-xs text-white/60 hover:text-white">
-                      Remover
-                    </button>
-                  </form>
+                  <DeleteButton
+                    action={archiveCard}
+                    fields={{ id: card.id }}
+                    label={`Remover cartão ${card.name}`}
+                    variant="text"
+                  />
                 </div>
               </div>
               <p className="relative mt-5 text-xs text-white/70">Fatura aberta</p>

@@ -1,5 +1,5 @@
 // Campos de formulário no estilo do app (sem estado; funcionam em qualquer formulário).
-const input =
+export const inputClass =
   "mt-1.5 w-full rounded-2xl border border-line bg-white/[0.04] px-4 py-3 text-base text-ink outline-none placeholder:text-white/25 focus:border-cobalt";
 
 export function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
@@ -13,21 +13,21 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
 }
 
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={input} />;
+  return <input {...props} className={inputClass} />;
 }
 
 export function MoneyInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <div className="relative">
       <span className="pointer-events-none absolute top-[calc(50%+3px)] left-4 -translate-y-1/2 text-ink-soft">R$</span>
-      <input inputMode="decimal" autoComplete="off" placeholder="0,00" {...props} className={`${input} pl-11`} />
+      <input inputMode="decimal" autoComplete="off" placeholder="0,00" {...props} className={`${inputClass} pl-11`} />
     </div>
   );
 }
 
 export function DaySelect({ name, defaultValue }: { name: string; defaultValue?: number }) {
   return (
-    <select name={name} defaultValue={defaultValue ?? 10} className={input}>
+    <select name={name} defaultValue={defaultValue ?? 10} className={inputClass}>
       {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
         <option key={d} value={d} className="bg-[#0d1126]">
           Dia {d}
@@ -47,7 +47,7 @@ export function Select({
   defaultValue?: string;
 }) {
   return (
-    <select name={name} defaultValue={defaultValue} className={input}>
+    <select name={name} defaultValue={defaultValue} className={inputClass}>
       {options.map((o) => (
         <option key={o.value} value={o.value} className="bg-[#0d1126]">
           {o.label}

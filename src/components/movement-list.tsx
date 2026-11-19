@@ -1,4 +1,4 @@
-import { Trash2 } from "lucide-react";
+import { DeleteButton } from "@/components/undo";
 import { deleteMovement } from "@/app/app/actions";
 import { formatDayLabel, type CalendarDate } from "@/lib/dates";
 import type { Movement } from "@/lib/finance";
@@ -55,17 +55,7 @@ export function MovementRow({
       </p>
       {edit}
       {deletable ? (
-        <form action={deleteMovement}>
-          <input type="hidden" name="id" value={m.id} />
-          <input type="hidden" name="source" value={m.source} />
-          <button
-            type="submit"
-            aria-label={`Excluir ${title}`}
-            className="grid h-9 w-9 place-items-center rounded-full text-ink-soft hover:bg-white/[0.06] hover:text-loss"
-          >
-            <Trash2 size={16} aria-hidden />
-          </button>
-        </form>
+        <DeleteButton action={deleteMovement} fields={{ id: m.id, source: m.source }} label={`Excluir ${title}`} />
       ) : null}
     </li>
   );

@@ -17,6 +17,9 @@ async function currentCycleStartISO() {
 }
 
 export type FormState = { status: "idle" | "saved" | "error"; message?: string };
+export type UndoResult = { trashId: string; message: string };
+
+const EVENT_KINDS = new Set(["exam", "appointment", "deadline", "bill", "other", "study"]);
 export type MovementFormState = FormState;
 
 const PAYMENT_METHODS = new Set(["cash", "debit", "pix", "transfer", "other"]);
@@ -115,13 +118,32 @@ export async function addMovement(_prev: FormState, fd: FormData): Promise<FormS
   return ok(type === "expense" ? "Gasto salvo." : "Entrada salva.");
 }
 
-export async function deleteMovement(fd: FormData) {
+export async function deleteMovement(fd: FormData): Promise<UndoResult | void> {
   const id = optUuid(str(fd, "id"));
   if (!id) return;
-  const table = str(fd, "source") === "card_purchase" ? "card_purchases" : "transactions";
   const supabase = await db();
-  await supabase.from(table).delete().eq("id", id).eq("user_id", OWNER_ID);
-  revalidatePath("/app", "layout");
+  if (str(fd, "source") === "card_purchase") {
+    const [{ data: purchase }, { data: inst }] = await Promise.all([
+      supabase.from("card_purchases").select("*").eq("id", id).eq("user_id", OWNER_ID),
+      supabase.from("installments").select("*").eq("purchase_id", id).eq("user_id", OWNER_ID),
+    ]);
+    if (!purchase?.length) return;
+    return deleteWithUndo(
+      [
+        { table: "card_purchases", rows: purchase },
+        { table: "installments", rows: inst ?? [] },
+      ],
+      () => supabase.from("card_purchases").delete().eq("id", id).eq("user_id", OWNER_ID),
+      "Compra apagada.",
+    );
+  }
+  const { data: rows } = await supabase.from("transactions").select("*").eq("id", id).eq("user_id", OWNER_ID);
+  if (!rows?.length) return;
+  return deleteWithUndo(
+    [{ table: "transactions", rows }],
+    () => supabase.from("transactions").delete().eq("id", id).eq("user_id", OWNER_ID),
+    "Lançamento apagado.",
+  );
 }
 
 // ---------- cartões --------------------------------------------------
@@ -143,12 +165,8 @@ export async function saveCard(_prev: FormState, fd: FormData): Promise<FormStat
   return ok("Cartão salvo.");
 }
 
-export async function archiveCard(fd: FormData) {
-  const id = optUuid(str(fd, "id"));
-  if (!id) return;
-  const supabase = await db();
-  await supabase.from("credit_cards").update({ is_archived: true }).eq("id", id).eq("user_id", OWNER_ID);
-  revalidatePath("/app", "layout");
+export async function archiveCard(fd: FormData): Promise<UndoResult | void> {
+  return archiveWithUndo(fd, "credit_cards", "is_archived", true, "Cartão removido.");
 }
 
 export async function payStatement(fd: FormData) {
@@ -179,6 +197,23 @@ export async function unpayStatement(fd: FormData) {
 
 // ---------- contas fixas --------------------------------------------
 
+function billExtras(fd: FormData, amount: number) {
+  const split = ["half", "fixed"].includes(str(fd, "split")) ? str(fd, "split") : "none";
+  const share = parseToCents(str(fd, "my_share"));
+  const code = str(fd, "payment_code").replace(/\s+/g, " ").slice(0, 400);
+  if (split === "fixed" && (!share || share <= 0 || share >= amount)) {
+    return { error: "Sua parte precisa ser maior que zero e menor que o total." } as const;
+  }
+  return {
+    values: {
+      split,
+      my_share_cents: split === "fixed" ? share : null,
+      is_subscription: str(fd, "is_subscription") === "on",
+      payment_code: code || null,
+    },
+  } as const;
+}
+
 export async function saveBill(_prev: FormState, fd: FormData): Promise<FormState> {
   const name = str(fd, "name").slice(0, 60);
   const amount = parseToCents(str(fd, "amount"));
@@ -187,6 +222,8 @@ export async function saveBill(_prev: FormState, fd: FormData): Promise<FormStat
   if (!name) return fail("Dê um nome à conta, como Luz.");
   if (!amount || amount <= 0) return fail("Digite o valor da conta.");
   if (!due) return fail("Informe o dia de vencimento.");
+  const extra = billExtras(fd, amount);
+  if ("error" in extra) return fail(extra.error!);
   const supabase = await db();
   const { error } = await supabase.from("bills").insert({
     user_id: OWNER_ID,
@@ -196,17 +233,14 @@ export async function saveBill(_prev: FormState, fd: FormData): Promise<FormStat
     category_id: optUuid(str(fd, "category_id")),
     starts_on: await currentCycleStartISO(),
     ends_on: ISO_DATE.test(endsOn) ? endsOn : null,
+    ...extra.values,
   });
   if (error) return fail("Não foi possível salvar a conta.");
   return ok("Conta salva.");
 }
 
-export async function archiveBill(fd: FormData) {
-  const id = optUuid(str(fd, "id"));
-  if (!id) return;
-  const supabase = await db();
-  await supabase.from("bills").update({ is_active: false }).eq("id", id).eq("user_id", OWNER_ID);
-  revalidatePath("/app", "layout");
+export async function archiveBill(fd: FormData): Promise<UndoResult | void> {
+  return archiveWithUndo(fd, "bills", "is_active", false, "Conta removida.");
 }
 
 export async function toggleBillPaid(fd: FormData) {
@@ -253,12 +287,8 @@ export async function saveIncome(_prev: FormState, fd: FormData): Promise<FormSt
   return ok("Entrada fixa salva.");
 }
 
-export async function archiveIncome(fd: FormData) {
-  const id = optUuid(str(fd, "id"));
-  if (!id) return;
-  const supabase = await db();
-  await supabase.from("recurring_incomes").update({ is_active: false }).eq("id", id).eq("user_id", OWNER_ID);
-  revalidatePath("/app", "layout");
+export async function archiveIncome(fd: FormData): Promise<UndoResult | void> {
+  return archiveWithUndo(fd, "recurring_incomes", "is_active", false, "Entrada removida.");
 }
 
 export async function receiveIncome(fd: FormData) {
@@ -331,12 +361,8 @@ export async function contributeGoal(_prev: FormState, fd: FormData): Promise<Fo
   return ok(withdraw ? "Retirada registrada." : "Valor guardado.");
 }
 
-export async function archiveGoal(fd: FormData) {
-  const id = optUuid(str(fd, "id"));
-  if (!id) return;
-  const supabase = await db();
-  await supabase.from("goals").update({ is_archived: true }).eq("id", id).eq("user_id", OWNER_ID);
-  revalidatePath("/app", "layout");
+export async function archiveGoal(fd: FormData): Promise<UndoResult | void> {
+  return archiveWithUndo(fd, "goals", "is_archived", true, "Meta arquivada.");
 }
 
 // ---------- agenda e tarefas ----------------------------------------
@@ -345,24 +371,56 @@ export async function saveEvent(_prev: FormState, fd: FormData): Promise<FormSta
   const title = str(fd, "title").slice(0, 80);
   const date = str(fd, "date");
   const time = str(fd, "time");
-  const kind = ["exam", "appointment", "deadline", "bill", "other"].includes(str(fd, "kind"))
-    ? str(fd, "kind")
-    : "other";
+  const kind = EVENT_KINDS.has(str(fd, "kind")) ? str(fd, "kind") : "other";
+  const repeat = str(fd, "repeat");
+  const until = str(fd, "repeat_until");
+  const remind = Math.min(30, Math.max(0, Number(str(fd, "remind_days")) || 0));
+  const sessions = kind === "exam" ? Math.min(8, Math.max(0, Number(str(fd, "study_sessions")) || 0)) : 0;
   if (!title) return fail("Escreva o que é, como Prova de Estatística.");
   if (!ISO_DATE.test(date)) return fail("Escolha a data.");
   const hasTime = /^\d{2}:\d{2}$/.test(time);
-  const startsAt = `${date}T${hasTime ? time : "12:00"}:00-03:00`;
+
+  let dates = [date];
+  if (repeat === "weekly" || repeat === "biweekly" || repeat === "monthly") {
+    if (!ISO_DATE.test(until) || until < date) return fail("Diga até quando repete.");
+    dates = repeatDates(date, repeat, until);
+    if (dates.length > 60) return fail("Repetição longa demais: no máximo 60 vezes. Diminua o “até quando”.");
+  }
+
   const supabase = await db();
-  const { error } = await supabase.from("events").insert({
+  const seriesId = dates.length > 1 || sessions > 0 ? crypto.randomUUID() : null;
+  const rows: Record<string, unknown>[] = dates.map((d) => ({
     user_id: OWNER_ID,
     title,
     kind,
-    starts_at: startsAt,
+    starts_at: `${d}T${hasTime ? time : "12:00"}:00-03:00`,
     all_day: !hasTime,
     notes: str(fd, "notes").slice(0, 500) || null,
-  });
+    remind_days: remind,
+    series_id: seriesId,
+  }));
+
+  if (sessions > 0) {
+    const studyDays = await pickStudyDays(supabase, date, sessions);
+    for (const d of studyDays) {
+      rows.push({
+        user_id: OWNER_ID,
+        title: `Estudar: ${title}`.slice(0, 80),
+        kind: "study",
+        starts_at: `${d}T12:00:00-03:00`,
+        all_day: true,
+        notes: null,
+        remind_days: 0,
+        series_id: seriesId,
+      });
+    }
+  }
+
+  const { error } = await supabase.from("events").insert(rows);
   if (error) return fail("Não foi possível salvar.");
-  return ok("Prazo salvo.");
+  if (dates.length > 1) return ok(`${dates.length} datas salvas.`);
+  if (sessions > 0) return ok(`Prova salva com ${rows.length - 1} sessões de estudo.`);
+  return ok("Salvo na agenda.");
 }
 
 export async function toggleEventDone(fd: FormData) {
@@ -377,12 +435,40 @@ export async function toggleEventDone(fd: FormData) {
   revalidatePath("/app", "layout");
 }
 
-export async function deleteEvent(fd: FormData) {
+export async function deleteEvent(fd: FormData): Promise<UndoResult | void> {
   const id = optUuid(str(fd, "id"));
   if (!id) return;
   const supabase = await db();
-  await supabase.from("events").delete().eq("id", id).eq("user_id", OWNER_ID);
-  revalidatePath("/app", "layout");
+  const whole = str(fd, "series") === "all";
+  const { data: ev } = await supabase.from("events").select("*").eq("id", id).eq("user_id", OWNER_ID).maybeSingle();
+  if (!ev) return;
+  const { data: rows } =
+    whole && ev.series_id
+      ? await supabase.from("events").select("*").eq("series_id", ev.series_id).eq("user_id", OWNER_ID)
+      : { data: [ev] };
+  const ids = (rows ?? []).map((r) => r.id);
+  const { data: checks } = await supabase
+    .from("checklist_items")
+    .select("*")
+    .eq("parent_type", "event")
+    .in("parent_id", ids)
+    .eq("user_id", OWNER_ID);
+  return deleteWithUndo(
+    [
+      { table: "events", rows: rows ?? [] },
+      { table: "checklist_items", rows: checks ?? [] },
+    ],
+    async () => {
+      await supabase
+        .from("checklist_items")
+        .delete()
+        .eq("parent_type", "event")
+        .in("parent_id", ids)
+        .eq("user_id", OWNER_ID);
+      return supabase.from("events").delete().in("id", ids).eq("user_id", OWNER_ID);
+    },
+    ids.length > 1 ? `${ids.length} itens apagados.` : "Item apagado.",
+  );
 }
 
 export async function saveTask(_prev: FormState, fd: FormData): Promise<FormState> {
@@ -410,12 +496,31 @@ export async function toggleTask(fd: FormData) {
   revalidatePath("/app", "layout");
 }
 
-export async function deleteTask(fd: FormData) {
+export async function deleteTask(fd: FormData): Promise<UndoResult | void> {
   const id = optUuid(str(fd, "id"));
   if (!id) return;
   const supabase = await db();
-  await supabase.from("tasks").delete().eq("id", id).eq("user_id", OWNER_ID);
-  revalidatePath("/app", "layout");
+  const [{ data: rows }, { data: checks }] = await Promise.all([
+    supabase.from("tasks").select("*").eq("id", id).eq("user_id", OWNER_ID),
+    supabase.from("checklist_items").select("*").eq("parent_type", "task").eq("parent_id", id).eq("user_id", OWNER_ID),
+  ]);
+  if (!rows?.length) return;
+  return deleteWithUndo(
+    [
+      { table: "tasks", rows },
+      { table: "checklist_items", rows: checks ?? [] },
+    ],
+    async () => {
+      await supabase
+        .from("checklist_items")
+        .delete()
+        .eq("parent_type", "task")
+        .eq("parent_id", id)
+        .eq("user_id", OWNER_ID);
+      return supabase.from("tasks").delete().eq("id", id).eq("user_id", OWNER_ID);
+    },
+    "Tarefa apagada.",
+  );
 }
 
 // ---------- hábitos --------------------------------------------------
@@ -443,12 +548,8 @@ export async function toggleHabit(fd: FormData) {
   revalidatePath("/app", "layout");
 }
 
-export async function archiveHabit(fd: FormData) {
-  const id = optUuid(str(fd, "id"));
-  if (!id) return;
-  const supabase = await db();
-  await supabase.from("habits").update({ is_archived: true }).eq("id", id).eq("user_id", OWNER_ID);
-  revalidatePath("/app", "layout");
+export async function archiveHabit(fd: FormData): Promise<UndoResult | void> {
+  return archiveWithUndo(fd, "habits", "is_archived", true, "Hábito arquivado.");
 }
 
 // ---------- primeiros passos ----------------------------------------
@@ -602,6 +703,8 @@ export async function updateBill(_prev: FormState, fd: FormData): Promise<FormSt
   if (!name) return fail("Dê um nome à conta.");
   if (!amount || amount <= 0) return fail("Digite o valor.");
   if (!due) return fail("Informe o vencimento.");
+  const extra = billExtras(fd, amount);
+  if ("error" in extra) return fail(extra.error!);
   const supabase = await db();
   const { error } = await supabase
     .from("bills")
@@ -611,6 +714,7 @@ export async function updateBill(_prev: FormState, fd: FormData): Promise<FormSt
       due_day: due,
       category_id: optUuid(str(fd, "category_id")),
       ends_on: ISO_DATE.test(endsOn) ? endsOn : null,
+      ...extra.values,
     })
     .eq("id", id)
     .eq("user_id", OWNER_ID);
@@ -677,10 +781,9 @@ export async function updateEvent(_prev: FormState, fd: FormData): Promise<FormS
   const title = str(fd, "title").slice(0, 80);
   const date = str(fd, "date");
   const time = str(fd, "time");
-  const kind = ["exam", "appointment", "deadline", "bill", "other"].includes(str(fd, "kind"))
-    ? str(fd, "kind")
-    : "other";
-  if (!id) return fail("Prazo inválido.");
+  const kind = EVENT_KINDS.has(str(fd, "kind")) ? str(fd, "kind") : "other";
+  const remind = Math.min(30, Math.max(0, Number(str(fd, "remind_days")) || 0));
+  if (!id) return fail("Item inválido.");
   if (!title) return fail("Escreva o que é.");
   if (!ISO_DATE.test(date)) return fail("Escolha a data.");
   const hasTime = /^\d{2}:\d{2}$/.test(time);
@@ -693,11 +796,12 @@ export async function updateEvent(_prev: FormState, fd: FormData): Promise<FormS
       starts_at: `${date}T${hasTime ? time : "12:00"}:00-03:00`,
       all_day: !hasTime,
       notes: str(fd, "notes").slice(0, 500) || null,
+      remind_days: remind,
     })
     .eq("id", id)
     .eq("user_id", OWNER_ID);
   if (error) return fail("Não foi possível salvar.");
-  return ok("Prazo atualizado.");
+  return ok("Atualizado.");
 }
 
 export async function updateTask(_prev: FormState, fd: FormData): Promise<FormState> {
@@ -773,12 +877,8 @@ export async function saveCategory(_prev: FormState, fd: FormData): Promise<Form
   return ok("Categoria criada.");
 }
 
-export async function archiveCategory(fd: FormData) {
-  const id = optUuid(str(fd, "id"));
-  if (!id) return;
-  const supabase = await db();
-  await supabase.from("categories").update({ is_archived: true }).eq("id", id).eq("user_id", OWNER_ID);
-  revalidatePath("/app", "layout");
+export async function archiveCategory(fd: FormData): Promise<UndoResult | void> {
+  return archiveWithUndo(fd, "categories", "is_archived", true, "Categoria removida.");
 }
 
 // =====================================================================
@@ -811,4 +911,395 @@ export async function saveAgendaItem(prev: FormState, fd: FormData): Promise<For
     return saveTask(prev, fd);
   }
   return saveEvent(prev, fd);
+}
+
+// ---------- desfazer ------------------------------------------------------
+
+type TrashOp =
+  | { t: "insert"; table: string; rows: Record<string, unknown>[] }
+  | { t: "update"; table: string; id: string; patch: Record<string, unknown> };
+
+async function putInTrash(ops: TrashOp[]) {
+  const supabase = await db();
+  // Guarda só o recente: limpa o que tem mais de 1 dia.
+  await supabase
+    .from("trash")
+    .delete()
+    .eq("user_id", OWNER_ID)
+    .lt("created_at", new Date(Date.now() - 86_400_000).toISOString());
+  const { data } = await supabase.from("trash").insert({ user_id: OWNER_ID, payload: { ops } }).select("id").single();
+  return data?.id as string | undefined;
+}
+
+async function deleteWithUndo(
+  groups: { table: string; rows: Record<string, unknown>[] }[],
+  remove: () => PromiseLike<{ error: unknown }>,
+  message: string,
+): Promise<UndoResult | void> {
+  const trashId = await putInTrash(
+    groups.filter((g) => g.rows.length).map((g) => ({ t: "insert" as const, table: g.table, rows: g.rows })),
+  );
+  const { error } = await remove();
+  revalidatePath("/app", "layout");
+  if (error || !trashId) return;
+  return { trashId, message };
+}
+
+async function archiveWithUndo(
+  fd: FormData,
+  table: string,
+  column: string,
+  value: boolean,
+  message: string,
+): Promise<UndoResult | void> {
+  const id = optUuid(str(fd, "id"));
+  if (!id) return;
+  const supabase = await db();
+  const { error } = await supabase
+    .from(table)
+    .update({ [column]: value })
+    .eq("id", id)
+    .eq("user_id", OWNER_ID);
+  revalidatePath("/app", "layout");
+  if (error) return;
+  const trashId = await putInTrash([{ t: "update", table, id, patch: { [column]: !value } }]);
+  return trashId ? { trashId, message } : undefined;
+}
+
+const RESTORABLE = new Set([
+  "transactions",
+  "card_purchases",
+  "installments",
+  "events",
+  "tasks",
+  "checklist_items",
+  "debts",
+  "grades",
+  "subjects",
+  "credit_cards",
+  "bills",
+  "recurring_incomes",
+  "goals",
+  "habits",
+  "categories",
+]);
+
+export async function restoreTrash(trashId: string) {
+  if (!UUID.test(trashId)) return { ok: false };
+  const supabase = await db();
+  const { data } = await supabase
+    .from("trash")
+    .select("payload")
+    .eq("id", trashId)
+    .eq("user_id", OWNER_ID)
+    .maybeSingle();
+  const ops = ((data?.payload as { ops?: TrashOp[] } | null)?.ops ?? []) as TrashOp[];
+  for (const op of ops) {
+    if (!RESTORABLE.has(op.table)) continue;
+    if (op.t === "insert") {
+      const rows = op.rows.map((r) => ({ ...r, user_id: OWNER_ID }));
+      if (rows.length) await supabase.from(op.table).insert(rows);
+    } else if (UUID.test(op.id)) {
+      await supabase.from(op.table).update(op.patch).eq("id", op.id).eq("user_id", OWNER_ID);
+    }
+  }
+  await supabase.from("trash").delete().eq("id", trashId).eq("user_id", OWNER_ID);
+  revalidatePath("/app", "layout");
+  return { ok: true };
+}
+
+// ---------- repetição e plano de estudo -----------------------------------
+
+function addDaysISO(iso: string, n: number) {
+  const d = new Date(`${iso}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+function repeatDates(start: string, repeat: string, until: string) {
+  const out: string[] = [];
+  if (repeat === "monthly") {
+    const [y, m, d] = start.split("-").map(Number);
+    for (let i = 0; i < 61; i++) {
+      const total = m - 1 + i;
+      const yy = y + Math.floor(total / 12);
+      const mm = (total % 12) + 1;
+      const last = new Date(Date.UTC(yy, mm, 0)).getUTCDate();
+      const iso = `${yy}-${String(mm).padStart(2, "0")}-${String(Math.min(d, last)).padStart(2, "0")}`;
+      if (iso > until) break;
+      out.push(iso);
+    }
+    return out;
+  }
+  const step = repeat === "biweekly" ? 14 : 7;
+  for (let iso = start, i = 0; iso <= until && i < 61; iso = addDaysISO(iso, step), i++) out.push(iso);
+  return out;
+}
+
+// Espalha as sessões entre amanhã e a véspera da prova, fugindo dos dias que já têm algo.
+async function pickStudyDays(supabase: Awaited<ReturnType<typeof db>>, examDate: string, n: number) {
+  const first = addDaysISO(todayISO(), 1);
+  const last = addDaysISO(examDate, -1);
+  const days: string[] = [];
+  for (let d = first; d <= last && days.length < 120; d = addDaysISO(d, 1)) days.push(d);
+  if (!days.length) return [];
+  const { data } = await supabase
+    .from("events")
+    .select("starts_at")
+    .eq("user_id", OWNER_ID)
+    .gte("starts_at", `${first}T00:00:00-03:00`)
+    .lte("starts_at", `${last}T23:59:59-03:00`);
+  const busy = new Set(
+    (data ?? []).map((e) =>
+      new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(e.starts_at)),
+    ),
+  );
+  const count = Math.min(n, days.length);
+  const picked: string[] = [];
+  for (let i = 0; i < count; i++) {
+    // posição ideal, espalhada até a véspera
+    const ideal = Math.round(((i + 1) * days.length) / count) - 1;
+    let best = -1;
+    for (let off = 0; off < days.length && best < 0; off++) {
+      for (const j of [ideal - off, ideal + off]) {
+        if (j >= 0 && j < days.length && !picked.includes(days[j]) && !busy.has(days[j])) {
+          best = j;
+          break;
+        }
+      }
+    }
+    if (best < 0) {
+      // todos ocupados: aceita dia ocupado
+      for (let off = 0; off < days.length && best < 0; off++) {
+        for (const j of [ideal - off, ideal + off]) {
+          if (j >= 0 && j < days.length && !picked.includes(days[j])) {
+            best = j;
+            break;
+          }
+        }
+      }
+    }
+    if (best >= 0) picked.push(days[best]);
+  }
+  return picked.sort();
+}
+
+// ---------- checklist dentro de prova ou tarefa ---------------------------
+
+export async function addChecklistItem(fd: FormData) {
+  const parentType = str(fd, "parent_type") === "task" ? "task" : "event";
+  const parentId = optUuid(str(fd, "parent_id"));
+  const text = str(fd, "text").slice(0, 120);
+  if (!parentId || !text) return;
+  const supabase = await db();
+  await supabase
+    .from("checklist_items")
+    .insert({ user_id: OWNER_ID, parent_type: parentType, parent_id: parentId, text });
+  revalidatePath("/app", "layout");
+}
+
+export async function toggleChecklistItem(fd: FormData) {
+  const id = optUuid(str(fd, "id"));
+  if (!id) return;
+  const supabase = await db();
+  await supabase
+    .from("checklist_items")
+    .update({ done: str(fd, "done") !== "true" })
+    .eq("id", id)
+    .eq("user_id", OWNER_ID);
+  revalidatePath("/app", "layout");
+}
+
+export async function deleteChecklistItem(fd: FormData) {
+  const id = optUuid(str(fd, "id"));
+  if (!id) return;
+  const supabase = await db();
+  await supabase.from("checklist_items").delete().eq("id", id).eq("user_id", OWNER_ID);
+  revalidatePath("/app", "layout");
+}
+
+// ---------- quem me deve / quem eu devo -----------------------------------
+
+export async function saveDebt(_prev: FormState, fd: FormData): Promise<FormState> {
+  const person = str(fd, "person").slice(0, 60);
+  const direction = str(fd, "direction") === "i_owe" ? "i_owe" : "owed_to_me";
+  const amount = parseToCents(str(fd, "amount"));
+  const date = str(fd, "occurred_on");
+  if (!person) return fail("Escreva o nome da pessoa.");
+  if (!amount || amount <= 0) return fail("Digite o valor.");
+  const supabase = await db();
+  const { error } = await supabase.from("debts").insert({
+    user_id: OWNER_ID,
+    person,
+    direction,
+    amount_cents: amount,
+    note: str(fd, "note").slice(0, 120) || null,
+    occurred_on: ISO_DATE.test(date) ? date : todayISO(),
+  });
+  if (error) return fail("Não foi possível salvar.");
+  return ok(direction === "i_owe" ? "Anotado: você deve." : "Anotado: te devem.");
+}
+
+export async function updateDebt(_prev: FormState, fd: FormData): Promise<FormState> {
+  const id = optUuid(str(fd, "id"));
+  const person = str(fd, "person").slice(0, 60);
+  const amount = parseToCents(str(fd, "amount"));
+  if (!id) return fail("Item inválido.");
+  if (!person) return fail("Escreva o nome da pessoa.");
+  if (!amount || amount <= 0) return fail("Digite o valor.");
+  const supabase = await db();
+  const { error } = await supabase
+    .from("debts")
+    .update({
+      person,
+      amount_cents: amount,
+      direction: str(fd, "direction") === "i_owe" ? "i_owe" : "owed_to_me",
+      note: str(fd, "note").slice(0, 120) || null,
+    })
+    .eq("id", id)
+    .eq("user_id", OWNER_ID);
+  if (error) return fail("Não foi possível salvar.");
+  return ok("Atualizado.");
+}
+
+export async function settleDebt(fd: FormData) {
+  const id = optUuid(str(fd, "id"));
+  if (!id) return;
+  const supabase = await db();
+  await supabase
+    .from("debts")
+    .update({ settled_at: str(fd, "settled") === "true" ? null : new Date().toISOString() })
+    .eq("id", id)
+    .eq("user_id", OWNER_ID);
+  revalidatePath("/app", "layout");
+}
+
+export async function deleteDebt(fd: FormData): Promise<UndoResult | void> {
+  const id = optUuid(str(fd, "id"));
+  if (!id) return;
+  const supabase = await db();
+  const { data: rows } = await supabase.from("debts").select("*").eq("id", id).eq("user_id", OWNER_ID);
+  if (!rows?.length) return;
+  return deleteWithUndo(
+    [{ table: "debts", rows }],
+    () => supabase.from("debts").delete().eq("id", id).eq("user_id", OWNER_ID),
+    "Apagado.",
+  );
+}
+
+// ---------- notas da faculdade --------------------------------------------
+
+const num = (v: string) => {
+  const n = Number(v.replace(",", "."));
+  return Number.isFinite(n) ? n : null;
+};
+
+export async function saveSubject(_prev: FormState, fd: FormData): Promise<FormState> {
+  const name = str(fd, "name").slice(0, 60);
+  const pass = num(str(fd, "pass_grade")) ?? 6;
+  const max = num(str(fd, "max_grade")) ?? 10;
+  if (!name) return fail("Escreva o nome da matéria.");
+  if (pass <= 0 || max <= 0 || pass > max) return fail("A média para passar precisa ser menor que a nota máxima.");
+  const supabase = await db();
+  const { error } = await supabase
+    .from("subjects")
+    .insert({ user_id: OWNER_ID, name, pass_grade: pass, max_grade: max });
+  if (error) return fail("Não foi possível salvar.");
+  return ok("Matéria criada.");
+}
+
+export async function updateSubject(_prev: FormState, fd: FormData): Promise<FormState> {
+  const id = optUuid(str(fd, "id"));
+  const name = str(fd, "name").slice(0, 60);
+  const pass = num(str(fd, "pass_grade")) ?? 6;
+  const max = num(str(fd, "max_grade")) ?? 10;
+  if (!id) return fail("Matéria inválida.");
+  if (!name) return fail("Escreva o nome da matéria.");
+  if (pass <= 0 || max <= 0 || pass > max) return fail("A média para passar precisa ser menor que a nota máxima.");
+  const supabase = await db();
+  const { error } = await supabase
+    .from("subjects")
+    .update({ name, pass_grade: pass, max_grade: max })
+    .eq("id", id)
+    .eq("user_id", OWNER_ID);
+  if (error) return fail("Não foi possível salvar.");
+  return ok("Matéria atualizada.");
+}
+
+export async function archiveSubject(fd: FormData): Promise<UndoResult | void> {
+  return archiveWithUndo(fd, "subjects", "is_archived", true, "Matéria arquivada.");
+}
+
+export async function saveGrade(_prev: FormState, fd: FormData): Promise<FormState> {
+  const subjectId = optUuid(str(fd, "subject_id"));
+  const label = str(fd, "label").slice(0, 60);
+  const weight = num(str(fd, "weight")) ?? 1;
+  const raw = str(fd, "value");
+  const value = raw ? num(raw) : null;
+  if (!subjectId) return fail("Matéria inválida.");
+  if (!label) return fail("Dê um nome, como Prova 1 ou Trabalho.");
+  if (weight <= 0) return fail("O peso precisa ser maior que zero.");
+  if (raw && (value === null || value < 0)) return fail("Nota inválida.");
+  const supabase = await db();
+  const { error } = await supabase
+    .from("grades")
+    .insert({ user_id: OWNER_ID, subject_id: subjectId, label, weight, value });
+  if (error) return fail("Não foi possível salvar.");
+  return ok(value === null ? "Avaliação adicionada. Lance a nota quando sair." : "Nota lançada.");
+}
+
+export async function updateGrade(_prev: FormState, fd: FormData): Promise<FormState> {
+  const id = optUuid(str(fd, "id"));
+  const label = str(fd, "label").slice(0, 60);
+  const weight = num(str(fd, "weight")) ?? 1;
+  const raw = str(fd, "value");
+  const value = raw ? num(raw) : null;
+  if (!id) return fail("Avaliação inválida.");
+  if (!label) return fail("Dê um nome à avaliação.");
+  if (weight <= 0) return fail("O peso precisa ser maior que zero.");
+  if (raw && (value === null || value < 0)) return fail("Nota inválida.");
+  const supabase = await db();
+  const { error } = await supabase.from("grades").update({ label, weight, value }).eq("id", id).eq("user_id", OWNER_ID);
+  if (error) return fail("Não foi possível salvar.");
+  return ok("Atualizado.");
+}
+
+export async function deleteGrade(fd: FormData): Promise<UndoResult | void> {
+  const id = optUuid(str(fd, "id"));
+  if (!id) return;
+  const supabase = await db();
+  const { data: rows } = await supabase.from("grades").select("*").eq("id", id).eq("user_id", OWNER_ID);
+  if (!rows?.length) return;
+  return deleteWithUndo(
+    [{ table: "grades", rows }],
+    () => supabase.from("grades").delete().eq("id", id).eq("user_id", OWNER_ID),
+    "Avaliação apagada.",
+  );
+}
+
+// ---------- lançar escrevendo uma frase -----------------------------------
+
+export async function quickText(_prev: FormState, fd: FormData): Promise<FormState> {
+  const text = str(fd, "text").slice(0, 160);
+  if (!text) return fail("Escreva algo como: mercado 45 pix");
+  const supabase = await db();
+  const [{ data: cats }, { data: cards }] = await Promise.all([
+    supabase.from("categories").select("id, name, kind").eq("user_id", OWNER_ID).eq("is_archived", false),
+    supabase.from("credit_cards").select("id, name").eq("user_id", OWNER_ID).eq("is_archived", false),
+  ]);
+  const { parseQuickText } = await import("@/lib/quick-parse");
+  const parsed = parseQuickText(text, cats ?? [], cards ?? []);
+  if ("error" in parsed) return fail(parsed.error);
+  const form = new FormData();
+  form.set("type", parsed.type);
+  form.set("amount", (parsed.amountCents / 100).toFixed(2).replace(".", ","));
+  form.set("occurred_on", parsed.date ?? todayISO());
+  if (parsed.categoryId) form.set("category_id", parsed.categoryId);
+  form.set("payment_method", parsed.method);
+  if (parsed.cardId) form.set("card_id", parsed.cardId);
+  form.set("installments", String(parsed.installments));
+  form.set("description", parsed.description);
+  const result = await addMovement({ status: "idle" }, form);
+  if (result.status === "saved") return { status: "saved", message: `${result.message} ${parsed.summary}` };
+  return result;
 }

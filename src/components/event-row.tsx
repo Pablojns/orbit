@@ -1,6 +1,8 @@
-import { BookOpen, CalendarCheck, Check, Clock, FileWarning, Receipt, Trash2 } from "lucide-react";
+import { Bell, BookOpen, CalendarCheck, Check, Clock, FileWarning, GraduationCap, Receipt, Repeat } from "lucide-react";
+import { DeleteButton } from "@/components/undo";
 import { deleteEvent, toggleEventDone } from "@/app/app/actions";
-import type { AgendaEvent } from "@/lib/routine";
+import type { AgendaEvent, ChecklistItem } from "@/lib/routine";
+import { Checklist } from "./checklist";
 import { EditEvent } from "./edit-forms";
 
 export const KIND = {
@@ -9,6 +11,7 @@ export const KIND = {
   deadline: { label: "Entrega", icon: FileWarning },
   bill: { label: "Conta", icon: Receipt },
   other: { label: "Outro", icon: Clock },
+  study: { label: "Estudo", icon: GraduationCap },
 } as const;
 
 export function countdown(days: number) {
@@ -18,7 +21,15 @@ export function countdown(days: number) {
   return days === -1 ? "Ontem" : `Há ${-days} dias`;
 }
 
-export function EventRow({ e, compact }: { e: AgendaEvent; compact?: boolean }) {
+export function EventRow({
+  e,
+  compact,
+  checklist,
+}: {
+  e: AgendaEvent;
+  compact?: boolean;
+  checklist?: ChecklistItem[];
+}) {
   const { icon: Icon, label } = KIND[e.kind];
   const urgent = !e.done && e.daysLeft <= 2;
   const [y, m, d] = e.date.split("-").map(Number);
@@ -32,7 +43,7 @@ export function EventRow({ e, compact }: { e: AgendaEvent; compact?: boolean }) 
     .replace(/\./g, "");
 
   return (
-    <li className="flex items-center gap-2.5 py-3">
+    <li className="flex items-start gap-2.5 py-3">
       <span
         className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${
           e.done ? "bg-gain/15 text-gain" : urgent ? "bg-sun/20 text-sun" : "bg-white/[0.06]"
@@ -53,7 +64,18 @@ export function EventRow({ e, compact }: { e: AgendaEvent; compact?: boolean }) 
           {", "}
           {label.toLowerCase()}, {dateLabel}
           {e.time ? ` às ${e.time}` : ""}
+          {e.seriesId ? (
+            <Repeat size={11} className="ml-1 inline align-[-1px]" aria-label="Faz parte de uma série" />
+          ) : null}
+          {e.remindDays ? (
+            <span className="ml-1 whitespace-nowrap" title={`Aviso ${e.remindDays} dia(s) antes`}>
+              <Bell size={11} className="inline align-[-1px]" aria-hidden /> {e.remindDays}d
+            </span>
+          ) : null}
         </p>
+        {!compact && (e.kind === "exam" || e.kind === "deadline" || (checklist && checklist.length)) ? (
+          <Checklist parentType="event" parentId={e.id} items={checklist ?? []} />
+        ) : null}
       </div>
       {!compact ? (
         <>
@@ -71,16 +93,7 @@ export function EventRow({ e, compact }: { e: AgendaEvent; compact?: boolean }) 
               <Check size={16} strokeWidth={3} aria-hidden />
             </button>
           </form>
-          <form action={deleteEvent}>
-            <input type="hidden" name="id" value={e.id} />
-            <button
-              type="submit"
-              aria-label={`Excluir ${e.title}`}
-              className="grid h-9 w-9 place-items-center rounded-full text-ink-soft hover:text-loss"
-            >
-              <Trash2 size={15} aria-hidden />
-            </button>
-          </form>
+          <DeleteButton action={deleteEvent} fields={{ id: e.id }} label={`Excluir ${e.title}`} />
         </>
       ) : null}
     </li>

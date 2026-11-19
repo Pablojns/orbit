@@ -1,13 +1,23 @@
 import Link from "next/link";
-import { Check, CreditCard, Receipt, Trash2 } from "lucide-react";
+import { DeleteButton } from "@/components/undo";
+import { Check, CreditCard, Receipt } from "lucide-react";
 import { AgendaBoard, type Cell } from "./agenda-board";
 import { EditTask } from "@/components/edit-forms";
 import { EventRow } from "@/components/event-row";
+import { AgendaTabs } from "@/components/agenda-tabs";
 import { PageHeader } from "@/components/page-header";
 import { deleteTask, toggleTask } from "@/app/app/actions";
 import { addDays, todayInSaoPaulo, toISODate } from "@/lib/dates";
 import { formatCents } from "@/lib/money";
-import { type CalendarItem, getAgenda, getAgendaMonth, type Task } from "@/lib/routine";
+import {
+  type CalendarItem,
+  type ChecklistItem,
+  getAgenda,
+  getAgendaMonth,
+  getChecklists,
+  type Task,
+} from "@/lib/routine";
+import { Checklist } from "@/components/checklist";
 import { addMonths } from "@/lib/schedule";
 
 export const metadata = { title: "Agenda" };
@@ -25,6 +35,7 @@ const DOT: Record<CalendarItem["kind"], string> = {
   deadline: "bg-loss",
   bill: "bg-sun",
   other: "bg-ink-soft",
+  study: "bg-[#7ee0d2]",
   fixed_bill: "bg-sun",
   statement: "bg-[#5fd4ff]",
   task: "bg-white/70",
@@ -35,6 +46,7 @@ const LEGEND = [
   { label: "Compromisso", dot: "bg-[#c9a7ff]" },
   { label: "Entrega", dot: "bg-loss" },
   { label: "Tarefa", dot: "bg-white/70" },
+  { label: "Estudo", dot: "bg-[#7ee0d2]" },
   { label: "Conta", dot: "bg-sun" },
   { label: "Fatura", dot: "bg-[#5fd4ff]" },
   { label: "Feito", dot: "bg-gain" },
@@ -50,10 +62,10 @@ function shortDate(iso: string) {
     .replace(/\./g, "");
 }
 
-function TaskRow({ t, todayISO }: { t: Task; todayISO: string }) {
+function TaskRow({ t, todayISO, checklist }: { t: Task; todayISO: string; checklist?: ChecklistItem[] }) {
   const late = !t.done && t.dueOn && t.dueOn < todayISO;
   return (
-    <li className="flex items-center gap-2.5 py-3">
+    <li className="flex items-start gap-2.5 py-3">
       <form action={toggleTask}>
         <input type="hidden" name="id" value={t.id} />
         <input type="hidden" name="done" value={String(t.done)} />
@@ -77,25 +89,25 @@ function TaskRow({ t, todayISO }: { t: Task; todayISO: string }) {
             </span>
           ) : null}
         </p>
+        <Checklist parentType="task" parentId={t.id} items={checklist ?? []} />
       </div>
       <EditTask t={t} />
-      <form action={deleteTask}>
-        <input type="hidden" name="id" value={t.id} />
-        <button
-          type="submit"
-          aria-label={`Excluir ${t.title}`}
-          className="grid h-9 w-9 place-items-center rounded-full text-ink-soft hover:text-loss"
-        >
-          <Trash2 size={15} aria-hidden />
-        </button>
-      </form>
+      <DeleteButton action={deleteTask} fields={{ id: t.id }} label={`Excluir ${t.title}`} />
     </li>
   );
 }
 
-function ItemRow({ it, todayISO }: { it: CalendarItem; todayISO: string }) {
-  if (it.event) return <EventRow e={it.event} />;
-  if (it.task) return <TaskRow t={it.task} todayISO={todayISO} />;
+function ItemRow({
+  it,
+  todayISO,
+  checks,
+}: {
+  it: CalendarItem;
+  todayISO: string;
+  checks: Record<string, ChecklistItem[]>;
+}) {
+  if (it.event) return <EventRow e={it.event} checklist={checks[it.event.id]} />;
+  if (it.task) return <TaskRow t={it.task} todayISO={todayISO} checklist={checks[it.task.id]} />;
   const late = !it.done && it.date < todayISO;
   return (
     <li>
@@ -132,11 +144,13 @@ function Group({
   tone,
   items,
   todayISO,
+  checks,
 }: {
   title: string;
   tone?: string;
   items: CalendarItem[];
   todayISO: string;
+  checks: Record<string, ChecklistItem[]>;
 }) {
   if (!items.length) return null;
   return (
@@ -144,7 +158,7 @@ function Group({
       <p className={`text-sm font-semibold ${tone ?? "text-ink-soft"}`}>{title}</p>
       <ul className="divide-y divide-white/[0.06]">
         {items.map((it) => (
-          <ItemRow key={it.key} it={it} todayISO={todayISO} />
+          <ItemRow key={it.key} it={it} todayISO={todayISO} checks={checks} />
         ))}
       </ul>
     </div>
@@ -163,11 +177,12 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
 
   const isCurrent = year === today.year && month === today.month;
   const nm = addMonths(today.year, today.month, 1);
-  const [a, cal, curMonth, nextMonth] = await Promise.all([
+  const [a, cal, curMonth, nextMonth, checks] = await Promise.all([
     getAgenda(today),
     getAgendaMonth(year, month, today),
     isCurrent ? null : getAgendaMonth(today.year, today.month, today),
     getAgendaMonth(nm.year, nm.month, today),
+    getChecklists(),
   ]);
   const thisMonth = curMonth ?? cal;
 
@@ -220,9 +235,9 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
     </p>
   ) : (
     <>
-      <Group title="Ficou para trás" tone="text-loss" items={late} todayISO={todayISO} />
-      <Group title="Próximos 14 dias" items={soon} todayISO={todayISO} />
-      <Group title="Tarefas sem data" items={undated} todayISO={todayISO} />
+      <Group title="Ficou para trás" tone="text-loss" items={late} todayISO={todayISO} checks={checks} />
+      <Group title="Próximos 14 dias" items={soon} todayISO={todayISO} checks={checks} />
+      <Group title="Tarefas sem data" items={undated} todayISO={todayISO} checks={checks} />
     </>
   );
 
@@ -231,7 +246,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
     dayPanels[iso] = (
       <ul className="mt-3 divide-y divide-white/[0.06]">
         {items.map((it) => (
-          <ItemRow key={it.key} it={it} todayISO={todayISO} />
+          <ItemRow key={it.key} it={it} todayISO={todayISO} checks={checks} />
         ))}
       </ul>
     );
@@ -255,6 +270,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
   return (
     <>
       <PageHeader title="Agenda" subtitle="Provas, compromissos, entregas, tarefas, contas e faturas num lugar só." />
+      <AgendaTabs />
       <AgendaBoard
         monthKey={key}
         monthTitle={monthTitle}

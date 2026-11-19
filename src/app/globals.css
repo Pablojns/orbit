@@ -6,16 +6,16 @@
   cobalto como cor de ação e um âmbar "sol" reservado para o anel do ciclo.
 */
 :root {
-  --sky: #eef0fa;       /* fundo */
-  --card: #ffffff;      /* superfícies */
-  --line: #dde1f2;      /* bordas */
-  --ink: #1b1f3b;       /* texto principal */
-  --ink-soft: #5d6386;  /* texto secundário */
-  --cobalt: #3a4be0;    /* ação */
+  --sky: #eef0fa; /* fundo */
+  --card: #ffffff; /* superfícies */
+  --line: #dde1f2; /* bordas */
+  --ink: #1b1f3b; /* texto principal */
+  --ink-soft: #5d6386; /* texto secundário */
+  --cobalt: #3a4be0; /* ação */
   --cobalt-soft: #e3e6fd;
-  --sun: #f4b740;       /* destaque do ciclo */
-  --gain: #1f9d6b;      /* entradas */
-  --loss: #d6455d;      /* saídas / alertas */
+  --sun: #f4b740; /* destaque do ciclo */
+  --gain: #1f9d6b; /* entradas */
+  --loss: #d6455d; /* saídas / alertas */
 }
 
 @theme inline {
@@ -96,8 +96,7 @@ h2,
   background:
     radial-gradient(60rem 40rem at 85% -10%, rgba(124, 92, 255, 0.28), transparent 60%),
     radial-gradient(50rem 36rem at -10% 20%, rgba(56, 120, 255, 0.22), transparent 60%),
-    radial-gradient(40rem 30rem at 50% 110%, rgba(60, 200, 255, 0.12), transparent 60%),
-    #070a1a;
+    radial-gradient(40rem 30rem at 50% 110%, rgba(60, 200, 255, 0.12), transparent 60%), #070a1a;
   background-attachment: fixed;
   min-height: 100dvh;
   color-scheme: dark;
@@ -119,7 +118,12 @@ h2,
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.04) 40%, rgba(139, 151, 255, 0.18));
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.28),
+    rgba(255, 255, 255, 0.04) 40%,
+    rgba(139, 151, 255, 0.18)
+  );
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);

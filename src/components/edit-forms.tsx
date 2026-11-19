@@ -1,4 +1,7 @@
+import { BillExtraFields } from "./bill-extra-fields";
+import { DeleteButton } from "./undo";
 import {
+  deleteEvent,
   updateBill,
   updateCard,
   updateEvent,
@@ -137,6 +140,12 @@ export function EditBill({ bill, categories }: { bill: Bill; categories: Categor
       <Field label="Termina em (opcional)">
         <TextInput name="ends_on" type="date" defaultValue={bill.endsOn ?? ""} />
       </Field>
+      <BillExtraFields
+        split={bill.split}
+        myShare={bill.split === "fixed" ? centsToInput(bill.myShareCents) : ""}
+        isSubscription={bill.isSubscription}
+        paymentCode={bill.paymentCode ?? ""}
+      />
     </FormSheet>
   );
 }
@@ -224,7 +233,16 @@ export const EVENT_KINDS = [
   { value: "appointment", label: "Compromisso" },
   { value: "deadline", label: "Prazo / entrega" },
   { value: "bill", label: "Conta / boleto" },
+  { value: "study", label: "Sessão de estudo" },
   { value: "other", label: "Outro" },
+];
+
+export const REMIND_OPTIONS = [
+  { value: "0", label: "Só no dia e na véspera" },
+  { value: "2", label: "2 dias antes" },
+  { value: "3", label: "3 dias antes" },
+  { value: "7", label: "1 semana antes" },
+  { value: "14", label: "2 semanas antes" },
 ];
 
 export function EditEvent({ e }: { e: AgendaEvent }) {
@@ -251,9 +269,32 @@ export function EditEvent({ e }: { e: AgendaEvent }) {
           <TextInput name="time" type="time" defaultValue={e.time ?? ""} />
         </Field>
       </div>
+      <Field label="Me avisar">
+        <Select
+          name="remind_days"
+          defaultValue={String(e.remindDays)}
+          options={
+            REMIND_OPTIONS.some((o) => o.value === String(e.remindDays))
+              ? REMIND_OPTIONS
+              : [...REMIND_OPTIONS, { value: String(e.remindDays), label: `${e.remindDays} dias antes` }]
+          }
+        />
+      </Field>
       <Field label="Anotação (opcional)">
         <TextInput name="notes" maxLength={500} defaultValue={e.notes ?? ""} />
       </Field>
+      {e.seriesId ? (
+        <div className="flex items-center justify-between rounded-2xl bg-white/[0.04] px-4 py-3 text-sm">
+          <span className="text-ink-soft">Este item se repete. Mudanças aqui valem só para esta data.</span>
+          <DeleteButton
+            action={deleteEvent}
+            fields={{ id: e.id, series: "all" }}
+            label="Apagar todas as datas desta série"
+            variant="text"
+            text="Apagar todas as datas"
+          />
+        </div>
+      ) : null}
     </FormSheet>
   );
 }

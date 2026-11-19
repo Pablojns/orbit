@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { DeleteButton } from "@/components/undo";
 import { ArrowDownLeft, ArrowUpRight, Check, Wallet } from "lucide-react";
+import { BillExtraFields } from "@/components/bill-extra-fields";
 import { CategoryIcon } from "@/components/category-icon";
+import { CopyButton } from "@/components/copy-button";
 import { EditBill, EditIncome } from "@/components/edit-forms";
 import { DaySelect, Field, MoneyInput, Select, TextInput } from "@/components/fields";
 import { FormSheet } from "@/components/form-sheet";
@@ -30,6 +33,7 @@ export default async function FixedPage({ searchParams }: { searchParams: Promis
 
   const incomesTotal = f.incomesInCycle.reduce((a, i) => a + i.amountCents, 0);
   const billsTotal = f.billsInCycle.reduce((a, b) => a + b.amountCents, 0);
+  const subsTotal = f.bills.filter((b) => b.isSubscription).reduce((a, b) => a + b.myShareCents, 0);
 
   const incomeColumn = (
     <section className={`${side === "entradas" ? "block" : "hidden"} lg:block`}>
@@ -104,12 +108,14 @@ export default async function FixedPage({ searchParams }: { searchParams: Promis
                       </form>
                     )}
                   </div>
-                  <form action={archiveIncome} className="mt-2 text-right">
-                    <input type="hidden" name="id" value={inc.id} />
-                    <button type="submit" className="text-xs text-ink-soft hover:text-loss">
-                      Remover
-                    </button>
-                  </form>
+                  <div className="mt-2 text-right">
+                    <DeleteButton
+                      action={archiveIncome}
+                      fields={{ id: inc.id }}
+                      label={`Remover ${inc.name}`}
+                      variant="text"
+                    />
+                  </div>
                 </li>
               );
             })}
@@ -155,75 +161,106 @@ export default async function FixedPage({ searchParams }: { searchParams: Promis
             <Field label="Termina em (opcional)" hint="Para parcelas fora do cartão, como um financiamento.">
               <TextInput name="ends_on" type="date" />
             </Field>
+            <BillExtraFields />
           </FormSheet>
         </header>
 
         {f.bills.length ? (
           <ul className="space-y-2 p-3">
-            {f.bills.map((bill) => {
-              const occ = f.billsInCycle.find((b) => b.billId === bill.id);
-              const days = occ ? diffInDays(f.today, occ.dueDate) : null;
-              const late = occ && !occ.paid && days !== null && days < 0;
-              return (
-                <li key={bill.id} className={`glass rounded-2xl p-4 ${late ? "ring-1 ring-loss/50" : ""}`}>
-                  <div className="flex items-start gap-3">
-                    <span
-                      className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${
-                        occ?.paid ? "bg-gain/15 text-gain" : late ? "bg-loss/15 text-loss" : "bg-sun/15 text-sun"
-                      }`}
-                    >
-                      <CategoryIcon name={bill.category?.icon ?? "receipt"} size={18} />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[15px] font-semibold">{bill.name}</p>
-                      <p className={`text-[13px] ${late ? "text-loss" : "text-ink-soft"}`}>
-                        {!occ
-                          ? `Vence todo dia ${bill.dueDay}`
-                          : occ.paid
-                            ? `Paga, dia ${occ.dueDate.day}`
-                            : late
-                              ? `Venceu ${when(days!)}, dia ${occ.dueDate.day}`
-                              : `Vence ${when(days!)}, dia ${occ.dueDate.day}`}
+            {[...f.bills.filter((b) => !b.isSubscription), ...f.bills.filter((b) => b.isSubscription)].map(
+              (bill, i, arr) => {
+                const firstSub = bill.isSubscription && (i === 0 || !arr[i - 1].isSubscription);
+                const occ = f.billsInCycle.find((b) => b.billId === bill.id);
+                const days = occ ? diffInDays(f.today, occ.dueDate) : null;
+                const late = occ && !occ.paid && days !== null && days < 0;
+                return (
+                  <li key={bill.id} className="space-y-2">
+                    {firstSub ? (
+                      <p className="px-1 pt-2 text-sm font-semibold text-ink-soft">
+                        Assinaturas · {formatCents(subsTotal)} por mês
                       </p>
-                    </div>
-                    <EditBill bill={bill} categories={f.categories} />
-                  </div>
-                  <div className="mt-3 flex items-center justify-between gap-2">
-                    <p className="font-display text-lg font-bold">{formatCents(bill.amountCents)}</p>
-                    {occ ? (
-                      <form action={toggleBillPaid}>
-                        <input type="hidden" name="bill_id" value={occ.billId} />
-                        <input type="hidden" name="reference_month" value={occ.referenceMonth} />
-                        <input type="hidden" name="amount" value={occ.amountCents} />
-                        <input type="hidden" name="paid" value={String(occ.paid)} />
-                        <button
-                          type="submit"
-                          className={`flex items-center gap-1 rounded-full px-4 py-1.5 text-xs font-semibold ${
-                            occ.paid ? "bg-gain/15 text-gain" : "bg-sun text-[#2a1a00]"
+                    ) : null}
+                    <div className={`glass rounded-2xl p-4 ${late ? "ring-1 ring-loss/50" : ""}`}>
+                      <div className="flex items-start gap-3">
+                        <span
+                          className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${
+                            occ?.paid ? "bg-gain/15 text-gain" : late ? "bg-loss/15 text-loss" : "bg-sun/15 text-sun"
                           }`}
                         >
-                          {occ.paid ? (
-                            <>
-                              <Check size={13} aria-hidden /> Paga
-                            </>
-                          ) : (
-                            "Paguei"
-                          )}
-                        </button>
-                      </form>
-                    ) : (
-                      <span className="text-xs text-ink-soft">Fora deste ciclo</span>
-                    )}
-                  </div>
-                  <form action={archiveBill} className="mt-2 text-right">
-                    <input type="hidden" name="id" value={bill.id} />
-                    <button type="submit" className="text-xs text-ink-soft hover:text-loss">
-                      Remover
-                    </button>
-                  </form>
-                </li>
-              );
-            })}
+                          <CategoryIcon name={bill.category?.icon ?? "receipt"} size={18} />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="flex items-center gap-1.5 text-[15px] font-semibold">
+                            <span className="truncate">{bill.name}</span>
+                            {bill.isSubscription ? (
+                              <span className="shrink-0 rounded-full bg-cobalt/15 px-2 py-0.5 text-[10px] font-semibold text-cobalt">
+                                assinatura
+                              </span>
+                            ) : null}
+                            {bill.split !== "none" ? (
+                              <span className="shrink-0 rounded-full bg-white/[0.07] px-2 py-0.5 text-[10px] font-semibold text-ink-soft">
+                                dividida
+                              </span>
+                            ) : null}
+                          </p>
+                          <p className={`text-[13px] ${late ? "text-loss" : "text-ink-soft"}`}>
+                            {!occ
+                              ? `Vence todo dia ${bill.dueDay}`
+                              : occ.paid
+                                ? `Paga, dia ${occ.dueDate.day}`
+                                : late
+                                  ? `Venceu ${when(days!)}, dia ${occ.dueDate.day}`
+                                  : `Vence ${when(days!)}, dia ${occ.dueDate.day}`}
+                          </p>
+                        </div>
+                        <EditBill bill={bill} categories={f.categories} />
+                      </div>
+                      <div className="mt-3 flex items-center justify-between gap-2">
+                        <div>
+                          <p className="font-display text-lg font-bold">{formatCents(bill.myShareCents)}</p>
+                          {bill.split !== "none" ? (
+                            <p className="text-xs text-ink-soft">sua parte de {formatCents(bill.amountCents)}</p>
+                          ) : null}
+                        </div>
+                        {occ ? (
+                          <form action={toggleBillPaid}>
+                            <input type="hidden" name="bill_id" value={occ.billId} />
+                            <input type="hidden" name="reference_month" value={occ.referenceMonth} />
+                            <input type="hidden" name="amount" value={occ.amountCents} />
+                            <input type="hidden" name="paid" value={String(occ.paid)} />
+                            <button
+                              type="submit"
+                              className={`flex items-center gap-1 rounded-full px-4 py-1.5 text-xs font-semibold ${
+                                occ.paid ? "bg-gain/15 text-gain" : "bg-sun text-[#2a1a00]"
+                              }`}
+                            >
+                              {occ.paid ? (
+                                <>
+                                  <Check size={13} aria-hidden /> Paga
+                                </>
+                              ) : (
+                                "Paguei"
+                              )}
+                            </button>
+                          </form>
+                        ) : (
+                          <span className="text-xs text-ink-soft">Fora deste ciclo</span>
+                        )}
+                      </div>
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        {bill.paymentCode ? <CopyButton text={bill.paymentCode} /> : <span />}
+                        <DeleteButton
+                          action={archiveBill}
+                          fields={{ id: bill.id }}
+                          label={`Remover ${bill.name}`}
+                          variant="text"
+                        />
+                      </div>
+                    </div>
+                  </li>
+                );
+              },
+            )}
           </ul>
         ) : (
           <p className="px-5 py-5 text-[15px] leading-relaxed text-ink-soft">
