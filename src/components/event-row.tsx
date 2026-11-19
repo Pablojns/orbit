@@ -32,7 +32,7 @@ export function EventRow({ e, compact }: { e: AgendaEvent; compact?: boolean }) 
     .replace(/\./g, "");
 
   return (
-    <li className="flex items-center gap-3 py-3">
+    <li className="flex items-center gap-2.5 py-3">
       <span
         className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${
           e.done ? "bg-gain/15 text-gain" : urgent ? "bg-sun/20 text-sun" : "bg-white/[0.06]"
@@ -43,19 +43,18 @@ export function EventRow({ e, compact }: { e: AgendaEvent; compact?: boolean }) 
       <div className="min-w-0 flex-1">
         <p className={`truncate text-[15px] font-medium ${e.done ? "text-ink-soft line-through" : ""}`}>{e.title}</p>
         <p className="truncate text-[13px] text-ink-soft">
-          {label}, {dateLabel}
+          {!e.done ? (
+            <span className={`font-semibold ${e.daysLeft < 0 ? "text-loss" : urgent ? "text-sun" : "text-ink"}`}>
+              {countdown(e.daysLeft)}
+            </span>
+          ) : (
+            <span className="font-semibold text-gain">Feito</span>
+          )}
+          {", "}
+          {label.toLowerCase()}, {dateLabel}
           {e.time ? ` às ${e.time}` : ""}
         </p>
       </div>
-      {!e.done ? (
-        <span
-          className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
-            e.daysLeft < 0 ? "bg-loss/15 text-loss" : urgent ? "bg-sun/20 text-sun" : "bg-white/[0.06] text-ink-soft"
-          }`}
-        >
-          {countdown(e.daysLeft)}
-        </span>
-      ) : null}
       {!compact ? (
         <>
           <EditEvent e={e} />

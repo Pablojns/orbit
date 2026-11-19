@@ -73,9 +73,10 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
   for (const it of cal.items) byDay.set(it.date, [...(byDay.get(it.date) ?? []), it]);
   const visible = selected ? (byDay.get(selected) ?? []) : cal.items;
   const groups = [...new Set(visible.map((i) => i.date))];
-  const monthTitle = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" }).format(
+  const monthRaw = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" }).format(
     new Date(Date.UTC(year, month - 1, 1)),
   );
+  const monthTitle = monthRaw.charAt(0).toUpperCase() + monthRaw.slice(1);
 
   return (
     <>
@@ -92,7 +93,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
         </div>
       ) : null}
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
         {/* Calendário */}
         <section className="glass h-fit rounded-[1.75rem] p-4 lg:sticky lg:top-6">
           <div className="flex items-center justify-between">
@@ -104,7 +105,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
               <ChevronLeft size={18} aria-hidden />
             </Link>
             <div className="text-center">
-              <p className="font-display text-lg font-semibold capitalize">{monthTitle}</p>
+              <p className="font-display text-lg font-semibold">{monthTitle}</p>
               {key !== monthKey(today.year, today.month) ? (
                 <Link href="/app/agenda" className="text-xs text-cobalt">
                   Voltar para hoje
