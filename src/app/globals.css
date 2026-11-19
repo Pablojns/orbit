@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+/*
+  ORBIT — tokens visuais
+  Céu claro de fim de tarde: fundo lavanda-pálido, tinta azul-noite,
+  cobalto como cor de ação e um âmbar "sol" reservado para o anel do ciclo.
+*/
+:root {
+  --sky: #eef0fa;       /* fundo */
+  --card: #ffffff;      /* superfícies */
+  --line: #dde1f2;      /* bordas */
+  --ink: #1b1f3b;       /* texto principal */
+  --ink-soft: #5d6386;  /* texto secundário */
+  --cobalt: #3a4be0;    /* ação */
+  --cobalt-soft: #e3e6fd;
+  --sun: #f4b740;       /* destaque do ciclo */
+  --gain: #1f9d6b;      /* entradas */
+  --loss: #d6455d;      /* saídas / alertas */
+}
+
+@theme inline {
+  --color-sky: var(--sky);
+  --color-card: var(--card);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-cobalt: var(--cobalt);
+  --color-cobalt-soft: var(--cobalt-soft);
+  --color-sun: var(--sun);
+  --color-gain: var(--gain);
+  --color-loss: var(--loss);
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque Variable", var(--font-geist-sans), sans-serif;
+}
+
+html {
+  background: var(--sky);
+  color: var(--ink);
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-feature-settings: "tnum" 1; /* números alinhados em valores de dinheiro */
+}
+
+h1,
+h2,
+.font-display {
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 88;
+  letter-spacing: -0.02em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--cobalt);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes orbit-draw {
+  from {
+    stroke-dashoffset: var(--ring-length);
+  }
+}
