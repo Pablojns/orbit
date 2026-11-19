@@ -1,4 +1,17 @@
 import {
+  Baby,
+  Beer,
+  BookOpen,
+  Car,
+  Coffee,
+  Dumbbell,
+  Gift,
+  PawPrint,
+  PiggyBank,
+  Plane,
+  Shirt,
+  Smartphone,
+  Wrench,
   Briefcase,
   Bus,
   Circle,
@@ -29,7 +42,22 @@ const ICONS: Record<string, LucideIcon> = {
   briefcase: Briefcase,
   sparkles: Sparkles,
   circle: Circle,
+  "paw-print": PawPrint,
+  dumbbell: Dumbbell,
+  plane: Plane,
+  gift: Gift,
+  car: Car,
+  baby: Baby,
+  shirt: Shirt,
+  smartphone: Smartphone,
+  coffee: Coffee,
+  beer: Beer,
+  "book-open": BookOpen,
+  wrench: Wrench,
+  "piggy-bank": PiggyBank,
 };
+
+export const CATEGORY_ICON_NAMES = Object.keys(ICONS);
 
 export function CategoryIcon({ name, size = 18 }: { name?: string | null; size?: number }) {
   const Icon = (name && ICONS[name]) || Circle;

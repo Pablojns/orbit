@@ -1,6 +1,9 @@
+import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { EditMovement } from "@/components/edit-forms";
 import { MovementRow } from "@/components/movement-list";
 import { QuickAdd } from "@/components/quick-add";
-import { formatDayLabel, formatShort } from "@/lib/dates";
+import { formatDayLabel, formatShort, todayInSaoPaulo } from "@/lib/dates";
 import { getFinance, type Movement } from "@/lib/finance";
 import { formatCents } from "@/lib/money";
 import { requireProfile } from "@/lib/profile";
@@ -8,10 +11,14 @@ import { requireProfile } from "@/lib/profile";
 export const metadata = { title: "Dinheiro" };
 export const dynamic = "force-dynamic";
 
-export default async function MoneyPage() {
+export default async function MoneyPage({ searchParams }: { searchParams: Promise<{ ciclo?: string }> }) {
+  const { ciclo } = await searchParams;
+  const offset = Math.max(-24, Math.min(0, Number.parseInt(ciclo ?? "0", 10) || 0));
   const profile = await requireProfile();
-  const f = await getFinance(profile.cycleStartDay);
-  const { summary: s, cycle, today } = f;
+  const f = await getFinance(profile.cycleStartDay, offset);
+  const href = (o: number) => (o === 0 ? "/app/dinheiro" : `/app/dinheiro?ciclo=${o}`);
+  const { summary: s, cycle } = f;
+  const today = todayInSaoPaulo();
 
   const byDay = new Map<string, Movement[]>();
   for (const m of f.movements) byDay.set(m.occurredOn, [...(byDay.get(m.occurredOn) ?? []), m]);
@@ -26,9 +33,30 @@ export default async function MoneyPage() {
   return (
     <>
       <section className="glass rounded-[1.75rem] p-5">
-        <p className="text-sm text-ink-soft">
-          Ciclo de {formatShort(cycle.start)} a {formatShort(cycle.end)}
-        </p>
+        <div className="flex items-center justify-between gap-2">
+          <Link
+            href={href(offset - 1)}
+            aria-label="Ciclo anterior"
+            className={`grid h-9 w-9 place-items-center rounded-full hover:bg-white/[0.06] ${offset <= -24 ? "pointer-events-none opacity-30" : ""}`}
+          >
+            <ChevronLeft size={18} aria-hidden />
+          </Link>
+          <div className="text-center">
+            <p className="text-sm font-semibold">
+              {offset === 0 ? "Ciclo atual" : offset === -1 ? "Ciclo passado" : `${-offset} ciclos atrás`}
+            </p>
+            <p className="text-xs text-ink-soft">
+              {formatShort(cycle.start)} a {formatShort(cycle.end)}
+            </p>
+          </div>
+          <Link
+            href={href(offset + 1)}
+            aria-label="Próximo ciclo"
+            className={`grid h-9 w-9 place-items-center rounded-full hover:bg-white/[0.06] ${offset >= 0 ? "pointer-events-none opacity-30" : ""}`}
+          >
+            <ChevronRight size={18} aria-hidden />
+          </Link>
+        </div>
         <dl className="mt-3 space-y-2.5">
           {rows.map((r) => (
             <div key={r.label} className="flex items-center justify-between text-[15px]">
@@ -40,7 +68,7 @@ export default async function MoneyPage() {
             </div>
           ))}
           <div className="flex items-center justify-between border-t border-white/10 pt-3">
-            <dt className="font-semibold">Livre de verdade</dt>
+            <dt className="font-semibold">{offset === 0 ? "Livre de verdade" : "Sobrou no ciclo"}</dt>
             <dd className={`font-display text-2xl font-bold ${s.freeCents < 0 ? "text-loss" : "metal-text"}`}>
               {formatCents(s.freeCents)}
             </dd>
@@ -65,7 +93,13 @@ export default async function MoneyPage() {
               <h2 className="pt-2 text-[13px] font-semibold text-ink-soft">{formatDayLabel(day, today)}</h2>
               <ul className="divide-y divide-white/[0.06]">
                 {items.map((m) => (
-                  <MovementRow key={`${m.source}-${m.id}`} m={m} today={today} deletable />
+                  <MovementRow
+                    key={`${m.source}-${m.id}`}
+                    m={m}
+                    today={today}
+                    deletable
+                    edit={<EditMovement m={m} categories={f.categories} cards={f.cards} />}
+                  />
                 ))}
               </ul>
             </div>

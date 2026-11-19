@@ -449,3 +449,347 @@ export async function finishOnboarding() {
   await supabase.from("profiles").update({ onboarded_at: new Date().toISOString() }).eq("id", OWNER_ID);
   revalidatePath("/app", "layout");
 }
+
+// =====================================================================
+// EDIÇÃO
+// =====================================================================
+
+async function rebuildInstallments(
+  supabase: Awaited<ReturnType<typeof db>>,
+  purchase: { id: string; card_id: string; total_cents: number; installments_count: number; purchased_on: string },
+  card: { closing_day: number; due_day: number },
+) {
+  await supabase.from("installments").delete().eq("purchase_id", purchase.id).eq("user_id", OWNER_ID);
+  const plan = installmentPlan(
+    fromISODate(purchase.purchased_on),
+    Number(purchase.total_cents),
+    purchase.installments_count,
+    card.closing_day,
+    card.due_day,
+  );
+  return supabase.from("installments").insert(
+    plan.map((p) => ({
+      user_id: OWNER_ID,
+      purchase_id: purchase.id,
+      card_id: purchase.card_id,
+      number: p.number,
+      amount_cents: p.amountCents,
+      statement_month: p.statementMonth,
+    })),
+  );
+}
+
+export async function updateMovement(_prev: FormState, fd: FormData): Promise<FormState> {
+  const id = optUuid(str(fd, "id"));
+  const source = str(fd, "source");
+  const amount = parseToCents(str(fd, "amount"));
+  const occurredOn = str(fd, "occurred_on");
+  const description = str(fd, "description").slice(0, 120);
+  const categoryId = optUuid(str(fd, "category_id"));
+  if (!id) return fail("Lançamento inválido.");
+  if (!amount || amount <= 0) return fail("Digite um valor, como 25,90.");
+  if (!ISO_DATE.test(occurredOn)) return fail("Escolha a data.");
+  const supabase = await db();
+
+  if (source === "card_purchase") {
+    const cardId = optUuid(str(fd, "card_id"));
+    const count = Math.min(48, Math.max(1, Number(str(fd, "installments")) || 1));
+    if (!cardId) return fail("Escolha o cartão.");
+    const { data: card } = await supabase
+      .from("credit_cards")
+      .select("closing_day, due_day")
+      .eq("id", cardId)
+      .eq("user_id", OWNER_ID)
+      .maybeSingle();
+    if (!card) return fail("Cartão não encontrado.");
+    const { data: purchase, error } = await supabase
+      .from("card_purchases")
+      .update({
+        card_id: cardId,
+        description: description || "Compra no cartão",
+        total_cents: amount,
+        installments_count: count,
+        purchased_on: occurredOn,
+        category_id: categoryId,
+      })
+      .eq("id", id)
+      .eq("user_id", OWNER_ID)
+      .select("id, card_id, total_cents, installments_count, purchased_on")
+      .single();
+    if (error || !purchase) return fail("Não foi possível salvar.");
+    const { error: instError } = await rebuildInstallments(supabase, purchase, card);
+    if (instError) return fail("Não foi possível atualizar as parcelas.");
+    return ok("Compra atualizada.");
+  }
+
+  const method = str(fd, "payment_method");
+  const { data: current } = await supabase
+    .from("transactions")
+    .select("type")
+    .eq("id", id)
+    .eq("user_id", OWNER_ID)
+    .maybeSingle();
+  const { error } = await supabase
+    .from("transactions")
+    .update({
+      amount_cents: amount,
+      occurred_on: occurredOn,
+      description: description || null,
+      category_id: categoryId,
+      payment_method: current?.type === "expense" && PAYMENT_METHODS.has(method) ? method : null,
+    })
+    .eq("id", id)
+    .eq("user_id", OWNER_ID);
+  if (error) return fail("Não foi possível salvar.");
+  return ok("Lançamento atualizado.");
+}
+
+export async function updateCard(_prev: FormState, fd: FormData): Promise<FormState> {
+  const id = optUuid(str(fd, "id"));
+  const name = str(fd, "name").slice(0, 40);
+  const closing = day(str(fd, "closing_day"));
+  const due = day(str(fd, "due_day"));
+  const limitRaw = str(fd, "limit");
+  const limit = limitRaw ? parseToCents(limitRaw) : null;
+  if (!id) return fail("Cartão inválido.");
+  if (!name) return fail("Dê um nome ao cartão.");
+  if (!closing || !due) return fail("Informe o fechamento e o vencimento.");
+  if (limitRaw && limit === null) return fail("Limite inválido.");
+  const supabase = await db();
+  const { data: before } = await supabase
+    .from("credit_cards")
+    .select("closing_day, due_day")
+    .eq("id", id)
+    .eq("user_id", OWNER_ID)
+    .maybeSingle();
+  const { error } = await supabase
+    .from("credit_cards")
+    .update({ name, closing_day: closing, due_day: due, limit_cents: limit })
+    .eq("id", id)
+    .eq("user_id", OWNER_ID);
+  if (error) return fail("Não foi possível salvar.");
+
+  // Mudou fechamento ou vencimento: recalcula em que fatura cada parcela cai.
+  if (before && (before.closing_day !== closing || before.due_day !== due)) {
+    const { data: purchases } = await supabase
+      .from("card_purchases")
+      .select("id, card_id, total_cents, installments_count, purchased_on")
+      .eq("card_id", id)
+      .eq("user_id", OWNER_ID);
+    for (const p of purchases ?? []) {
+      await rebuildInstallments(supabase, p, { closing_day: closing, due_day: due });
+    }
+  }
+  return ok("Cartão atualizado.");
+}
+
+export async function updateBill(_prev: FormState, fd: FormData): Promise<FormState> {
+  const id = optUuid(str(fd, "id"));
+  const name = str(fd, "name").slice(0, 60);
+  const amount = parseToCents(str(fd, "amount"));
+  const due = day(str(fd, "due_day"));
+  const endsOn = str(fd, "ends_on");
+  if (!id) return fail("Conta inválida.");
+  if (!name) return fail("Dê um nome à conta.");
+  if (!amount || amount <= 0) return fail("Digite o valor.");
+  if (!due) return fail("Informe o vencimento.");
+  const supabase = await db();
+  const { error } = await supabase
+    .from("bills")
+    .update({
+      name,
+      amount_cents: amount,
+      due_day: due,
+      category_id: optUuid(str(fd, "category_id")),
+      ends_on: ISO_DATE.test(endsOn) ? endsOn : null,
+    })
+    .eq("id", id)
+    .eq("user_id", OWNER_ID);
+  if (error) return fail("Não foi possível salvar.");
+  return ok("Conta atualizada.");
+}
+
+export async function updateIncome(_prev: FormState, fd: FormData): Promise<FormState> {
+  const id = optUuid(str(fd, "id"));
+  const name = str(fd, "name").slice(0, 60);
+  const amount = parseToCents(str(fd, "amount"));
+  const dom = day(str(fd, "day_of_month"));
+  const endsOn = str(fd, "ends_on");
+  if (!id) return fail("Entrada inválida.");
+  if (!name) return fail("Dê um nome.");
+  if (!amount || amount <= 0) return fail("Digite o valor.");
+  if (!dom) return fail("Informe o dia.");
+  const supabase = await db();
+  const { error } = await supabase
+    .from("recurring_incomes")
+    .update({ name, amount_cents: amount, day_of_month: dom, ends_on: ISO_DATE.test(endsOn) ? endsOn : null })
+    .eq("id", id)
+    .eq("user_id", OWNER_ID);
+  if (error) return fail("Não foi possível salvar.");
+  return ok("Entrada atualizada.");
+}
+
+export async function updateGoal(_prev: FormState, fd: FormData): Promise<FormState> {
+  const id = optUuid(str(fd, "id"));
+  const name = str(fd, "name").slice(0, 60);
+  const target = parseToCents(str(fd, "target"));
+  const targetDate = str(fd, "target_date");
+  if (!id) return fail("Meta inválida.");
+  if (!name) return fail("Dê um nome à meta.");
+  if (!target || target <= 0) return fail("Digite o valor da meta.");
+  const supabase = await db();
+  const { error } = await supabase
+    .from("goals")
+    .update({ name, target_cents: target, target_date: ISO_DATE.test(targetDate) ? targetDate : null })
+    .eq("id", id)
+    .eq("user_id", OWNER_ID);
+  if (error) return fail("Não foi possível salvar.");
+  return ok("Meta atualizada.");
+}
+
+export async function updateHabit(_prev: FormState, fd: FormData): Promise<FormState> {
+  const id = optUuid(str(fd, "id"));
+  const name = str(fd, "name").slice(0, 60);
+  const target = Math.min(7, Math.max(1, Number(str(fd, "target_per_week")) || 7));
+  if (!id) return fail("Hábito inválido.");
+  if (!name) return fail("Escreva o hábito.");
+  const supabase = await db();
+  const { error } = await supabase
+    .from("habits")
+    .update({ name, target_per_week: target })
+    .eq("id", id)
+    .eq("user_id", OWNER_ID);
+  if (error) return fail("Não foi possível salvar.");
+  return ok("Hábito atualizado.");
+}
+
+export async function updateEvent(_prev: FormState, fd: FormData): Promise<FormState> {
+  const id = optUuid(str(fd, "id"));
+  const title = str(fd, "title").slice(0, 80);
+  const date = str(fd, "date");
+  const time = str(fd, "time");
+  const kind = ["exam", "appointment", "deadline", "bill", "other"].includes(str(fd, "kind"))
+    ? str(fd, "kind")
+    : "other";
+  if (!id) return fail("Prazo inválido.");
+  if (!title) return fail("Escreva o que é.");
+  if (!ISO_DATE.test(date)) return fail("Escolha a data.");
+  const hasTime = /^\d{2}:\d{2}$/.test(time);
+  const supabase = await db();
+  const { error } = await supabase
+    .from("events")
+    .update({
+      title,
+      kind,
+      starts_at: `${date}T${hasTime ? time : "12:00"}:00-03:00`,
+      all_day: !hasTime,
+      notes: str(fd, "notes").slice(0, 500) || null,
+    })
+    .eq("id", id)
+    .eq("user_id", OWNER_ID);
+  if (error) return fail("Não foi possível salvar.");
+  return ok("Prazo atualizado.");
+}
+
+export async function updateTask(_prev: FormState, fd: FormData): Promise<FormState> {
+  const id = optUuid(str(fd, "id"));
+  const title = str(fd, "title").slice(0, 120);
+  const priority = [1, 2, 3].includes(Number(str(fd, "priority"))) ? Number(str(fd, "priority")) : 2;
+  const due = str(fd, "due_on");
+  if (!id) return fail("Tarefa inválida.");
+  if (!title) return fail("Escreva a tarefa.");
+  const supabase = await db();
+  const { error } = await supabase
+    .from("tasks")
+    .update({ title, priority, due_on: ISO_DATE.test(due) ? due : null })
+    .eq("id", id)
+    .eq("user_id", OWNER_ID);
+  if (error) return fail("Não foi possível salvar.");
+  return ok("Tarefa atualizada.");
+}
+
+// =====================================================================
+// CATEGORIAS PRÓPRIAS
+// =====================================================================
+
+const CATEGORY_ICONS = new Set([
+  "utensils",
+  "shopping-basket",
+  "bus",
+  "home",
+  "receipt",
+  "gamepad-2",
+  "heart-pulse",
+  "graduation-cap",
+  "shopping-bag",
+  "repeat",
+  "briefcase",
+  "sparkles",
+  "circle",
+  "paw-print",
+  "dumbbell",
+  "plane",
+  "gift",
+  "car",
+  "baby",
+  "shirt",
+  "smartphone",
+  "coffee",
+  "beer",
+  "book-open",
+  "wrench",
+  "piggy-bank",
+]);
+
+export async function saveCategory(_prev: FormState, fd: FormData): Promise<FormState> {
+  const name = str(fd, "name").slice(0, 40);
+  const kind = str(fd, "kind") === "income" ? "income" : "expense";
+  const icon = CATEGORY_ICONS.has(str(fd, "icon")) ? str(fd, "icon") : "circle";
+  if (!name) return fail("Dê um nome à categoria.");
+  const supabase = await db();
+  const { data: existing } = await supabase
+    .from("categories")
+    .select("id, is_archived")
+    .eq("user_id", OWNER_ID)
+    .eq("kind", kind)
+    .ilike("name", name)
+    .maybeSingle();
+  if (existing?.is_archived) {
+    await supabase.from("categories").update({ is_archived: false, icon }).eq("id", existing.id);
+    return ok("Categoria reativada.");
+  }
+  if (existing) return fail("Essa categoria já existe.");
+  const { error } = await supabase.from("categories").insert({ user_id: OWNER_ID, name, kind, icon });
+  if (error) return fail("Não foi possível salvar.");
+  return ok("Categoria criada.");
+}
+
+export async function archiveCategory(fd: FormData) {
+  const id = optUuid(str(fd, "id"));
+  if (!id) return;
+  const supabase = await db();
+  await supabase.from("categories").update({ is_archived: true }).eq("id", id).eq("user_id", OWNER_ID);
+  revalidatePath("/app", "layout");
+}
+
+// =====================================================================
+// LEMBRETES (notificação no celular/computador)
+// =====================================================================
+
+export async function savePushSubscription(sub: { endpoint: string; p256dh: string; auth: string }) {
+  if (!/^https:\/\//.test(sub.endpoint) || !sub.p256dh || !sub.auth) return { ok: false };
+  const supabase = await db();
+  const { error } = await supabase
+    .from("push_subscriptions")
+    .upsert(
+      { user_id: OWNER_ID, endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
+      { onConflict: "endpoint" },
+    );
+  return { ok: !error };
+}
+
+export async function deletePushSubscription(endpoint: string) {
+  const supabase = await db();
+  await supabase.from("push_subscriptions").delete().eq("endpoint", endpoint).eq("user_id", OWNER_ID);
+  return { ok: true };
+}

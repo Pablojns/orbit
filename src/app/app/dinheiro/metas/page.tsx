@@ -1,4 +1,5 @@
 import { PiggyBank, Target } from "lucide-react";
+import { EditGoal } from "@/components/edit-forms";
 import { EmptyState } from "@/components/empty-state";
 import { Field, MoneyInput, Select, TextInput } from "@/components/fields";
 import { FormSheet } from "@/components/form-sheet";
@@ -75,12 +76,15 @@ export default async function GoalsPage() {
                     <p className="text-[13px] text-ink-soft">Meta de {formatCents(g.targetCents)}</p>
                   </div>
                 </div>
-                <form action={archiveGoal}>
-                  <input type="hidden" name="id" value={g.id} />
-                  <button type="submit" className="text-xs text-ink-soft hover:text-loss">
-                    Arquivar
-                  </button>
-                </form>
+                <div className="flex items-center gap-1">
+                  <EditGoal goal={g} />
+                  <form action={archiveGoal}>
+                    <input type="hidden" name="id" value={g.id} />
+                    <button type="submit" className="text-xs text-ink-soft hover:text-loss">
+                      Arquivar
+                    </button>
+                  </form>
+                </div>
               </div>
               <p className="font-display metal-text mt-4 text-3xl font-bold">{formatCents(g.savedCents)}</p>
               <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/[0.07]">

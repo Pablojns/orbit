@@ -1,6 +1,7 @@
 import { Check, Flame } from "lucide-react";
 import { archiveHabit, toggleHabit } from "@/app/app/actions";
 import type { Habit } from "@/lib/routine";
+import { EditHabit } from "./edit-forms";
 
 const WEEKDAY = ["D", "S", "T", "Q", "Q", "S", "S"];
 
@@ -62,12 +63,15 @@ export function HabitCard({ h }: { h: Habit }) {
             );
           })}
         </ol>
-        <form action={archiveHabit}>
-          <input type="hidden" name="id" value={h.id} />
-          <button type="submit" className="text-xs text-ink-soft hover:text-loss">
-            Arquivar
-          </button>
-        </form>
+        <div className="flex items-center gap-1">
+          <EditHabit habit={h} />
+          <form action={archiveHabit}>
+            <input type="hidden" name="id" value={h.id} />
+            <button type="submit" className="text-xs text-ink-soft hover:text-loss">
+              Arquivar
+            </button>
+          </form>
+        </div>
       </div>
     </li>
   );

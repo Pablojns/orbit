@@ -36,3 +36,14 @@ export function currentCycle(today: CalendarDate, startDay: number): Cycle {
 
   return { start, end, dayNumber, totalDays, daysLeft: totalDays - dayNumber };
 }
+
+// Ciclo N meses antes (offset negativo) do ciclo atual. Ciclos passados ficam "fechados":
+// hoje é tratado como o último dia, sem dias restantes.
+export function cycleAt(today: CalendarDate, startDay: number, offset: number): Cycle {
+  const current = currentCycle(today, startDay);
+  if (offset >= 0) return current;
+  const total = current.start.year * 12 + (current.start.month - 1) + offset;
+  const start = cycleStartFor(Math.floor(total / 12), (total % 12) + 1, startDay);
+  const c = currentCycle(start, startDay);
+  return { ...c, dayNumber: c.totalDays, daysLeft: 0 };
+}

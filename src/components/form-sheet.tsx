@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { createPortal } from "react-dom";
-import { Plus, X } from "lucide-react";
+import { Pencil, Plus, X } from "lucide-react";
 import type { FormState } from "@/app/app/actions";
 
 type Action = (prev: FormState, fd: FormData) => Promise<FormState>;
@@ -23,7 +23,7 @@ export function FormSheet({
   action: Action;
   children: React.ReactNode;
   hidden?: Record<string, string>;
-  variant?: "primary" | "glass" | "link";
+  variant?: "primary" | "glass" | "link" | "edit";
 }) {
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState<FormState, FormData>(
@@ -44,10 +44,22 @@ export function FormSheet({
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={triggerClass}>
-        {variant !== "link" ? <Plus size={18} strokeWidth={2.4} aria-hidden /> : null}
-        {trigger}
-      </button>
+      {variant === "edit" ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label={trigger}
+          title={trigger}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-ink-soft hover:bg-white/[0.06] hover:text-ink"
+        >
+          <Pencil size={15} aria-hidden />
+        </button>
+      ) : (
+        <button type="button" onClick={() => setOpen(true)} className={triggerClass}>
+          {variant !== "link" ? <Plus size={18} strokeWidth={2.4} aria-hidden /> : null}
+          {trigger}
+        </button>
+      )}
       {open
         ? createPortal(
             <div className="app-vars fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center">

@@ -1,7 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { OWNER_ID } from "@/lib/owner";
-import { currentCycle, type Cycle } from "@/lib/cycle";
+import { cycleAt, type Cycle } from "@/lib/cycle";
 import { addDays, type CalendarDate, diffInDays, fromISODate, todayInSaoPaulo, toISODate } from "@/lib/dates";
 import {
   addMonths,
@@ -34,6 +34,8 @@ export type Movement = {
   description: string | null;
   paymentMethod: string | null;
   category: CategoryRef;
+  categoryId: string | null;
+  cardId?: string;
   cardName?: string;
   installments?: number;
 };
@@ -85,6 +87,7 @@ export type Bill = {
   dueDay: number;
   endsOn: string | null;
   category: CategoryRef;
+  categoryId: string | null;
 };
 export type RecurringIncome = {
   id: string;
@@ -152,9 +155,12 @@ export async function getCards(): Promise<Card[]> {
   }));
 }
 
-export async function getFinance(cycleStartDay: number): Promise<Finance> {
-  const today = todayInSaoPaulo();
-  const cycle = currentCycle(today, cycleStartDay);
+export async function getFinance(cycleStartDay: number, offset = 0): Promise<Finance> {
+  const safeOffset = Math.max(-24, Math.min(0, Math.trunc(offset) || 0));
+  const now = todayInSaoPaulo();
+  const cycle = cycleAt(now, cycleStartDay, safeOffset);
+  // Em ciclo passado, "hoje" é o último dia dele (para status de faturas e contas).
+  const today = safeOffset < 0 ? cycle.end : now;
   const startISO = toISODate(cycle.start);
   const endISO = toISODate(cycle.end);
   const weekStartISO = toISODate(addDays(today, -13));
@@ -172,7 +178,7 @@ export async function getFinance(cycleStartDay: number): Promise<Finance> {
     supabase
       .from("transactions")
       .select(
-        "id, type, amount_cents, occurred_on, description, payment_method, recurring_income_id, category:categories(name, icon)",
+        "id, type, amount_cents, occurred_on, description, payment_method, recurring_income_id, category_id, category:categories(name, icon)",
       )
       .eq("user_id", OWNER_ID)
       .gte("occurred_on", fromISO)
@@ -182,7 +188,7 @@ export async function getFinance(cycleStartDay: number): Promise<Finance> {
     supabase
       .from("card_purchases")
       .select(
-        "id, card_id, description, total_cents, installments_count, purchased_on, category:categories(name, icon)",
+        "id, card_id, description, total_cents, installments_count, purchased_on, category_id, category:categories(name, icon)",
       )
       .eq("user_id", OWNER_ID)
       .gte("purchased_on", fromISO)
@@ -204,7 +210,9 @@ export async function getFinance(cycleStartDay: number): Promise<Finance> {
       .lte("statement_month", lastMonth),
     supabase
       .from("bills")
-      .select("id, name, amount_cents, due_day, starts_on, ends_on, is_active, category:categories(name, icon)")
+      .select(
+        "id, name, amount_cents, due_day, starts_on, ends_on, is_active, category_id, category:categories(name, icon)",
+      )
       .eq("user_id", OWNER_ID)
       .eq("is_active", true)
       .order("due_day"),
@@ -241,6 +249,7 @@ export async function getFinance(cycleStartDay: number): Promise<Finance> {
     paymentMethod: r.payment_method as string | null,
     recurringIncomeId: r.recurring_income_id as string | null,
     category: one(r.category) as CategoryRef,
+    categoryId: (r.category_id as string | null) ?? null,
   }));
   const allPurchases: Movement[] = (purchases.data ?? []).map((p) => ({
     id: p.id,
@@ -251,6 +260,8 @@ export async function getFinance(cycleStartDay: number): Promise<Finance> {
     description: p.description,
     paymentMethod: "credit",
     category: one(p.category) as CategoryRef,
+    categoryId: p.category_id ?? null,
+    cardId: p.card_id,
     cardName: cardById.get(p.card_id)?.name ?? "Cartão",
     installments: p.installments_count,
   }));
@@ -335,6 +346,7 @@ export async function getFinance(cycleStartDay: number): Promise<Finance> {
     startsOn: b.starts_on as string,
     endsOn: b.ends_on as string | null,
     category: one(b.category) as CategoryRef,
+    categoryId: (b.category_id as string | null) ?? null,
   }));
   const paidKeys = new Set((billPays.data ?? []).map((p) => `${p.bill_id}|${p.reference_month}`));
   let billsPaidInCycle = 0;
@@ -443,13 +455,14 @@ export async function getFinance(cycleStartDay: number): Promise<Finance> {
     cycle,
     categories: cats,
     cards,
-    bills: billRows.map(({ id, name, amountCents, dueDay, endsOn, category }) => ({
+    bills: billRows.map(({ id, name, amountCents, dueDay, endsOn, category, categoryId }) => ({
       id,
       name,
       amountCents,
       dueDay,
       endsOn,
       category,
+      categoryId,
     })),
     incomes: incomeRows.map(({ id, name, amountCents, dayOfMonth, endsOn }) => ({
       id,

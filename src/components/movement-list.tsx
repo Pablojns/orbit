@@ -14,7 +14,17 @@ const METHOD_LABEL: Record<string, string> = {
   credit: "Crédito",
 };
 
-export function MovementRow({ m, today, deletable }: { m: Movement; today: CalendarDate; deletable?: boolean }) {
+export function MovementRow({
+  m,
+  today,
+  deletable,
+  edit,
+}: {
+  m: Movement;
+  today: CalendarDate;
+  deletable?: boolean;
+  edit?: React.ReactNode;
+}) {
   const income = m.type === "income";
   const title = m.description || m.category?.name || (income ? "Entrada" : "Gasto");
   const payment =
@@ -43,6 +53,7 @@ export function MovementRow({ m, today, deletable }: { m: Movement; today: Calen
       <p className={`shrink-0 text-[15px] font-semibold ${income ? "text-gain" : "text-ink"}`}>
         {income ? "+" : "−"} {formatCents(m.amountCents)}
       </p>
+      {edit}
       {deletable ? (
         <form action={deleteMovement}>
           <input type="hidden" name="id" value={m.id} />

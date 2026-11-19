@@ -1,7 +1,7 @@
 // Service worker do Orbit (Fase 1).
 // Guarda os arquivos estáticos para o app abrir rápido e mostra uma tela
 // simples quando não há internet. Dados financeiros NUNCA ficam em cache.
-const CACHE = "orbit-v1";
+const CACHE = "orbit-v2";
 const OFFLINE_HTML = `<!doctype html><html lang="pt-BR"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Orbit sem conexão</title>
@@ -52,4 +52,39 @@ self.addEventListener("fetch", (event) => {
       ),
     );
   }
+});
+
+// Lembretes (web push): mostra a notificação e abre o Orbit no toque.
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { body: event.data ? event.data.text() : "" };
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || "Orbit", {
+      body: data.body || "",
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      tag: data.tag || "orbit-lembrete",
+      data: { url: data.url || "/app" },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || "/app";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const c of list) {
+        if (new URL(c.url).origin === self.location.origin && "focus" in c) {
+          c.navigate(url);
+          return c.focus();
+        }
+      }
+      return self.clients.openWindow(url);
+    }),
+  );
 });

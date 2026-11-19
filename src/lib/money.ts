@@ -14,3 +14,9 @@ export function parseToCents(input: string): number | null {
   const [whole, frac = ""] = normalized.split(".");
   return Number(whole) * 100 + Number(frac.padEnd(2, "0"));
 }
+
+// 123456 -> "1234,56" (para preencher campos de edição).
+export function centsToInput(cents: number) {
+  const abs = Math.abs(cents);
+  return `${Math.floor(abs / 100)},${String(abs % 100).padStart(2, "0")}`;
+}

@@ -1,8 +1,9 @@
 import { BookOpen, CalendarCheck, Check, Clock, FileWarning, Receipt, Trash2 } from "lucide-react";
 import { deleteEvent, toggleEventDone } from "@/app/app/actions";
 import type { AgendaEvent } from "@/lib/routine";
+import { EditEvent } from "./edit-forms";
 
-const KIND = {
+export const KIND = {
   exam: { label: "Prova", icon: BookOpen },
   appointment: { label: "Compromisso", icon: CalendarCheck },
   deadline: { label: "Prazo", icon: FileWarning },
@@ -57,6 +58,7 @@ export function EventRow({ e, compact }: { e: AgendaEvent; compact?: boolean }) 
       ) : null}
       {!compact ? (
         <>
+          <EditEvent e={e} />
           <form action={toggleEventDone}>
             <input type="hidden" name="id" value={e.id} />
             <input type="hidden" name="done" value={String(e.done)} />

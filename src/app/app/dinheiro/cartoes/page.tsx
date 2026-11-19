@@ -1,4 +1,5 @@
 import { CreditCard } from "lucide-react";
+import { EditCard } from "@/components/edit-forms";
 import { EmptyState } from "@/components/empty-state";
 import { DaySelect, Field, MoneyInput, TextInput } from "@/components/fields";
 import { FormSheet } from "@/components/form-sheet";
@@ -77,12 +78,15 @@ export default async function CardsPage() {
                     Fecha dia {card.closingDay}, vence dia {card.dueDay}
                   </p>
                 </div>
-                <form action={archiveCard}>
-                  <input type="hidden" name="id" value={card.id} />
-                  <button type="submit" className="text-xs text-white/60 hover:text-white">
-                    Remover
-                  </button>
-                </form>
+                <div className="flex items-center gap-1">
+                  <EditCard card={card} />
+                  <form action={archiveCard}>
+                    <input type="hidden" name="id" value={card.id} />
+                    <button type="submit" className="text-xs text-white/60 hover:text-white">
+                      Remover
+                    </button>
+                  </form>
+                </div>
               </div>
               <p className="relative mt-5 text-xs text-white/70">Fatura aberta</p>
               <p className="font-display metal-text relative text-3xl font-bold">
