@@ -76,7 +76,8 @@ h2,
    Tema do APP: escuro profundo, vidro, gradiente e acabamento metálico.
    Aplicado só dentro de .app-theme (o site público continua claro).
    ===================================================================== */
-.app-theme {
+.app-theme,
+.app-vars {
   --sky: #070a1a;
   --card: rgba(255, 255, 255, 0.045);
   --line: rgba(255, 255, 255, 0.09);
@@ -88,6 +89,10 @@ h2,
   --gain: #3ee0a8;
   --loss: #ff7a93;
   color: var(--ink);
+  color-scheme: dark;
+}
+
+.app-theme {
   background:
     radial-gradient(60rem 40rem at 85% -10%, rgba(124, 92, 255, 0.28), transparent 60%),
     radial-gradient(50rem 36rem at -10% 20%, rgba(56, 120, 255, 0.22), transparent 60%),

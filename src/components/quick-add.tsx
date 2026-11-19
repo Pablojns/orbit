@@ -94,7 +94,7 @@ export function QuickAdd({
 
       {open
         ? createPortal(
-            <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center">
+            <div className="app-vars fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center">
               <button type="button" aria-label="Fechar" className="absolute inset-0" onClick={() => setOpen(false)} />
               <div
                 role="dialog"
