@@ -11,7 +11,7 @@ export default async function ProfilePage() {
   return (
     <>
       <PageHeader title="Perfil" subtitle="Seu nome e o dia em que seu ciclo começa." />
-      <section className="rounded-3xl bg-card p-5">
+      <section className="glass rounded-[1.75rem] p-5">
         <ProfileForm displayName={profile.displayName ?? ""} cycleStartDay={profile.cycleStartDay} />
       </section>
     </>

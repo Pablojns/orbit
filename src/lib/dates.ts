@@ -40,3 +40,22 @@ export function formatShort(d: CalendarDate) {
     .format(new Date(toUTC(d)))
     .replace(".", "");
 }
+
+export function toISODate(d: CalendarDate) {
+  return `${d.year}-${String(d.month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`;
+}
+
+export function fromISODate(s: string): CalendarDate {
+  const [year, month, day] = s.split("-").map(Number);
+  return { year, month, day };
+}
+
+export function formatDayLabel(iso: string, today: CalendarDate) {
+  const d = fromISODate(iso);
+  const diff = diffInDays(d, today);
+  if (diff === 0) return "Hoje";
+  if (diff === 1) return "Ontem";
+  return new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })
+    .format(new Date(toUTC(d)))
+    .replace(/\./g, "");
+}

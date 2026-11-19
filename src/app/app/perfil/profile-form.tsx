@@ -17,7 +17,7 @@ export function ProfileForm({ displayName, cycleStartDay }: { displayName: strin
           defaultValue={displayName}
           maxLength={60}
           autoComplete="given-name"
-          className="mt-1.5 w-full rounded-2xl border border-line bg-card px-4 py-3 text-base outline-none focus:border-cobalt"
+          className="mt-1.5 w-full rounded-2xl border border-line bg-white/[0.04] px-4 py-3 text-base outline-none focus:border-cobalt"
         />
       </label>
 
@@ -29,10 +29,10 @@ export function ProfileForm({ displayName, cycleStartDay }: { displayName: strin
         <select
           name="cycle_start_day"
           defaultValue={cycleStartDay}
-          className="mt-1.5 w-full rounded-2xl border border-line bg-card px-4 py-3 text-base outline-none focus:border-cobalt"
+          className="mt-1.5 w-full rounded-2xl border border-line bg-white/[0.04] px-4 py-3 text-base outline-none focus:border-cobalt"
         >
           {DAYS.map((d) => (
-            <option key={d} value={d}>
+            <option key={d} value={d} className="bg-[#0d1126]">
               Dia {d}
             </option>
           ))}
@@ -43,7 +43,7 @@ export function ProfileForm({ displayName, cycleStartDay }: { displayName: strin
         <button
           type="submit"
           disabled={pending}
-          className="rounded-2xl bg-cobalt px-5 py-3 text-base font-semibold text-white transition-opacity disabled:opacity-60"
+          className="grad-primary rounded-2xl px-5 py-3 text-base font-semibold text-white transition-opacity disabled:opacity-60"
         >
           {pending ? "Salvando…" : "Salvar perfil"}
         </button>

@@ -24,7 +24,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Navegação principal"
-      className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-20 border-t border-white/10 bg-[#080b1c]/80 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
     >
       <ul className="mx-auto grid max-w-md grid-cols-5">
         {ITEMS.map(({ href, label, icon: Icon }) => {
@@ -35,12 +35,12 @@ export function BottomNav() {
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={`flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors ${
-                  active ? "text-cobalt" : "text-ink-soft hover:text-ink"
+                  active ? "text-ink" : "text-ink-soft hover:text-ink"
                 }`}
               >
                 <span
                   className={`grid h-7 w-12 place-items-center rounded-full transition-colors ${
-                    active ? "bg-cobalt-soft" : ""
+                    active ? "bg-white/[0.1]" : ""
                   }`}
                 >
                   <Icon size={20} strokeWidth={active ? 2.4 : 1.9} aria-hidden />
@@ -56,17 +56,18 @@ export function BottomNav() {
 }
 
 // Computador: menu lateral.
-export function SideNav() {
+export function SideNav({ action }: { action?: React.ReactNode }) {
   const isActive = useActive();
   return (
     <nav
       aria-label="Navegação principal"
-      className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-line bg-card px-4 py-6 lg:flex"
+      className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-white/10 bg-white/[0.02] px-4 py-6 backdrop-blur-xl lg:flex"
     >
       <Link href="/app" className="px-3">
         <Logo />
       </Link>
-      <ul className="mt-8 space-y-1">
+      {action ? <div className="mt-8">{action}</div> : null}
+      <ul className="mt-6 space-y-1">
         {ITEMS.map(({ href, label, icon: Icon }) => {
           const active = isActive(href);
           return (
@@ -75,7 +76,7 @@ export function SideNav() {
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 text-[15px] font-medium transition-colors ${
-                  active ? "bg-cobalt-soft text-cobalt" : "text-ink-soft hover:bg-sky hover:text-ink"
+                  active ? "bg-white/[0.08] text-ink" : "text-ink-soft hover:bg-white/[0.04] hover:text-ink"
                 }`}
               >
                 <Icon size={20} strokeWidth={active ? 2.4 : 1.9} aria-hidden />
