@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { DeleteButton } from "@/components/undo";
-import { Check, CreditCard, Receipt } from "lucide-react";
+import { Check, CreditCard, ListTodo, Receipt } from "lucide-react";
 import { AgendaBoard, type Cell } from "./agenda-board";
 import { EditTask } from "@/components/edit-forms";
 import { EventRow } from "@/components/event-row";
@@ -65,23 +65,15 @@ function shortDate(iso: string) {
 function TaskRow({ t, todayISO, checklist }: { t: Task; todayISO: string; checklist?: ChecklistItem[] }) {
   const late = !t.done && t.dueOn && t.dueOn < todayISO;
   return (
-    <li className="flex items-start gap-2.5 py-3">
-      <form action={toggleTask}>
-        <input type="hidden" name="id" value={t.id} />
-        <input type="hidden" name="done" value={String(t.done)} />
-        <button
-          type="submit"
-          aria-label={t.done ? `Reabrir ${t.title}` : `Concluir ${t.title}`}
-          className={`grid h-7 w-7 place-items-center rounded-lg border ${
-            t.done ? "border-gain bg-gain text-[#05201a]" : "border-white/25 text-transparent hover:text-ink-soft"
-          }`}
-        >
-          <Check size={15} strokeWidth={3} aria-hidden />
-        </button>
-      </form>
+    <li className="flex items-start gap-3 py-3">
+      <span className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white/[0.06]">
+        <ListTodo size={18} aria-hidden />
+      </span>
       <div className="min-w-0 flex-1">
-        <p className={`truncate text-[15px] font-medium ${t.done ? "text-ink-soft line-through" : ""}`}>{t.title}</p>
-        <p className={`text-[13px] ${late ? "text-loss" : "text-ink-soft"}`}>
+        <p className={`text-[15px] leading-snug font-medium break-words ${t.done ? "text-ink-soft line-through" : ""}`}>
+          {t.title}
+        </p>
+        <p className={`text-[13px] leading-snug ${late ? "text-loss" : "text-ink-soft"}`}>
           Tarefa{t.dueOn ? `, ${shortDate(t.dueOn)}` : ", sem data"}
           {!t.done ? (
             <span className={`ml-1.5 rounded-full px-1.5 py-px text-[11px] font-semibold ${PRIORITY[t.priority].tone}`}>
@@ -89,10 +81,28 @@ function TaskRow({ t, todayISO, checklist }: { t: Task; todayISO: string; checkl
             </span>
           ) : null}
         </p>
-        <Checklist parentType="task" parentId={t.id} items={checklist ?? []} />
+        <div className="-ml-2 flex flex-wrap items-center">
+          <EditTask t={t} />
+          <DeleteButton action={deleteTask} fields={{ id: t.id }} label={`Excluir ${t.title}`} />
+          <div className="ml-2 w-full sm:w-auto">
+            <Checklist parentType="task" parentId={t.id} items={checklist ?? []} />
+          </div>
+        </div>
       </div>
-      <EditTask t={t} />
-      <DeleteButton action={deleteTask} fields={{ id: t.id }} label={`Excluir ${t.title}`} />
+      <form action={toggleTask}>
+        <input type="hidden" name="id" value={t.id} />
+        <input type="hidden" name="done" value={String(t.done)} />
+        <button
+          type="submit"
+          aria-label={t.done ? `Reabrir ${t.title}` : `Concluir ${t.title}`}
+          title={t.done ? "Reabrir" : "Marcar como feito"}
+          className={`mt-0.5 grid h-9 w-9 place-items-center rounded-full border ${
+            t.done ? "border-gain bg-gain text-[#05201a]" : "border-white/20 text-transparent hover:text-ink-soft"
+          }`}
+        >
+          <Check size={16} strokeWidth={3} aria-hidden />
+        </button>
+      </form>
     </li>
   );
 }

@@ -72,7 +72,7 @@ export function AgendaBoard({
   }
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,21rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,23rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,27rem)_minmax(0,1fr)]">
       <section className="glass flex min-w-0 flex-col rounded-[1.75rem] p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">

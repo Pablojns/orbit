@@ -14,7 +14,7 @@ export function Checklist({
 }) {
   const done = items.filter((i) => i.done).length;
   return (
-    <details className="group mt-1.5">
+    <details className="group mt-1">
       <summary className="flex w-fit cursor-pointer list-none items-center gap-1.5 rounded-full bg-white/[0.05] px-2.5 py-1 text-xs text-ink-soft hover:text-ink">
         <ListChecks size={13} aria-hidden />
         {items.length ? `${done}/${items.length} passos` : "Adicionar passos"}
