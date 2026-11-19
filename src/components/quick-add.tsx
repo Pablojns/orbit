@@ -5,12 +5,13 @@ import { createPortal } from "react-dom";
 import { ArrowDownLeft, ArrowUpRight, Plus, X } from "lucide-react";
 import { addMovement, type MovementFormState } from "@/app/app/actions";
 import { CategoryIcon } from "./category-icon";
-import type { Category } from "@/lib/finance";
+import type { Card, Category } from "@/lib/finance";
 
 type Kind = "expense" | "income";
 
 const METHODS = [
   { value: "pix", label: "Pix" },
+  { value: "credit", label: "Cartão de crédito" },
   { value: "debit", label: "Débito" },
   { value: "cash", label: "Dinheiro" },
   { value: "transfer", label: "Transferência" },
@@ -23,14 +24,17 @@ function todayISO() {
 
 export function QuickAdd({
   categories,
+  cards = [],
   variant,
 }: {
   categories: Category[];
+  cards?: Card[];
   variant: "fab" | "expense" | "income" | "sidebar";
 }) {
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<Kind>(variant === "income" ? "income" : "expense");
   const [categoryId, setCategoryId] = useState<string>("");
+  const [method, setMethod] = useState<string>("pix");
 
   const [state, action, pending] = useActionState<MovementFormState, FormData>(
     async (prev, formData) => {
@@ -46,6 +50,7 @@ export function QuickAdd({
 
   function openSheet(k: Kind) {
     setKind(k);
+    setMethod("pix");
     setCategoryId("");
     setOpen(true);
   }
@@ -197,7 +202,8 @@ export function QuickAdd({
                         <span className="text-sm text-ink-soft">Pagou com</span>
                         <select
                           name="payment_method"
-                          defaultValue="pix"
+                          value={method}
+                          onChange={(e) => setMethod(e.target.value)}
                           className="mt-1.5 w-full rounded-2xl border border-line bg-white/[0.04] px-3 py-3 text-base outline-none focus:border-cobalt"
                         >
                           {METHODS.map((m) => (
@@ -211,6 +217,45 @@ export function QuickAdd({
                       <div />
                     )}
                   </div>
+
+                  {kind === "expense" && method === "credit" ? (
+                    cards.length ? (
+                      <div className="grid grid-cols-2 gap-3">
+                        <label className="block">
+                          <span className="text-sm text-ink-soft">Cartão</span>
+                          <select
+                            name="card_id"
+                            defaultValue={cards[0]?.id}
+                            className="mt-1.5 w-full rounded-2xl border border-line bg-white/[0.04] px-3 py-3 text-base outline-none focus:border-cobalt"
+                          >
+                            {cards.map((c) => (
+                              <option key={c.id} value={c.id} className="bg-[#0d1126]">
+                                {c.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="block">
+                          <span className="text-sm text-ink-soft">Parcelas</span>
+                          <select
+                            name="installments"
+                            defaultValue="1"
+                            className="mt-1.5 w-full rounded-2xl border border-line bg-white/[0.04] px-3 py-3 text-base outline-none focus:border-cobalt"
+                          >
+                            {Array.from({ length: 24 }, (_, i) => i + 1).map((n) => (
+                              <option key={n} value={n} className="bg-[#0d1126]">
+                                {n === 1 ? "À vista" : `${n}x`}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                    ) : (
+                      <p className="rounded-2xl border border-sun/30 bg-sun/[0.08] p-3 text-sm">
+                        Cadastre um cartão em Dinheiro, na aba Cartões, para lançar compras no crédito.
+                      </p>
+                    )
+                  ) : null}
 
                   <label className="block">
                     <span className="text-sm text-ink-soft">Descrição (opcional)</span>

@@ -1,0 +1,182 @@
+import { CreditCard } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
+import { DaySelect, Field, MoneyInput, TextInput } from "@/components/fields";
+import { FormSheet } from "@/components/form-sheet";
+import { archiveCard, payStatement, saveCard, unpayStatement } from "@/app/app/actions";
+import { diffInDays, formatShort } from "@/lib/dates";
+import { getFinance, type Statement } from "@/lib/finance";
+import { formatCents } from "@/lib/money";
+import { requireProfile } from "@/lib/profile";
+
+export const metadata = { title: "Cartões" };
+export const dynamic = "force-dynamic";
+
+const STATUS: Record<Statement["status"], { label: string; tone: string }> = {
+  open: { label: "Aberta", tone: "bg-cobalt-soft text-cobalt" },
+  closed: { label: "Fechada", tone: "bg-sun/20 text-sun" },
+  paid: { label: "Paga", tone: "bg-gain/15 text-gain" },
+};
+
+export default async function CardsPage() {
+  const profile = await requireProfile();
+  const f = await getFinance(profile.cycleStartDay);
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[15px] text-ink-soft">
+          {f.cards.length ? "Faturas que vencem neste ciclo e a fatura aberta de cada cartão." : "Nenhum cartão ainda."}
+        </p>
+        <FormSheet title="Novo cartão" trigger="Cartão" submitLabel="Salvar cartão" action={saveCard}>
+          <Field label="Nome do cartão">
+            <TextInput name="name" required maxLength={40} placeholder="Ex.: Nubank" />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Fecha no dia">
+              <DaySelect name="closing_day" defaultValue={3} />
+            </Field>
+            <Field label="Vence no dia">
+              <DaySelect name="due_day" defaultValue={10} />
+            </Field>
+          </div>
+          <Field label="Limite (opcional)">
+            <MoneyInput name="limit" />
+          </Field>
+          <p className="text-xs leading-relaxed text-ink-soft">
+            Compras feitas antes do dia de fechamento entram na fatura do mês; no dia do fechamento ou depois, vão para
+            a próxima.
+          </p>
+        </FormSheet>
+      </div>
+
+      {!f.cards.length ? (
+        <EmptyState
+          icon={CreditCard}
+          title="Cadastre seu cartão de crédito"
+          description="Com o fechamento e o vencimento, cada compra parcelada cai sozinha na fatura certa, e o valor da fatura já sai do seu livre para gastar."
+        />
+      ) : null}
+
+      {f.cards.map((card) => {
+        const statements = f.statements.filter((st) => st.cardId === card.id);
+        const open = statements.find((st) => st.status === "open");
+        const usedCents = statements.filter((st) => st.status !== "paid").reduce((a, st) => a + st.remainingCents, 0);
+        return (
+          <section key={card.id} className="glass overflow-hidden rounded-[1.75rem]">
+            <div className="relative overflow-hidden bg-gradient-to-br from-[#2a2f6b] via-[#3b2a78] to-[#0f4a6b] p-5">
+              <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" aria-hidden />
+              <div className="relative flex items-start justify-between">
+                <div>
+                  <p className="font-display text-xl font-bold">{card.name}</p>
+                  <p className="text-sm text-white/70">
+                    Fecha dia {card.closingDay}, vence dia {card.dueDay}
+                  </p>
+                </div>
+                <form action={archiveCard}>
+                  <input type="hidden" name="id" value={card.id} />
+                  <button type="submit" className="text-xs text-white/60 hover:text-white">
+                    Remover
+                  </button>
+                </form>
+              </div>
+              <p className="relative mt-5 text-xs text-white/70">Fatura aberta</p>
+              <p className="font-display metal-text relative text-3xl font-bold">
+                {formatCents(open?.totalCents ?? 0)}
+              </p>
+              {card.limitCents ? (
+                <div className="relative mt-3">
+                  <div className="h-1.5 overflow-hidden rounded-full bg-white/15">
+                    <div
+                      className="h-full rounded-full bg-white/80"
+                      style={{ width: `${Math.min(100, (usedCents / card.limitCents) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-white/70">
+                    Limite livre aproximado: {formatCents(Math.max(0, card.limitCents - usedCents))}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+
+            <ul className="divide-y divide-white/[0.06] px-5">
+              {statements.length ? (
+                statements.map((st) => {
+                  const days = diffInDays(f.today, st.dueDate);
+                  return (
+                    <li key={st.month} className="py-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-[15px] font-semibold">
+                            Fatura de{" "}
+                            {new Intl.DateTimeFormat("pt-BR", { month: "long", timeZone: "UTC" }).format(
+                              new Date(`${st.month}T12:00:00Z`),
+                            )}
+                          </p>
+                          <p className="text-[13px] text-ink-soft">
+                            Vence {formatShort(st.dueDate)}
+                            {st.status !== "paid" && days >= 0 ? `, em ${days} ${days === 1 ? "dia" : "dias"}` : ""}
+                            {st.status !== "paid" && days < 0 ? ", vencida" : ""}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[15px] font-semibold">{formatCents(st.totalCents)}</p>
+                          <span
+                            className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS[st.status].tone}`}
+                          >
+                            {STATUS[st.status].label}
+                          </span>
+                        </div>
+                      </div>
+                      <details className="mt-2">
+                        <summary className="cursor-pointer text-[13px] text-cobalt">
+                          {st.items.length} {st.items.length === 1 ? "lançamento" : "lançamentos"}
+                        </summary>
+                        <ul className="mt-2 space-y-1.5 text-[13px]">
+                          {st.items.map((it, i) => (
+                            <li key={i} className="flex justify-between gap-3 text-ink-soft">
+                              <span className="truncate">
+                                {it.description}
+                                {it.count > 1 ? ` (${it.number}/${it.count})` : ""}
+                              </span>
+                              <span className="shrink-0 text-ink">{formatCents(it.amountCents)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                      {st.status === "closed" || (st.status === "open" && days <= 10) ? (
+                        <form action={payStatement} className="mt-3">
+                          <input type="hidden" name="card_id" value={st.cardId} />
+                          <input type="hidden" name="month" value={st.month} />
+                          <input type="hidden" name="amount" value={st.remainingCents} />
+                          <button
+                            type="submit"
+                            className="w-full rounded-2xl bg-gain/90 px-4 py-2.5 text-sm font-semibold text-[#05201a]"
+                          >
+                            Paguei {formatCents(st.remainingCents)}
+                          </button>
+                        </form>
+                      ) : null}
+                      {st.status === "paid" ? (
+                        <form action={unpayStatement} className="mt-2">
+                          <input type="hidden" name="card_id" value={st.cardId} />
+                          <input type="hidden" name="month" value={st.month} />
+                          <button type="submit" className="text-xs text-ink-soft hover:text-ink">
+                            Desfazer pagamento
+                          </button>
+                        </form>
+                      ) : null}
+                    </li>
+                  );
+                })
+              ) : (
+                <li className="py-4 text-[15px] text-ink-soft">
+                  Nenhuma compra neste cartão. Use o botão + e escolha “Cartão de crédito”.
+                </li>
+              )}
+            </ul>
+          </section>
+        );
+      })}
+    </div>
+  );
+}

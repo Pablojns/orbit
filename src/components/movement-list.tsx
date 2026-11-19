@@ -11,16 +11,19 @@ const METHOD_LABEL: Record<string, string> = {
   cash: "Dinheiro",
   transfer: "Transferência",
   other: "Outro",
+  credit: "Crédito",
 };
 
 export function MovementRow({ m, today, deletable }: { m: Movement; today: CalendarDate; deletable?: boolean }) {
   const income = m.type === "income";
   const title = m.description || m.category?.name || (income ? "Entrada" : "Gasto");
-  const meta = [
-    m.description ? m.category?.name : null,
-    m.paymentMethod ? METHOD_LABEL[m.paymentMethod] : null,
-    formatDayLabel(m.occurredOn, today),
-  ]
+  const payment =
+    m.source === "card_purchase"
+      ? `${m.cardName}${m.installments && m.installments > 1 ? ` em ${m.installments}x` : ""}`
+      : m.paymentMethod
+        ? METHOD_LABEL[m.paymentMethod]
+        : null;
+  const meta = [m.description ? m.category?.name : null, payment, formatDayLabel(m.occurredOn, today)]
     .filter(Boolean)
     .join(", ");
 
@@ -43,6 +46,7 @@ export function MovementRow({ m, today, deletable }: { m: Movement; today: Calen
       {deletable ? (
         <form action={deleteMovement}>
           <input type="hidden" name="id" value={m.id} />
+          <input type="hidden" name="source" value={m.source} />
           <button
             type="submit"
             aria-label={`Excluir ${title}`}

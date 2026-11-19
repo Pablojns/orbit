@@ -2,30 +2,126 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { OWNER_ID } from "@/lib/owner";
 import { currentCycle, type Cycle } from "@/lib/cycle";
-import { todayInSaoPaulo, toISODate, type CalendarDate } from "@/lib/dates";
+import { addDays, type CalendarDate, diffInDays, fromISODate, todayInSaoPaulo, toISODate } from "@/lib/dates";
+import {
+  addMonths,
+  firstOfMonthISO,
+  inRange,
+  monthlyOccurrences,
+  statementClosingDate,
+  statementDueDate,
+} from "@/lib/schedule";
+
+// ---------- tipos ----------------------------------------------------
 
 export type Category = { id: string; name: string; kind: "expense" | "income"; icon: string | null };
+export type Card = {
+  id: string;
+  name: string;
+  closingDay: number;
+  dueDay: number;
+  limitCents: number | null;
+  color: string | null;
+};
+export type CategoryRef = { name: string; icon: string | null } | null;
 
 export type Movement = {
   id: string;
+  source: "transaction" | "card_purchase";
   type: "expense" | "income";
   amountCents: number;
   occurredOn: string;
   description: string | null;
   paymentMethod: string | null;
-  category: { name: string; icon: string | null } | null;
+  category: CategoryRef;
+  cardName?: string;
+  installments?: number;
 };
 
-export type CycleSummary = {
+export type Statement = {
+  cardId: string;
+  cardName: string;
+  month: string; // AAAA-MM-01 (mês de vencimento)
+  closingDate: CalendarDate;
+  dueDate: CalendarDate;
+  totalCents: number;
+  paidCents: number;
+  remainingCents: number;
+  status: "open" | "closed" | "paid";
+  items: { description: string; amountCents: number; number: number; count: number; purchasedOn: string }[];
+};
+
+export type BillOccurrence = {
+  billId: string;
+  name: string;
+  amountCents: number;
+  dueDate: CalendarDate;
+  referenceMonth: string;
+  paid: boolean;
+  category: CategoryRef;
+};
+
+export type IncomeOccurrence = {
+  incomeId: string;
+  name: string;
+  amountCents: number;
+  date: CalendarDate;
+  received: boolean;
+};
+
+export type Goal = {
+  id: string;
+  name: string;
+  kind: "emergency" | "custom";
+  targetCents: number;
+  savedCents: number;
+  targetDate: string | null;
+};
+
+export type Bill = {
+  id: string;
+  name: string;
+  amountCents: number;
+  dueDay: number;
+  endsOn: string | null;
+  category: CategoryRef;
+};
+export type RecurringIncome = {
+  id: string;
+  name: string;
+  amountCents: number;
+  dayOfMonth: number;
+  endsOn: string | null;
+};
+
+export type Finance = {
   today: CalendarDate;
   cycle: Cycle;
-  incomeCents: number;
-  expenseCents: number;
-  freeCents: number;
-  perDayCents: number; // quanto dá para gastar por dia até o fim do ciclo
-  byCategory: { name: string; icon: string | null; cents: number }[];
+  categories: Category[];
+  cards: Card[];
+  bills: Bill[];
+  incomes: RecurringIncome[];
+  goals: Goal[];
   movements: Movement[];
+  statements: Statement[]; // vencendo neste ciclo e a fatura aberta de cada cartão
+  billsInCycle: BillOccurrence[];
+  incomesInCycle: IncomeOccurrence[];
+  summary: {
+    receivedCents: number;
+    spentCents: number; // saiu: gastos diretos + faturas pagas + contas pagas
+    savedCents: number; // guardado em metas no ciclo
+    committedCents: number; // faturas e contas ainda a pagar no ciclo
+    freeCents: number;
+    perDayCents: number;
+    toReceiveCents: number;
+    byCategory: { name: string; icon: string | null; cents: number }[];
+    week: { thisWeekCents: number; lastWeekCents: number };
+  };
 };
+
+const one = <T>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? null) : v);
+
+// ---------- leitura -------------------------------------------------
 
 export async function getCategories(): Promise<Category[]> {
   const supabase = await createClient();
@@ -38,61 +134,340 @@ export async function getCategories(): Promise<Category[]> {
   return (data ?? []) as Category[];
 }
 
-export async function getCycleSummary(cycleStartDay: number): Promise<CycleSummary> {
+export async function getCards(): Promise<Card[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("credit_cards")
+    .select("id, name, closing_day, due_day, limit_cents, color")
+    .eq("user_id", OWNER_ID)
+    .eq("is_archived", false)
+    .order("created_at");
+  return (data ?? []).map((c) => ({
+    id: c.id,
+    name: c.name,
+    closingDay: c.closing_day,
+    dueDay: c.due_day,
+    limitCents: c.limit_cents === null ? null : Number(c.limit_cents),
+    color: c.color,
+  }));
+}
+
+export async function getFinance(cycleStartDay: number): Promise<Finance> {
   const today = todayInSaoPaulo();
   const cycle = currentCycle(today, cycleStartDay);
+  const startISO = toISODate(cycle.start);
+  const endISO = toISODate(cycle.end);
+  const weekStartISO = toISODate(addDays(today, -13));
+  const fromISO = startISO < weekStartISO ? startISO : weekStartISO;
+
+  // Faturas: do mês do início do ciclo até 2 meses depois do fim (cobre a fatura aberta).
+  const firstMonth = firstOfMonthISO(cycle.start.year, cycle.start.month);
+  const lastM = addMonths(cycle.end.year, cycle.end.month, 2);
+  const lastMonth = firstOfMonthISO(lastM.year, lastM.month);
+
   const supabase = await createClient();
+  const [cats, cards, tx, purchases, inst, payments, bills, billPays, incomes, goals, contribs] = await Promise.all([
+    getCategories(),
+    getCards(),
+    supabase
+      .from("transactions")
+      .select(
+        "id, type, amount_cents, occurred_on, description, payment_method, recurring_income_id, category:categories(name, icon)",
+      )
+      .eq("user_id", OWNER_ID)
+      .gte("occurred_on", fromISO)
+      .lte("occurred_on", endISO)
+      .order("occurred_on", { ascending: false })
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("card_purchases")
+      .select(
+        "id, card_id, description, total_cents, installments_count, purchased_on, category:categories(name, icon)",
+      )
+      .eq("user_id", OWNER_ID)
+      .gte("purchased_on", fromISO)
+      .lte("purchased_on", endISO)
+      .order("purchased_on", { ascending: false }),
+    supabase
+      .from("installments")
+      .select(
+        "card_id, number, amount_cents, statement_month, purchase:card_purchases(description, installments_count, purchased_on)",
+      )
+      .eq("user_id", OWNER_ID)
+      .gte("statement_month", firstMonth)
+      .lte("statement_month", lastMonth),
+    supabase
+      .from("card_statement_payments")
+      .select("card_id, statement_month, amount_cents, paid_on")
+      .eq("user_id", OWNER_ID)
+      .gte("statement_month", firstMonth)
+      .lte("statement_month", lastMonth),
+    supabase
+      .from("bills")
+      .select("id, name, amount_cents, due_day, starts_on, ends_on, is_active, category:categories(name, icon)")
+      .eq("user_id", OWNER_ID)
+      .eq("is_active", true)
+      .order("due_day"),
+    supabase
+      .from("bill_payments")
+      .select("bill_id, reference_month, amount_cents, paid_on")
+      .eq("user_id", OWNER_ID)
+      .gte("paid_on", toISODate(addDays(cycle.start, -40))),
+    supabase
+      .from("recurring_incomes")
+      .select("id, name, amount_cents, day_of_month, starts_on, ends_on, is_active")
+      .eq("user_id", OWNER_ID)
+      .eq("is_active", true)
+      .order("day_of_month"),
+    supabase
+      .from("goals")
+      .select("id, name, kind, target_cents, target_date")
+      .eq("user_id", OWNER_ID)
+      .eq("is_archived", false)
+      .order("created_at"),
+    supabase.from("goal_contributions").select("goal_id, amount_cents, contributed_on").eq("user_id", OWNER_ID),
+  ]);
 
-  const { data } = await supabase
-    .from("transactions")
-    .select("id, type, amount_cents, occurred_on, description, payment_method, category:categories(name, icon)")
-    .eq("user_id", OWNER_ID)
-    .gte("occurred_on", toISODate(cycle.start))
-    .lte("occurred_on", toISODate(cycle.end))
-    .order("occurred_on", { ascending: false })
-    .order("created_at", { ascending: false });
+  const cardById = new Map(cards.map((c) => [c.id, c]));
 
-  const movements: Movement[] = (data ?? []).map((row) => {
-    const category = Array.isArray(row.category) ? row.category[0] : row.category;
-    return {
-      id: row.id,
-      type: row.type,
+  // Movimentações (só do ciclo para a lista; semana usa o intervalo maior)
+  const allTx = (tx.data ?? []).map((r) => ({
+    id: r.id as string,
+    source: "transaction" as const,
+    type: r.type as "expense" | "income",
+    amountCents: Number(r.amount_cents),
+    occurredOn: r.occurred_on as string,
+    description: r.description as string | null,
+    paymentMethod: r.payment_method as string | null,
+    recurringIncomeId: r.recurring_income_id as string | null,
+    category: one(r.category) as CategoryRef,
+  }));
+  const allPurchases: Movement[] = (purchases.data ?? []).map((p) => ({
+    id: p.id,
+    source: "card_purchase",
+    type: "expense",
+    amountCents: Number(p.total_cents),
+    occurredOn: p.purchased_on,
+    description: p.description,
+    paymentMethod: "credit",
+    category: one(p.category) as CategoryRef,
+    cardName: cardById.get(p.card_id)?.name ?? "Cartão",
+    installments: p.installments_count,
+  }));
+
+  const movements: Movement[] = [
+    ...allTx.filter((m) => inRange(m.occurredOn, cycle.start, cycle.end)),
+    ...allPurchases.filter((m) => inRange(m.occurredOn, cycle.start, cycle.end)),
+  ].sort((a, b) => (a.occurredOn < b.occurredOn ? 1 : a.occurredOn > b.occurredOn ? -1 : 0));
+
+  // Faturas
+  const statementMap = new Map<string, Statement>();
+  for (const row of inst.data ?? []) {
+    const card = cardById.get(row.card_id);
+    if (!card) continue;
+    const key = `${row.card_id}|${row.statement_month}`;
+    let st = statementMap.get(key);
+    if (!st) {
+      st = {
+        cardId: card.id,
+        cardName: card.name,
+        month: row.statement_month,
+        closingDate: statementClosingDate(row.statement_month, card.closingDay, card.dueDay),
+        dueDate: statementDueDate(row.statement_month, card.dueDay),
+        totalCents: 0,
+        paidCents: 0,
+        remainingCents: 0,
+        status: "open",
+        items: [],
+      };
+      statementMap.set(key, st);
+    }
+    const purchase = one(row.purchase) as {
+      description: string;
+      installments_count: number;
+      purchased_on: string;
+    } | null;
+    st.totalCents += Number(row.amount_cents);
+    st.items.push({
+      description: purchase?.description ?? "Compra",
       amountCents: Number(row.amount_cents),
-      occurredOn: row.occurred_on,
-      description: row.description,
-      paymentMethod: row.payment_method,
-      category: category ?? null,
+      number: row.number,
+      count: purchase?.installments_count ?? 1,
+      purchasedOn: purchase?.purchased_on ?? "",
+    });
+  }
+  let cardPaidInCycle = 0;
+  for (const p of payments.data ?? []) {
+    const st = statementMap.get(`${p.card_id}|${p.statement_month}`);
+    if (st) st.paidCents += Number(p.amount_cents);
+    if (inRange(p.paid_on, cycle.start, cycle.end)) cardPaidInCycle += Number(p.amount_cents);
+  }
+  const allStatements = [...statementMap.values()].map((st) => {
+    const remaining = Math.max(0, st.totalCents - st.paidCents);
+    const closed = diffInDays(st.closingDate, today) >= 0;
+    return {
+      ...st,
+      remainingCents: remaining,
+      status: (remaining === 0 ? "paid" : closed ? "closed" : "open") as Statement["status"],
     };
   });
+  const statements = allStatements
+    .filter((st) => inRange(toISODate(st.dueDate), cycle.start, cycle.end) || st.status === "open")
+    .sort((a, b) => diffInDays(b.dueDate, a.dueDate));
 
-  let incomeCents = 0;
-  let expenseCents = 0;
-  const categoryTotals = new Map<string, { name: string; icon: string | null; cents: number }>();
+  // Contas fixas no ciclo
+  const billRows = (bills.data ?? []).map((b) => ({
+    id: b.id as string,
+    name: b.name as string,
+    amountCents: Number(b.amount_cents),
+    dueDay: b.due_day as number,
+    startsOn: b.starts_on as string,
+    endsOn: b.ends_on as string | null,
+    category: one(b.category) as CategoryRef,
+  }));
+  const paidKeys = new Set((billPays.data ?? []).map((p) => `${p.bill_id}|${p.reference_month}`));
+  let billsPaidInCycle = 0;
+  for (const p of billPays.data ?? []) {
+    if (inRange(p.paid_on, cycle.start, cycle.end)) billsPaidInCycle += Number(p.amount_cents);
+  }
+  const billsInCycle: BillOccurrence[] = billRows
+    .flatMap((b) =>
+      monthlyOccurrences(b.dueDay, cycle.start, cycle.end, b.startsOn, b.endsOn).map((date) => {
+        const referenceMonth = firstOfMonthISO(date.year, date.month);
+        return {
+          billId: b.id,
+          name: b.name,
+          amountCents: b.amountCents,
+          dueDate: date,
+          referenceMonth,
+          paid: paidKeys.has(`${b.id}|${referenceMonth}`),
+          category: b.category,
+        };
+      }),
+    )
+    .sort((a, b) => diffInDays(b.dueDate, a.dueDate));
 
-  for (const m of movements) {
-    if (m.type === "income") {
-      incomeCents += m.amountCents;
-    } else {
-      expenseCents += m.amountCents;
-      const key = m.category?.name ?? "Sem categoria";
-      const current = categoryTotals.get(key) ?? { name: key, icon: m.category?.icon ?? null, cents: 0 };
-      current.cents += m.amountCents;
-      categoryTotals.set(key, current);
-    }
+  // Entradas fixas no ciclo
+  const incomeRows = (incomes.data ?? []).map((r) => ({
+    id: r.id as string,
+    name: r.name as string,
+    amountCents: Number(r.amount_cents),
+    dayOfMonth: r.day_of_month as number,
+    startsOn: r.starts_on as string,
+    endsOn: r.ends_on as string | null,
+  }));
+  const receivedIds = new Set(
+    allTx
+      .filter((t) => t.recurringIncomeId && inRange(t.occurredOn, cycle.start, cycle.end))
+      .map((t) => t.recurringIncomeId),
+  );
+  const incomesInCycle: IncomeOccurrence[] = incomeRows.flatMap((r) =>
+    monthlyOccurrences(r.dayOfMonth, cycle.start, cycle.end, r.startsOn, r.endsOn).map((date) => ({
+      incomeId: r.id,
+      name: r.name,
+      amountCents: r.amountCents,
+      date,
+      received: receivedIds.has(r.id),
+    })),
+  );
+
+  // Metas
+  const savedByGoal = new Map<string, number>();
+  let savedInCycle = 0;
+  for (const c of contribs.data ?? []) {
+    savedByGoal.set(c.goal_id, (savedByGoal.get(c.goal_id) ?? 0) + Number(c.amount_cents));
+    if (inRange(c.contributed_on, cycle.start, cycle.end)) savedInCycle += Number(c.amount_cents);
+  }
+  const goalList: Goal[] = (goals.data ?? []).map((g) => ({
+    id: g.id,
+    name: g.name,
+    kind: g.kind,
+    targetCents: Number(g.target_cents),
+    savedCents: savedByGoal.get(g.id) ?? 0,
+    targetDate: g.target_date,
+  }));
+
+  // Resumo
+  const cycleTx = allTx.filter((t) => inRange(t.occurredOn, cycle.start, cycle.end));
+  const receivedCents = cycleTx.filter((t) => t.type === "income").reduce((s, t) => s + t.amountCents, 0);
+  const directSpent = cycleTx.filter((t) => t.type === "expense").reduce((s, t) => s + t.amountCents, 0);
+  const spentCents = directSpent + cardPaidInCycle + billsPaidInCycle;
+  const committedCards = allStatements
+    .filter((st) => inRange(toISODate(st.dueDate), cycle.start, cycle.end))
+    .reduce((s, st) => s + st.remainingCents, 0);
+  const committedBills = billsInCycle.filter((b) => !b.paid).reduce((s, b) => s + b.amountCents, 0);
+  const committedCents = committedCards + committedBills;
+  const freeCents = receivedCents - spentCents - savedInCycle - committedCents;
+  const perDayCents = freeCents > 0 ? Math.floor(freeCents / (cycle.daysLeft + 1)) : 0;
+  const toReceiveCents = incomesInCycle.filter((i) => !i.received).reduce((s, i) => s + i.amountCents, 0);
+
+  const catTotals = new Map<string, { name: string; icon: string | null; cents: number }>();
+  const addCat = (ref: CategoryRef, cents: number) => {
+    const name = ref?.name ?? "Sem categoria";
+    const cur = catTotals.get(name) ?? { name, icon: ref?.icon ?? null, cents: 0 };
+    cur.cents += cents;
+    catTotals.set(name, cur);
+  };
+  movements.filter((m) => m.type === "expense").forEach((m) => addCat(m.category, m.amountCents));
+  for (const p of billPays.data ?? []) {
+    if (!inRange(p.paid_on, cycle.start, cycle.end)) continue;
+    const bill = billRows.find((b) => b.id === p.bill_id);
+    addCat(bill?.category ?? { name: "Contas", icon: "receipt" }, Number(p.amount_cents));
   }
 
-  const freeCents = incomeCents - expenseCents;
-  const daysIncludingToday = cycle.daysLeft + 1;
-  const perDayCents = freeCents > 0 ? Math.floor(freeCents / daysIncludingToday) : 0;
+  const weekStart = toISODate(addDays(today, -6));
+  const lastWeekStart = toISODate(addDays(today, -13));
+  const todayISO = toISODate(today);
+  const spending = [
+    ...allTx.filter((t) => t.type === "expense").map((t) => ({ on: t.occurredOn, cents: t.amountCents })),
+    ...allPurchases.map((p) => ({ on: p.occurredOn, cents: p.amountCents })),
+  ];
+  const thisWeekCents = spending.filter((s) => s.on >= weekStart && s.on <= todayISO).reduce((a, s) => a + s.cents, 0);
+  const lastWeekCents = spending
+    .filter((s) => s.on >= lastWeekStart && s.on < weekStart)
+    .reduce((a, s) => a + s.cents, 0);
 
   return {
     today,
     cycle,
-    incomeCents,
-    expenseCents,
-    freeCents,
-    perDayCents,
-    byCategory: [...categoryTotals.values()].sort((a, b) => b.cents - a.cents),
+    categories: cats,
+    cards,
+    bills: billRows.map(({ id, name, amountCents, dueDay, endsOn, category }) => ({
+      id,
+      name,
+      amountCents,
+      dueDay,
+      endsOn,
+      category,
+    })),
+    incomes: incomeRows.map(({ id, name, amountCents, dayOfMonth, endsOn }) => ({
+      id,
+      name,
+      amountCents,
+      dayOfMonth,
+      endsOn,
+    })),
+    goals: goalList,
     movements,
+    statements,
+    billsInCycle,
+    incomesInCycle,
+    summary: {
+      receivedCents,
+      spentCents,
+      savedCents: savedInCycle,
+      committedCents,
+      freeCents,
+      perDayCents,
+      toReceiveCents,
+      byCategory: [...catTotals.values()].sort((a, b) => b.cents - a.cents),
+      week: { thisWeekCents, lastWeekCents },
+    },
   };
 }
+
+export function daysUntil(date: CalendarDate, today: CalendarDate) {
+  return diffInDays(today, date);
+}
+
+export { fromISODate };
