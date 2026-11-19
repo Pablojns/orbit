@@ -23,7 +23,16 @@ PWA feito com Next.js 16 + Supabase, publicado na Vercel. Funciona no navegador 
 - [x] Início mostra o ciclo atual (dia X de Y, dias restantes)
 - [x] Perfil salva o nome e o dia de início do ciclo no banco
 - [x] PWA instalável (manifest, ícones, service worker, tela offline)
-- [ ] Fase 2: entradas, gastos, categorias, painel "livre para gastar"
+- [x] Lançamento de gastos e entradas (Pix, débito, dinheiro, cartão de crédito)
+- [x] Cartões com faturas, parcelas na fatura certa e pagamento de fatura
+- [x] Contas fixas (Paguei) e entradas fixas (Recebi)
+- [x] Metas e reserva de emergência
+- [x] Agenda com contagem regressiva, tarefas e hábitos
+- [x] Livre de verdade: entrou − saiu − guardado − faturas e contas a pagar no ciclo
+
+**Modo teste sem login (temporário):** quem abre o link usa os dados do dono. Para religar o login: `LOGIN_REQUIRED = true` em `src/lib/supabase/proxy.ts` e desfazer `0004_modo_teste_sem_login.sql`.
+
+Testes das regras de fatura e ciclo: `npx tsx scripts/test-schedule.ts`
 
 ---
 

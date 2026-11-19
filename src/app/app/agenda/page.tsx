@@ -24,7 +24,7 @@ export default async function AgendaPage() {
   return (
     <>
       <PageHeader title="Agenda" subtitle="Provas, compromissos, prazos e tarefas." />
-      <div className="space-y-6 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0">
+      <div className="space-y-6 xl:grid xl:grid-cols-2 xl:gap-6 xl:space-y-0">
         <section>
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold">Próximos prazos</h2>
