@@ -2,10 +2,12 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseEnv } from "./env";
 
-// Só o app (/app) exige login. O site público, a página de login e as
-// páginas legais ficam abertas.
+// MODO TESTE SEM LOGIN: nada exige login por enquanto. Para voltar a exigir
+// login no app, troque LOGIN_REQUIRED para true.
+const LOGIN_REQUIRED = false;
+
 function isProtected(pathname: string) {
-  return pathname === "/app" || pathname.startsWith("/app/");
+  return LOGIN_REQUIRED && (pathname === "/app" || pathname.startsWith("/app/"));
 }
 
 // Renova a sessão do Supabase e manda quem não está logado para /login.
@@ -15,7 +17,7 @@ export async function updateSession(request: NextRequest) {
 
   // Sem variáveis configuradas: o site abre, mas app e login mostram a tela de configuração.
   if (!env) {
-    if (isProtected(pathname) || pathname === "/login") {
+    if (pathname === "/app" || pathname.startsWith("/app/") || pathname === "/login") {
       return NextResponse.redirect(new URL("/setup", request.url));
     }
     return NextResponse.next();
@@ -31,12 +33,8 @@ export async function updateSession(request: NextRequest) {
       setAll(cookiesToSet, headers) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
         response = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) =>
-          response.cookies.set(name, value, options),
-        );
-        Object.entries(headers ?? {}).forEach(([key, value]) =>
-          response.headers.set(key, value),
-        );
+        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+        Object.entries(headers ?? {}).forEach(([key, value]) => response.headers.set(key, value));
       },
     },
   });
@@ -52,7 +50,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (loggedIn && pathname === "/login") {
+  if ((loggedIn || !LOGIN_REQUIRED) && pathname === "/login") {
     return NextResponse.redirect(new URL("/app", request.url));
   }
 

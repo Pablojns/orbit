@@ -44,8 +44,8 @@ export default function PrivacyPage() {
 
       <h2>Por quanto tempo</h2>
       <p>
-        Mantemos os dados enquanto sua conta existir. Quando você pede a exclusão, apagamos em até 30
-        dias, exceto o que a lei exigir guardar.
+        Mantemos os dados enquanto sua conta existir. Quando você pede a exclusão, apagamos em até 30 dias, exceto o que
+        a lei exigir guardar.
       </p>
 
       <h2>Seus direitos</h2>

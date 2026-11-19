@@ -19,8 +19,8 @@ export default function TermsPage() {
 
       <h2>Fase de lançamento</h2>
       <p>
-        O app está em desenvolvimento ativo. Funcionalidades podem mudar, falhar ou ser retiradas. Recomendamos conferir valores
-        importantes, como faturas, diretamente no seu banco.
+        O app está em desenvolvimento ativo. Funcionalidades podem mudar, falhar ou ser retiradas. Recomendamos conferir
+        valores importantes, como faturas, diretamente no seu banco.
       </p>
 
       <h2>Sua conta</h2>

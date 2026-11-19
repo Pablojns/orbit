@@ -9,9 +9,7 @@ export function formatCents(cents: number) {
 export function parseToCents(input: string): number | null {
   const clean = input.replace(/[R$\s]/g, "");
   if (!clean) return null;
-  const normalized = clean.includes(",")
-    ? clean.replace(/\./g, "").replace(",", ".")
-    : clean;
+  const normalized = clean.includes(",") ? clean.replace(/\./g, "").replace(",", ".") : clean;
   if (!/^\d+(\.\d{1,2})?$/.test(normalized)) return null;
   const [whole, frac = ""] = normalized.split(".");
   return Number(whole) * 100 + Number(frac.padEnd(2, "0"));

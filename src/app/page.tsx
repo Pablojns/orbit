@@ -78,7 +78,7 @@ const FAQ = [
   },
   {
     q: "Preciso pagar para começar?",
-    a: "Não. Você cria a conta de graça, só com o e-mail, e usa o plano gratuito pelo tempo que quiser.",
+    a: "Não. Você abre o Orbit e usa o plano gratuito pelo tempo que quiser.",
   },
   {
     q: "Quanto vai custar?",
@@ -92,11 +92,8 @@ export default function SitePage() {
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
         <Logo />
         <nav className="flex items-center gap-2 text-[15px]">
-          <Link href="/login" className="rounded-2xl px-4 py-2 font-medium text-ink-soft hover:text-ink">
-            Entrar
-          </Link>
-          <Link href="/login" className="hidden rounded-2xl bg-ink px-4 py-2 font-semibold text-white sm:inline-block">
-            Criar conta grátis
+          <Link href="/app" className="rounded-2xl bg-ink px-4 py-2 font-semibold text-white">
+            Abrir o Orbit
           </Link>
         </nav>
       </header>
@@ -114,12 +111,12 @@ export default function SitePage() {
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link
-                href="/login"
+                href="/app"
                 className="rounded-2xl bg-cobalt px-6 py-3.5 text-center text-base font-semibold text-white"
               >
-                Criar conta grátis
+                Abrir o Orbit
               </Link>
-              <p className="text-sm text-ink-soft">Sem senha e sem cartão: você entra pelo link que chega no e-mail.</p>
+              <p className="text-sm text-ink-soft">Funciona no navegador do celular e do computador.</p>
             </div>
           </div>
           <PhonePreview />
@@ -270,12 +267,12 @@ export default function SitePage() {
             <h2 className="max-w-[18ch] text-3xl leading-tight font-bold sm:text-5xl">
               Descubra hoje quanto você pode gastar até o próximo salário.
             </h2>
-            <p className="mt-4 max-w-[48ch] text-lg text-white/75">Leva um minuto para criar a conta. É grátis.</p>
+            <p className="mt-4 max-w-[48ch] text-lg text-white/75">Abra no celular ou no computador. É grátis.</p>
             <Link
-              href="/login"
+              href="/app"
               className="mt-8 inline-block rounded-2xl bg-sun px-6 py-3.5 text-base font-semibold text-ink"
             >
-              Criar conta grátis
+              Abrir o Orbit
             </Link>
           </div>
         </section>
