@@ -3,8 +3,8 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "Orbit",
-    short_name: "Orbit",
+    name: "Dimeta",
+    short_name: "Dimeta",
     description: "Seu dinheiro, seus prazos e seus hábitos no mesmo lugar.",
     lang: "pt-BR",
     start_url: "/app",

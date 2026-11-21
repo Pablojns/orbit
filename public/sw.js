@@ -1,13 +1,13 @@
-// Service worker do Orbit (Fase 1).
+// Service worker do Dimeta (Fase 1).
 // Guarda os arquivos estáticos para o app abrir rápido e mostra uma tela
 // simples quando não há internet. Dados financeiros NUNCA ficam em cache.
-const CACHE = "orbit-v2";
+const CACHE = "dimeta-v3";
 const OFFLINE_HTML = `<!doctype html><html lang="pt-BR"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Orbit sem conexão</title>
+<title>Dimeta sem conexão</title>
 <body style="font-family:system-ui;background:#eef0fa;color:#1b1f3b;padding:48px 24px">
 <h1 style="font-size:28px;margin:0 0 8px">Você está sem internet</h1>
-<p style="color:#5d6386;font-size:16px;line-height:1.5">Assim que a conexão voltar, o Orbit carrega de novo.</p>
+<p style="color:#5d6386;font-size:16px;line-height:1.5">Assim que a conexão voltar, o Dimeta carrega de novo.</p>
 <button onclick="location.reload()" style="margin-top:16px;padding:12px 20px;border:0;border-radius:16px;background:#3a4be0;color:#fff;font-size:16px">Tentar de novo</button>
 </body></html>`;
 
@@ -54,7 +54,7 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
-// Lembretes (web push): mostra a notificação e abre o Orbit no toque.
+// Lembretes (web push): mostra a notificação e abre o Dimeta no toque.
 self.addEventListener("push", (event) => {
   let data = {};
   try {
@@ -63,7 +63,7 @@ self.addEventListener("push", (event) => {
     data = { body: event.data ? event.data.text() : "" };
   }
   event.waitUntil(
-    self.registration.showNotification(data.title || "Orbit", {
+    self.registration.showNotification(data.title || "Dimeta", {
       body: data.body || "",
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-192.png",

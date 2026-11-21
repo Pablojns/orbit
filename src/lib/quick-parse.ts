@@ -20,7 +20,7 @@ export type Parsed =
 
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
-// Palavra -> nome da categoria padrão do Orbit.
+// Palavra -> nome da categoria padrão do Dimeta.
 const KEYWORDS: Record<string, string[]> = {
   Mercado: ["mercado", "supermercado", "feira", "atacadao", "assai", "carrefour", "hortifruti", "acougue", "padaria"],
   Alimentação: [

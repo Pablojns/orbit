@@ -5,7 +5,7 @@ import { PhonePreview } from "./_site/phone-preview";
 import { SiteFooter } from "./_site/site-footer";
 
 export const metadata = {
-  title: { absolute: "Orbit · Saiba quanto você pode gastar até o próximo salário" },
+  title: { absolute: "Dimeta · Saiba quanto você pode gastar até o próximo salário" },
   description:
     "Dinheiro, cartões, prazos e hábitos organizados pelo seu ciclo, do dia do salário até o próximo. No celular ou no computador.",
 };
@@ -28,7 +28,7 @@ const PAINS = [
 const STEPS = [
   {
     title: "Diga o dia em que seu dinheiro entra",
-    text: "O Orbit organiza tudo pelo seu ciclo, do dia do salário até a véspera do próximo, e não pelo mês do calendário.",
+    text: "O Dimeta organiza tudo pelo seu ciclo, do dia do salário até a véspera do próximo, e não pelo mês do calendário.",
   },
   {
     title: "Lance gastos em dois toques",
@@ -65,20 +65,20 @@ const FEATURES = [
 
 const FAQ = [
   {
-    q: "O Orbit se conecta com meu banco?",
+    q: "O Dimeta se conecta com meu banco?",
     a: "Ainda não. Você lança os gastos, o que leva poucos segundos e te faz enxergar cada compra. A conexão automática com bancos está nos planos para depois do lançamento.",
   },
   {
     q: "Funciona no computador?",
-    a: "Sim. O Orbit abre em qualquer navegador e pode ser instalado no celular como um app. A conta é a mesma: o que você lança no celular aparece no computador.",
+    a: "Sim. O Dimeta abre em qualquer navegador e pode ser instalado no celular como um app. A conta é a mesma: o que você lança no celular aparece no computador.",
   },
   {
     q: "Meus dados ficam seguros?",
-    a: "Cada conta só enxerga os próprios dados, e essa regra é aplicada direto no banco de dados. O Orbit não pede senha de banco nem de cartão.",
+    a: "Cada conta só enxerga os próprios dados, e essa regra é aplicada direto no banco de dados. O Dimeta não pede senha de banco nem de cartão.",
   },
   {
     q: "Preciso pagar para começar?",
-    a: "Não. Você abre o Orbit e usa o plano gratuito pelo tempo que quiser.",
+    a: "Não. Você abre o Dimeta e usa o plano gratuito pelo tempo que quiser.",
   },
   {
     q: "Quanto vai custar?",
@@ -93,7 +93,7 @@ export default function SitePage() {
         <Logo />
         <nav className="flex items-center gap-2 text-[15px]">
           <Link href="/app" className="rounded-2xl bg-ink px-4 py-2 font-semibold text-white">
-            Abrir o Orbit
+            Abrir o Dimeta
           </Link>
         </nav>
       </header>
@@ -106,7 +106,7 @@ export default function SitePage() {
               Saiba quanto você pode gastar até o próximo salário.
             </h1>
             <p className="mt-6 max-w-[46ch] text-lg leading-relaxed text-ink-soft">
-              O Orbit junta seu dinheiro, seus cartões, seus prazos e seus hábitos, e organiza tudo pelo dia em que o
+              O Dimeta junta seu dinheiro, seus cartões, seus prazos e seus hábitos, e organiza tudo pelo dia em que o
               seu dinheiro entra.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -114,7 +114,7 @@ export default function SitePage() {
                 href="/app"
                 className="rounded-2xl bg-cobalt px-6 py-3.5 text-center text-base font-semibold text-white"
               >
-                Abrir o Orbit
+                Abrir o Dimeta
               </Link>
               <p className="text-sm text-ink-soft">Funciona no navegador do celular e do computador.</p>
             </div>
@@ -186,7 +186,7 @@ export default function SitePage() {
             <div>
               <h2 className="text-3xl leading-tight font-bold sm:text-4xl">Celular sem bateria? Abre no computador.</h2>
               <p className="mt-4 max-w-[48ch] text-lg leading-relaxed text-white/80">
-                O Orbit funciona no navegador de qualquer aparelho, e no celular dá para instalar com ícone na tela
+                O Dimeta funciona no navegador de qualquer aparelho, e no celular dá para instalar com ícone na tela
                 inicial. Sem loja de apps e sem ocupar espaço.
               </p>
             </div>
@@ -272,7 +272,7 @@ export default function SitePage() {
               href="/app"
               className="mt-8 inline-block rounded-2xl bg-sun px-6 py-3.5 text-base font-semibold text-ink"
             >
-              Abrir o Orbit
+              Abrir o Dimeta
             </Link>
           </div>
         </section>

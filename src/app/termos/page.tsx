@@ -10,7 +10,7 @@ export default function TermsPage() {
         Ao usar o {SITE.name}, você concorda com estes termos. O serviço é oferecido por {SITE.legalName}.
       </p>
 
-      <h2>O que o Orbit é</h2>
+      <h2>O que o Dimeta é</h2>
       <p>
         Uma ferramenta de organização pessoal: ajuda você a acompanhar dinheiro, prazos e hábitos com base nas
         informações que você mesmo lança. O {SITE.name} não é banco, não movimenta dinheiro e não dá recomendação de

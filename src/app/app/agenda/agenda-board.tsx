@@ -284,7 +284,7 @@ function NewItemFields({ date }: { date: string | null }) {
             </Field>
           ) : null}
           {kind === "exam" && repeat === "none" ? (
-            <Field label="Sessões de estudo antes da prova" hint="O Orbit espalha nos dias livres até a véspera.">
+            <Field label="Sessões de estudo antes da prova" hint="O Dimeta espalha nos dias livres até a véspera.">
               <Select
                 name="study_sessions"
                 defaultValue="0"

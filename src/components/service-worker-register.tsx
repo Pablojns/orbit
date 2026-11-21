@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-// Registra o service worker, que é o que permite instalar o Orbit no celular.
+// Registra o service worker, que é o que permite instalar o Dimeta no celular.
 export function ServiceWorkerRegister() {
   useEffect(() => {
     if (process.env.NODE_ENV !== "production") return;

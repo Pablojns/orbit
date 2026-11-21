@@ -128,7 +128,7 @@ export default async function HomePage() {
               </button>
             </form>
           </div>
-          <p className="mt-1 text-sm text-ink-soft">Com isso, o Orbit calcula sozinho quanto você pode gastar.</p>
+          <p className="mt-1 text-sm text-ink-soft">Com isso, o Dimeta calcula sozinho quanto você pode gastar.</p>
           <ol className="mt-3 space-y-1">
             {steps.map((step) => (
               <li key={step.label}>

@@ -1,7 +1,7 @@
 import type { Cycle } from "@/lib/cycle";
 import { formatShort } from "@/lib/dates";
 
-// O elemento-assinatura do Orbit: o ciclo financeiro desenhado como uma órbita.
+// O elemento-assinatura do Dimeta: o ciclo financeiro desenhado como uma órbita.
 // O ponto âmbar é "hoje", andando do dia do salário até a véspera do próximo.
 export function CycleRing({ cycle }: { cycle: Cycle }) {
   const size = 232;

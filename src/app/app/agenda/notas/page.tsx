@@ -53,7 +53,7 @@ export default async function GradesPage() {
         <EmptyState
           icon={GraduationCap}
           title="Nenhuma matéria ainda"
-          description="Crie uma matéria, cadastre as provas e trabalhos com o peso de cada um. O Orbit mostra sua média e quanto precisa tirar para passar."
+          description="Crie uma matéria, cadastre as provas e trabalhos com o peso de cada um. O Dimeta mostra sua média e quanto precisa tirar para passar."
         />
       ) : (
         <ul className="grid gap-4 lg:grid-cols-2">

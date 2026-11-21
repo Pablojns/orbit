@@ -6,10 +6,10 @@ import { Analytics } from "@vercel/analytics/next";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 
 export const metadata: Metadata = {
-  title: { default: "Orbit", template: "%s · Orbit" },
+  title: { default: "Dimeta", template: "%s · Dimeta" },
   description: "Seu dinheiro, seus prazos e seus hábitos no mesmo lugar.",
-  applicationName: "Orbit",
-  appleWebApp: { capable: true, title: "Orbit", statusBarStyle: "default" },
+  applicationName: "Dimeta",
+  appleWebApp: { capable: true, title: "Dimeta", statusBarStyle: "default" },
   icons: {
     icon: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
     apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],

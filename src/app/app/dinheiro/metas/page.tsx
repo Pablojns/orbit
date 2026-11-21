@@ -144,7 +144,7 @@ function GoalPlan({
   if (!targetDate || daysLeft === null) {
     return (
       <p className="mt-2 text-[13px] text-ink-soft">
-        Faltam {formatCents(missing)}. Coloque um “até quando” no lápis para o Orbit dizer quanto guardar.
+        Faltam {formatCents(missing)}. Coloque um “até quando” no lápis para o Dimeta dizer quanto guardar.
       </p>
     );
   }
