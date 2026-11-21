@@ -8,6 +8,7 @@ import {
   firstOfMonthISO,
   inRange,
   monthlyOccurrences,
+  parcelInCycle,
   statementClosingDate,
   statementDueDate,
 } from "@/lib/schedule";
@@ -27,7 +28,7 @@ export type CategoryRef = { name: string; icon: string | null } | null;
 
 export type Movement = {
   id: string;
-  source: "transaction" | "card_purchase";
+  source: "transaction" | "card_purchase" | "bill_payment";
   type: "expense" | "income";
   amountCents: number;
   occurredOn: string;
@@ -38,6 +39,11 @@ export type Movement = {
   cardId?: string;
   cardName?: string;
   installments?: number;
+  installmentNumber?: number; // compra no cartão: qual parcela é deste ciclo
+  totalCents?: number; // compra no cartão: valor total da compra
+  purchasedOn?: string; // compra no cartão: data da compra
+  billId?: string; // conta fixa paga
+  referenceMonth?: string; // conta fixa paga: mês da conta (AAAA-MM-01)
 };
 
 export type Statement = {
@@ -120,6 +126,9 @@ export type Finance = {
     freeCents: number;
     perDayCents: number;
     toReceiveCents: number;
+    balanceCents: number; // Saldo: tudo que entrou − saiu fora do cartão − faturas pagas − guardado em metas, desde o começo
+    hasAnyIncome: boolean; // já lançou alguma entrada desde o começo (primeiro acesso)
+    openStatementCents: number; // soma das faturas abertas (ainda não fechadas) de todos os cartões
     byCategory: { name: string; icon: string | null; cents: number }[];
     week: { thisWeekCents: number; lastWeekCents: number };
   };
@@ -128,6 +137,24 @@ export type Finance = {
 const one = <T>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? null) : v);
 
 // ---------- leitura -------------------------------------------------
+
+// Saldo desde o primeiro uso, até a data `untilISO` (fim do ciclo mostrado):
+// entradas − gastos fora do cartão − contas pagas − faturas pagas − guardado em metas.
+async function getBalanceParts(supabase: Awaited<ReturnType<typeof createClient>>, untilISO: string) {
+  const [tx, bills, cards, goals] = await Promise.all([
+    supabase.from("transactions").select("type, amount_cents").eq("user_id", OWNER_ID).lte("occurred_on", untilISO),
+    supabase.from("bill_payments").select("amount_cents").eq("user_id", OWNER_ID).lte("paid_on", untilISO),
+    supabase.from("card_statement_payments").select("amount_cents").eq("user_id", OWNER_ID).lte("paid_on", untilISO),
+    supabase.from("goal_contributions").select("amount_cents").eq("user_id", OWNER_ID).lte("contributed_on", untilISO),
+  ]);
+  const sum = (rows: { amount_cents: unknown }[] | null) => (rows ?? []).reduce((a, r) => a + Number(r.amount_cents), 0);
+  const income = sum((tx.data ?? []).filter((t) => t.type === "income"));
+  const expense = sum((tx.data ?? []).filter((t) => t.type === "expense"));
+  return {
+    balance: income - expense - sum(bills.data) - sum(cards.data) - sum(goals.data),
+    hasIncome: (tx.data ?? []).some((t) => t.type === "income"),
+  };
+}
 
 export async function getCategories(): Promise<Category[]> {
   const supabase = await createClient();
@@ -169,10 +196,12 @@ export async function getFinance(cycleStartDay: number, offset = 0): Promise<Fin
   const weekStartISO = toISODate(addDays(today, -13));
   const fromISO = startISO < weekStartISO ? startISO : weekStartISO;
 
-  // Faturas: do mês do início do ciclo até 2 meses depois do fim (cobre a fatura aberta).
+  // Faturas: do mês do início do ciclo em diante, com TODAS as parcelas futuras
+  // (o limite e "Próximas faturas" precisam de todas, não só 2 meses).
   const firstMonth = firstOfMonthISO(cycle.start.year, cycle.start.month);
-  const lastM = addMonths(cycle.end.year, cycle.end.month, 2);
-  const lastMonth = firstOfMonthISO(lastM.year, lastM.month);
+  // Compras de até 48 meses atrás ainda podem ter parcela neste ciclo.
+  const pm = addMonths(cycle.start.year, cycle.start.month, -48);
+  const purchasesFromISO = firstOfMonthISO(pm.year, pm.month);
 
   const supabase = await createClient();
   const [cats, cards, tx, purchases, inst, payments, bills, billPays, incomes, goals, contribs] = await Promise.all([
@@ -194,7 +223,7 @@ export async function getFinance(cycleStartDay: number, offset = 0): Promise<Fin
         "id, card_id, description, total_cents, installments_count, purchased_on, category_id, category:categories(name, icon)",
       )
       .eq("user_id", OWNER_ID)
-      .gte("purchased_on", fromISO)
+      .gte("purchased_on", purchasesFromISO)
       .lte("purchased_on", endISO)
       .order("purchased_on", { ascending: false }),
     supabase
@@ -203,14 +232,12 @@ export async function getFinance(cycleStartDay: number, offset = 0): Promise<Fin
         "card_id, number, amount_cents, statement_month, purchase:card_purchases(description, installments_count, purchased_on)",
       )
       .eq("user_id", OWNER_ID)
-      .gte("statement_month", firstMonth)
-      .lte("statement_month", lastMonth),
+      .gte("statement_month", firstMonth),
     supabase
       .from("card_statement_payments")
       .select("card_id, statement_month, amount_cents, paid_on")
       .eq("user_id", OWNER_ID)
-      .gte("statement_month", firstMonth)
-      .lte("statement_month", lastMonth),
+      .gte("statement_month", firstMonth),
     supabase
       .from("bills")
       .select(
@@ -238,6 +265,7 @@ export async function getFinance(cycleStartDay: number, offset = 0): Promise<Fin
       .order("created_at"),
     supabase.from("goal_contributions").select("goal_id, amount_cents, contributed_on").eq("user_id", OWNER_ID),
   ]);
+  const balance = await getBalanceParts(supabase, endISO);
 
   const cardById = new Map(cards.map((c) => [c.id, c]));
 
@@ -254,12 +282,16 @@ export async function getFinance(cycleStartDay: number, offset = 0): Promise<Fin
     category: one(r.category) as CategoryRef,
     categoryId: (r.category_id as string | null) ?? null,
   }));
-  const allPurchases: Movement[] = (purchases.data ?? []).map((p) => ({
+  const purchaseRows = purchases.data ?? [];
+  const toPurchaseMovement = (
+    p: (typeof purchaseRows)[number],
+    parcel: { number: number; amountCents: number; date: string },
+  ): Movement => ({
     id: p.id,
     source: "card_purchase",
     type: "expense",
-    amountCents: Number(p.total_cents),
-    occurredOn: p.purchased_on,
+    amountCents: parcel.amountCents,
+    occurredOn: parcel.date,
     description: p.description,
     paymentMethod: "credit",
     category: one(p.category) as CategoryRef,
@@ -267,12 +299,21 @@ export async function getFinance(cycleStartDay: number, offset = 0): Promise<Fin
     cardId: p.card_id,
     cardName: cardById.get(p.card_id)?.name ?? "Cartão",
     installments: p.installments_count,
-  }));
+    installmentNumber: parcel.number,
+    totalCents: Number(p.total_cents),
+    purchasedOn: p.purchased_on as string,
+  });
+  // Só a parcela que cai neste ciclo (a 1ª na data da compra, a 2ª um mês depois…).
+  const cyclePurchases: Movement[] = purchaseRows.flatMap((p) => {
+    const parcel = parcelInCycle(p.purchased_on, Number(p.total_cents), p.installments_count, cycle.start, cycle.end);
+    return parcel ? [toPurchaseMovement(p, parcel)] : [];
+  });
+  // Para a comparação das semanas: a compra no dia em que foi feita.
+  const allPurchases = purchaseRows
+    .filter((p) => p.purchased_on >= fromISO)
+    .map((p) => ({ occurredOn: p.purchased_on as string, amountCents: Number(p.total_cents) }));
 
-  const movements: Movement[] = [
-    ...allTx.filter((m) => inRange(m.occurredOn, cycle.start, cycle.end)),
-    ...allPurchases.filter((m) => inRange(m.occurredOn, cycle.start, cycle.end)),
-  ].sort((a, b) => (a.occurredOn < b.occurredOn ? 1 : a.occurredOn > b.occurredOn ? -1 : 0));
+  const movementsBase: Movement[] = [...allTx.filter((m) => inRange(m.occurredOn, cycle.start, cycle.end)), ...cyclePurchases];
 
   // Faturas
   const statementMap = new Map<string, Statement>();
@@ -353,6 +394,31 @@ export async function getFinance(cycleStartDay: number, offset = 0): Promise<Fin
     category: one(b.category) as CategoryRef,
     categoryId: (b.category_id as string | null) ?? null,
   }));
+  // Contas pagas entram no Extrato, na data em que tocaram em "Paguei".
+  const billPayMovements: Movement[] = (billPays.data ?? [])
+    .filter((p) => inRange(p.paid_on, cycle.start, cycle.end))
+    .flatMap((p) => {
+      const bill = billRows.find((b) => b.id === p.bill_id);
+      if (!bill) return [];
+      return [
+        {
+          id: `${p.bill_id}|${p.reference_month}`,
+          source: "bill_payment" as const,
+          type: "expense" as const,
+          amountCents: Number(p.amount_cents),
+          occurredOn: p.paid_on as string,
+          description: bill.name,
+          paymentMethod: null,
+          category: bill.category ?? { name: "Contas", icon: "receipt" },
+          categoryId: bill.categoryId,
+          billId: bill.id,
+          referenceMonth: p.reference_month as string,
+        },
+      ];
+    });
+  const movements: Movement[] = [...movementsBase, ...billPayMovements].sort((a, b) =>
+    a.occurredOn < b.occurredOn ? 1 : a.occurredOn > b.occurredOn ? -1 : 0,
+  );
   const paidKeys = new Set((billPays.data ?? []).map((p) => `${p.bill_id}|${p.reference_month}`));
   let billsPaidInCycle = 0;
   for (const p of billPays.data ?? []) {
@@ -437,11 +503,6 @@ export async function getFinance(cycleStartDay: number, offset = 0): Promise<Fin
     catTotals.set(name, cur);
   };
   movements.filter((m) => m.type === "expense").forEach((m) => addCat(m.category, m.amountCents));
-  for (const p of billPays.data ?? []) {
-    if (!inRange(p.paid_on, cycle.start, cycle.end)) continue;
-    const bill = billRows.find((b) => b.id === p.bill_id);
-    addCat(bill?.category ?? { name: "Contas", icon: "receipt" }, Number(p.amount_cents));
-  }
 
   const weekStart = toISODate(addDays(today, -6));
   const lastWeekStart = toISODate(addDays(today, -13));
@@ -491,6 +552,9 @@ export async function getFinance(cycleStartDay: number, offset = 0): Promise<Fin
       freeCents,
       perDayCents,
       toReceiveCents,
+      balanceCents: balance.balance,
+      hasAnyIncome: balance.hasIncome,
+      openStatementCents: allStatements.filter((st) => st.status === "open").reduce((a, st) => a + st.remainingCents, 0),
       byCategory: [...catTotals.values()].sort((a, b) => b.cents - a.cents),
       week: { thisWeekCents, lastWeekCents },
     },

@@ -8,6 +8,7 @@ import { getFinance, type Movement } from "@/lib/finance";
 import { formatCents } from "@/lib/money";
 import { requireProfile } from "@/lib/profile";
 import { paydayText } from "@/lib/cycle";
+import { MoneyStrip } from "@/components/money-strip";
 
 export const metadata = { title: "Dinheiro" };
 export const dynamic = "force-dynamic";
@@ -35,6 +36,17 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
+      {!past ? (
+        <div className="mb-3">
+          <MoneyStrip
+            balanceCents={s.balanceCents}
+            perDayCents={s.perDayCents}
+            freeCents={s.freeCents}
+            openStatementCents={s.openStatementCents}
+            hasCards={f.cards.length > 0}
+          />
+        </div>
+      ) : null}
       <div className="grid grid-cols-2 gap-3">
         <QuickAdd categories={f.categories} cards={f.cards} variant="expense" />
         <QuickAdd categories={f.categories} cards={f.cards} variant="income" />
@@ -77,7 +89,7 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
                     m={m}
                     today={today}
                     deletable
-                    edit={<EditMovement m={m} categories={f.categories} cards={f.cards} />}
+                    edit={m.source === "bill_payment" ? null : <EditMovement m={m} categories={f.categories} cards={f.cards} />}
                   />
                 ))}
               </ul>

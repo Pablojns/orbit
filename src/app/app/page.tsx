@@ -6,8 +6,10 @@ import { countdown, EventRow } from "@/components/event-row";
 import { HabitCheck } from "@/components/habit-card";
 import { MovementRow } from "@/components/movement-list";
 import { OrbitRing } from "@/components/orbit-ring";
-import { diffInDays } from "@/lib/dates";
+import { diffInDays, formatShort } from "@/lib/dates";
 import { paydayText } from "@/lib/cycle";
+import { MoneyStrip } from "@/components/money-strip";
+import { FirstSalary } from "@/components/first-salary";
 import { getFinance } from "@/lib/finance";
 import { formatCents } from "@/lib/money";
 import { requireProfile } from "@/lib/profile";
@@ -101,6 +103,14 @@ export default async function HomePage() {
       </header>
 
       {/* 1. A barra de escrever e falar fica fixa no topo (layout do app) */}
+      <MoneyStrip
+        balanceCents={s.balanceCents}
+        perDayCents={s.perDayCents}
+        freeCents={s.freeCents}
+        openStatementCents={s.openStatementCents}
+        hasCards={f.cards.length > 0}
+      />
+      {!s.hasAnyIncome ? <FirstSalary dayLabel={formatShort(cycle.start)} /> : null}
       {showSteps ? (
         <section className="glass rounded-[1.75rem] p-5">
           <div className="flex items-center justify-between">

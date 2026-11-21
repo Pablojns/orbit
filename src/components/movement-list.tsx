@@ -29,8 +29,10 @@ export function MovementRow({
   const title = m.description || m.category?.name || (income ? "Entrada" : "Gasto");
   const payment =
     m.source === "card_purchase"
-      ? `${m.cardName}${m.installments && m.installments > 1 ? ` em ${m.installments}x` : ""}`
-      : m.paymentMethod
+      ? `${m.cardName}${m.installments && m.installments > 1 ? `, parcela ${m.installmentNumber ?? 1} de ${m.installments}` : ""}`
+      : m.source === "bill_payment"
+        ? "Conta fixa paga"
+        : m.paymentMethod
         ? METHOD_LABEL[m.paymentMethod]
         : null;
   const meta = [m.description ? m.category?.name : null, payment, formatDayLabel(m.occurredOn, today)]
@@ -55,7 +57,11 @@ export function MovementRow({
       </p>
       {edit}
       {deletable ? (
-        <DeleteButton action={deleteMovement} fields={{ id: m.id, source: m.source }} label={`Excluir ${title}`} />
+        <DeleteButton
+          action={deleteMovement}
+          fields={{ id: m.id, source: m.source }}
+          label={m.source === "bill_payment" ? `Desfazer pagamento de ${title}` : `Excluir ${title}`}
+        />
       ) : null}
     </li>
   );

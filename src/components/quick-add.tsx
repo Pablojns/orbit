@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { useAutoOpen } from "./use-auto-open";
 import { createPortal } from "react-dom";
+import { keepOnSubmit } from "./keep-form";
 import { ArrowDownLeft, ArrowUpRight, Plus, X } from "lucide-react";
 import { addMovement, type MovementFormState } from "@/app/app/actions";
 import { CategoryIcon } from "./category-icon";
@@ -143,7 +144,7 @@ export function QuickAdd({
                   </button>
                 </div>
 
-                <form action={action} className="mt-6 space-y-5">
+                <form onSubmit={keepOnSubmit(action)} className="mt-6 space-y-5">
                   <input type="hidden" name="type" value={kind} />
                   <input type="hidden" name="category_id" value={categoryId} />
 

@@ -42,11 +42,11 @@ export function EditMovement({ m, categories, cards }: { m: Movement; categories
       variant="edit"
     >
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Valor">
-          <MoneyInput name="amount" required defaultValue={centsToInput(m.amountCents)} />
+        <Field label={isCard && (m.installments ?? 1) > 1 ? "Valor total" : "Valor"}>
+          <MoneyInput name="amount" required defaultValue={centsToInput(m.totalCents ?? m.amountCents)} />
         </Field>
-        <Field label="Data">
-          <TextInput name="occurred_on" type="date" required defaultValue={m.occurredOn} />
+        <Field label={isCard ? "Data da compra" : "Data"}>
+          <TextInput name="occurred_on" type="date" required defaultValue={m.purchasedOn ?? m.occurredOn} />
         </Field>
       </div>
       <Field label="Categoria">

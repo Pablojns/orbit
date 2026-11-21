@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { createPortal } from "react-dom";
+import { keepOnSubmit } from "./keep-form";
 import { Pencil, Plus, X } from "lucide-react";
 import { useAutoOpen } from "./use-auto-open";
 import type { FormState } from "@/app/app/actions";
@@ -86,7 +87,7 @@ export function FormSheet({
                     <X size={20} aria-hidden />
                   </button>
                 </div>
-                <form action={formAction} className="mt-5 space-y-4">
+                <form onSubmit={keepOnSubmit(formAction)} className="mt-5 space-y-4">
                   {Object.entries(hidden ?? {}).map(([k, v]) => (
                     <input key={k} type="hidden" name={k} value={v} />
                   ))}

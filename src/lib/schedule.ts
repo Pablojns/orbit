@@ -88,3 +88,26 @@ export function inRange(iso: string, start: CalendarDate, end: CalendarDate) {
   const e = toISODate(end);
   return iso >= s && iso <= e;
 }
+
+// Qual parcela de uma compra no cartão "pertence" a um ciclo: a parcela k conta
+// no ciclo que contém a data da compra + (k−1) meses. Assim o Extrato e "Para onde foi
+// o dinheiro" mostram só o pedaço do ciclo, e não o valor total.
+export function parcelInCycle(
+  purchasedOnISO: string,
+  totalCents: number,
+  count: number,
+  cycleStart: CalendarDate,
+  cycleEnd: CalendarDate,
+): { number: number; amountCents: number; date: string } | null {
+  const p = fromISODate(purchasedOnISO);
+  const parts = splitInstallments(totalCents, Math.max(1, count));
+  for (let i = 0; i < parts.length; i++) {
+    const m = addMonths(p.year, p.month, i);
+    const d = clampDay(m.year, m.month, p.day);
+    if (diffInDays(cycleStart, d) >= 0 && diffInDays(d, cycleEnd) >= 0) {
+      return { number: i + 1, amountCents: parts[i], date: toISODate(d) };
+    }
+    if (diffInDays(d, cycleEnd) < 0) break;
+  }
+  return null;
+}

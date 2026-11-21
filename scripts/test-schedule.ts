@@ -41,3 +41,20 @@ assert.deepEqual(monthlyOccurrences(5, cycle.start, cycle.end, null, "2026-11-01
 assert.deepEqual(monthlyOccurrences(5, cycle.start, cycle.end, "2026-11-01", null).map(toISODate), ["2026-11-05"]);
 
 console.log("todas as regras de fatura, parcelas e ocorrências passaram");
+
+// Parcela do ciclo (rodada 2)
+import { parcelInCycle } from "../src/lib/schedule";
+{
+  const s = { year: 2026, month: 11, day: 5 };
+  const e = { year: 2026, month: 12, day: 4 };
+  const r = parcelInCycle("2026-11-21", 48000, 4, s, e);
+  if (!r || r.number !== 1 || r.amountCents !== 12000) throw new Error("parcela 1 do ciclo");
+  const r2 = parcelInCycle("2026-10-21", 48000, 4, s, e);
+  if (!r2 || r2.number !== 2 || r2.date !== "2026-11-21") throw new Error("parcela 2 do ciclo");
+  if (parcelInCycle("2026-06-10", 48000, 4, s, e) !== null) throw new Error("compra quitada não entra");
+  const one = parcelInCycle("2026-11-21", 10001, 3, s, e);
+  if (!one || one.amountCents !== 3335) throw new Error("sobra de centavos na 1ª");
+  const jan31 = parcelInCycle("2026-10-31", 9000, 3, s, e); // 31/10 -> 30/11
+  if (!jan31 || jan31.number !== 2 || jan31.date !== "2026-11-30") throw new Error("dia 31");
+  console.log("test-schedule (parcela do ciclo): ok");
+}

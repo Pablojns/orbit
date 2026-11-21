@@ -119,6 +119,24 @@ export async function addMovement(_prev: FormState, fd: FormData): Promise<FormS
 }
 
 export async function deleteMovement(fd: FormData): Promise<UndoResult | void> {
+  if (str(fd, "source") === "bill_payment") {
+    // Conta paga no Extrato: apagar = desfazer o "Paguei" (com Desfazer por 6 segundos).
+    const [billId, month] = str(fd, "id").split("|");
+    if (!optUuid(billId) || !MONTH.test(month ?? "")) return;
+    const supabase = await db();
+    const { data: rows } = await supabase
+      .from("bill_payments")
+      .select("*")
+      .eq("bill_id", billId)
+      .eq("reference_month", month)
+      .eq("user_id", OWNER_ID);
+    if (!rows?.length) return;
+    return deleteWithUndo(
+      [{ table: "bill_payments", rows }],
+      () => supabase.from("bill_payments").delete().eq("bill_id", billId).eq("reference_month", month).eq("user_id", OWNER_ID),
+      "Pagamento desfeito.",
+    );
+  }
   const id = optUuid(str(fd, "id"));
   if (!id) return;
   const supabase = await db();
@@ -284,6 +302,37 @@ export async function saveIncome(_prev: FormState, fd: FormData): Promise<FormSt
 
 export async function archiveIncome(fd: FormData): Promise<UndoResult | void> {
   return archiveWithUndo(fd, "recurring_incomes", "is_active", false, "Entrada removida.");
+}
+
+// Primeiro acesso: "Seu salário deste mês já caiu? Quanto?". Lança a entrada no dia do
+// salário deste ciclo (a data certa), para o primeiro ciclo não começar negativo.
+export async function saveFirstSalary(_prev: FormState, fd: FormData): Promise<FormState> {
+  const amount = parseToCents(str(fd, "amount"));
+  if (!amount || amount <= 0 || amount > 10_000_000_000) return fail("Digite quanto caiu, como 2.800.");
+  const supabase = await db();
+  const [{ data: cat }, { data: salary }] = await Promise.all([
+    supabase.from("categories").select("id").eq("user_id", OWNER_ID).eq("kind", "income").eq("name", "Salário").maybeSingle(),
+    supabase
+      .from("recurring_incomes")
+      .select("id, name")
+      .eq("user_id", OWNER_ID)
+      .eq("is_active", true)
+      .ilike("name", "sal%rio%")
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  const { error } = await supabase.from("transactions").insert({
+    user_id: OWNER_ID,
+    type: "income",
+    amount_cents: amount,
+    occurred_on: await currentCycleStartISO(),
+    description: "Salário",
+    category_id: cat?.id ?? null,
+    recurring_income_id: salary?.id ?? null,
+  });
+  if (error) return fail("Não foi possível salvar agora. Tente de novo.");
+  revalidatePath("/app", "layout");
+  return ok("Salário lançado.");
 }
 
 export async function receiveIncome(fd: FormData) {
@@ -1061,6 +1110,7 @@ const RESTORABLE = new Set([
   "categories",
   "event_types",
   "class_slots",
+  "bill_payments",
 ]);
 
 export async function restoreTrash(trashId: string) {
