@@ -23,6 +23,9 @@ const FRASES = [
   "prova de cálculo dia 5/12 me avisa uma semana antes", "prova de cálculo sexta quero estudar 3 vezes",
   "quero estudar 3 vezes para a prova de cálculo", "tirei 7 na prova de cálculo", "faltei em algoritmo",
   "faltei 2 aulas de inglês", "aula de inglês toda terça 19h",
+  // Lote 7 (rodada 2): datas de dinheiro.
+  "recebi 250 de freela dia 12/11", "almoço 32 no débito anteontem", "gasolina 120 no inter dia 2/11",
+  "cinema 64 sábado passado", "gastei 58 na farmácia semana passada",
 ];
 
 export async function GET(request: Request) {

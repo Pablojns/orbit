@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import { Mic, Sparkles } from "lucide-react";
-import { type FormState, quickText } from "@/app/app/actions";
+import { type QuickState, quickText } from "@/app/app/actions";
 import { useAutoOpen } from "./use-auto-open";
 
 type Recognition = {
@@ -25,7 +25,7 @@ function getRecognition(): (new () => Recognition) | null {
 // Lança escrevendo ou falando uma frase:
 // dinheiro ("mercado 45 pix", "uber 18 nubank") ou agenda ("prova sexta 19h algoritmo").
 export function QuickText({ floating = false }: { floating?: boolean }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(quickText, { status: "idle" });
+  const [state, action, pending] = useActionState<QuickState, FormData>(quickText, { status: "idle" });
   const formRef = useRef<HTMLFormElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const recRef = useRef<Recognition | null>(null);
@@ -73,6 +73,14 @@ export function QuickText({ floating = false }: { floating?: boolean }) {
   }
 
   const message = voiceError || state.message;
+  // Resposta a um botão da dúvida: reenvia a mesma frase dizendo o que ela é.
+  function answer(force: string) {
+    const fd = new FormData();
+    fd.set("text", state.text ?? inputRef.current?.value ?? "");
+    fd.set("force", force);
+    startTransition(() => action(fd));
+  }
+  const tone = voiceError || (state.status === "error" && state.tone !== "info") ? "text-loss" : state.tone === "info" ? "text-ink" : "text-gain";
   return (
     <form
       ref={formRef}
@@ -116,12 +124,24 @@ export function QuickText({ floating = false }: { floating?: boolean }) {
         </button>
       </div>
       {message ? (
-        <p
-          role="status"
-          className={`mt-2 px-1 text-[13px] ${voiceError || state.status === "error" ? "text-loss" : "text-gain"}`}
-        >
-          {message}
-        </p>
+        <div className="mt-2 flex flex-wrap items-center gap-2 px-1">
+          <p role="status" className={`text-[13px] ${tone}`}>
+            {message}
+          </p>
+          {!voiceError && state.options?.length
+            ? state.options.map((o) => (
+                <button
+                  key={o.force}
+                  type="button"
+                  disabled={pending}
+                  onClick={() => answer(o.force)}
+                  className="rounded-full bg-white/[0.08] px-3 py-1 text-[13px] font-semibold hover:bg-white/[0.14] disabled:opacity-50"
+                >
+                  {o.label}
+                </button>
+              ))
+            : null}
+        </div>
       ) : null}
     </form>
   );

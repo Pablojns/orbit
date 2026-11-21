@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { OWNER_ID } from "@/lib/owner";
-import { parseToCents } from "@/lib/money";
+import { formatCents, parseToCents } from "@/lib/money";
 import { fromISODate, todayInSaoPaulo, toISODate } from "@/lib/dates";
 import { installmentPlan } from "@/lib/schedule";
 import { currentCycle } from "@/lib/cycle";
@@ -351,7 +351,7 @@ export async function receiveIncome(fd: FormData) {
     .select("id")
     .eq("user_id", OWNER_ID)
     .eq("kind", "income")
-    .eq("name", /sal[aá]rio/i.test(income.name) ? "Salário" : "Outros")
+    .eq("name", /sal[aá]rio|\bvale\b|adiantamento/i.test(income.name) ? "Salário" : "Outros")
     .maybeSingle();
   await supabase.from("transactions").insert({
     user_id: OWNER_ID,
@@ -1477,8 +1477,42 @@ export async function deleteGrade(fd: FormData): Promise<UndoResult | void> {
 
 // ---------- lançar escrevendo uma frase -----------------------------------
 
-export async function quickText(_prev: FormState, fd: FormData): Promise<FormState> {
+// Resposta da barra: além de salvo/erro, pode ser uma pergunta da IA (cor neutra) com botões.
+export type QuickState = FormState & {
+  tone?: "info";
+  options?: { label: string; force: "expense" | "income" | "event" }[];
+  text?: string;
+};
+
+const capFirst = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+const info = (message: string, extra: Partial<QuickState> = {}): QuickState => ({
+  status: "error",
+  tone: "info",
+  message,
+  ...extra,
+});
+
+// Botões para quando a IA fica em dúvida, a partir do que ela perguntou.
+function doubtOptions(ask: string, text: string): QuickState {
+  const a = ask.toLowerCase();
+  const options: NonNullable<QuickState["options"]> = [];
+  if (/gasto|gastei|compra|despesa/.test(a)) options.push({ label: "É gasto", force: "expense" });
+  if (/entrada|recebi|receb/.test(a)) options.push({ label: "É entrada", force: "income" });
+  if (/consulta|compromisso|evento|agenda|lembrete|prova|reuni/.test(a)) options.push({ label: "É compromisso", force: "event" });
+  if (options.length < 2) {
+    for (const o of [
+      { label: "É gasto", force: "expense" as const },
+      { label: "É compromisso", force: "event" as const },
+    ]) {
+      if (!options.some((x) => x.force === o.force)) options.push(o);
+    }
+  }
+  return info(ask, { options, text });
+}
+
+export async function quickText(_prev: QuickState, fd: FormData): Promise<QuickState> {
   const text = str(fd, "text").slice(0, 160);
+  const force = str(fd, "force");
   if (!text) return fail("Escreva algo como: mercado 45 pix");
   const supabase = await db();
   const [{ data: cats }, { data: cards }] = await Promise.all([
@@ -1486,11 +1520,32 @@ export async function quickText(_prev: FormState, fd: FormData): Promise<FormSta
     supabase.from("credit_cards").select("id, name").eq("user_id", OWNER_ID).eq("is_archived", false),
   ]);
   const today = todayInSaoPaulo();
+  const { findMoneyDate } = await import("@/lib/money-date");
+  const md = findMoneyDate(text, today);
+
+  // Resposta a um botão de dúvida ("É gasto" / "É compromisso"): sem perguntar de novo à IA.
+  if (force === "event") {
+    const { parseAgendaText } = await import("@/lib/agenda-parse");
+    const rule = parseAgendaText(text, today);
+    if (!rule) return info("Para quando é? Escreva com o dia, como: dentista sexta 14h.");
+    return saveAgendaFromText(rule.title, rule.kind, rule.date, rule.time);
+  }
+  if (force === "expense" || force === "income") {
+    return moneyFromRules(text, force, md, cats ?? [], cards ?? []);
+  }
 
   // 0) Frases de Estudos (nota, falta, aula, plano de estudo) têm padrão fixo: regras primeiro.
   const { parseStudyText } = await import("@/lib/studies-math");
   const study = parseStudyText(text);
   if (study) return studyFromText(study);
+
+  // 0b) Meta, conta fixa, empréstimo e perguntas: regras primeiro.
+  const { parseMoneyIntent } = await import("@/lib/money-intents");
+  const special = parseMoneyIntent(text);
+  if (special) return moneyIntentFromText(special);
+
+  // Falou "semana passada" sem o dia: não dá para adivinhar.
+  if (md.kind === "vague") return info("Em que dia foi? Escreva junto, como “dia 12” ou “ontem”.");
 
   // 1) IA entende a intenção (gasto, entrada, compromisso, pergunta ou dúvida).
   const { interpretWithAI } = await import("@/lib/ai-intent");
@@ -1501,9 +1556,22 @@ export async function quickText(_prev: FormState, fd: FormData): Promise<FormSta
     (cards ?? []).map((c) => c.name),
   );
   const aiMissedValue = ai?.intent === "unclear" && ai.ask === "Qual foi o valor?";
+  const todayIso = toISODate(today);
+  // Data passada + valor nunca é compromisso: é dinheiro ("gasolina 120 no inter dia 2/11").
+  const pastMoney =
+    md.kind === "found" &&
+    md.date < todayIso &&
+    /\b\d+(?:[.,]\d{1,2})?\b(?!\s*(?:h\b|hs\b|hrs\b|horas\b|:))/.test(
+      text.replace(/\d{1,2}\/\d{1,2}(\/\d{2,4})?/g, "").replace(/dia \d{1,2}/gi, ""),
+    );
   if (ai && !aiMissedValue) {
-    if (ai.intent === "unclear") return fail(ai.ask);
-    if (ai.intent === "question") return fail("Perguntas por voz chegam em breve. Por enquanto, registre gastos e compromissos.");
+    if ((ai.intent === "unclear" || ai.intent === "event") && pastMoney) {
+      return moneyFromRules(text, null, md, cats ?? [], cards ?? []);
+    }
+    if (ai.intent === "unclear") return doubtOptions(ai.ask, text);
+    if (ai.intent === "question") {
+      return info("Por enquanto eu respondo: quanto posso gastar, qual meu saldo e quanto tenho de fatura.");
+    }
     if (ai.intent === "event") {
       // Datas e horas: as regras locais são exatas; a IA só cobre o que elas não acharem.
       // Em repetição, a primeira data vem da IA (as regras não entendem "toda segunda").
@@ -1530,44 +1598,188 @@ export async function quickText(_prev: FormState, fd: FormData): Promise<FormSta
     const cat = (cats ?? []).find(
       (c) => c.name.toLowerCase() === (ai.categoryName ?? "").toLowerCase() && c.kind === ai.intent,
     );
-    const form = new FormData();
-    form.set("type", ai.intent);
-    form.set("amount", (ai.amountCents / 100).toFixed(2).replace(".", ","));
-    form.set("occurred_on", ai.date ?? toISODate(today));
-    if (cat) form.set("category_id", cat.id);
-    form.set("payment_method", card ? "credit" : ai.method);
-    if (card) form.set("card_id", card.id);
-    form.set("installments", String(ai.installments));
-    form.set("description", ai.description || text.slice(0, 60));
-    const result = await addMovement({ status: "idle" }, form);
-    if (result.status !== "saved") return result;
-    const how = card ? `${card.name}${ai.installments > 1 ? ` em ${ai.installments}x` : ""}` : METHOD_LABEL[ai.method];
-    const valor = (ai.amountCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-    return {
-      status: "saved",
-      message: `${ai.intent === "income" ? "Entrada" : "Gasto"}: ${valor}${cat ? ` · ${cat.name}` : ""}${ai.intent === "expense" ? ` · ${how}` : ""}.`,
-    };
+    // A data dita na frase manda; sem data na frase, a da IA; sem nenhuma, hoje.
+    const date = md.kind === "found" ? md.date : (ai.date ?? todayIso);
+    return saveMoneyFromText({
+      type: ai.intent,
+      amountCents: ai.amountCents,
+      date,
+      categoryId: cat?.id ?? null,
+      categoryName: cat?.name ?? null,
+      method: card ? "credit" : ai.method,
+      card: card ?? null,
+      installments: ai.installments,
+      description: stripDateWords(ai.description || text.slice(0, 60), md),
+      text,
+      cats: cats ?? [],
+    });
   }
 
   // 2) Sem IA (sem chave ou limite atingido): regras locais.
   const { parseAgendaText } = await import("@/lib/agenda-parse");
-  const agenda = parseAgendaText(text, today);
+  const agenda = pastMoney ? null : parseAgendaText(text, today);
   if (agenda) return saveAgendaFromText(agenda.title, agenda.kind, agenda.date, agenda.time);
+  return moneyFromRules(text, null, md, cats ?? [], cards ?? []);
+}
+
+type MoneyDateResult = import("@/lib/money-date").MoneyDate;
+
+function stripDateWords(description: string, md: MoneyDateResult) {
+  if (md.kind === "none") return description;
+  const words = new Set(md.words.map((w) => w.toLowerCase()));
+  return description
+    .split(/\s+/)
+    .filter((w) => !words.has(w.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")) && !words.has(w.toLowerCase()))
+    .join(" ")
+    .trim();
+}
+
+async function moneyFromRules(
+  text: string,
+  forceType: "expense" | "income" | null,
+  md: MoneyDateResult,
+  cats: { id: string; name: string; kind: string }[],
+  cards: { id: string; name: string }[],
+): Promise<QuickState> {
   const { parseQuickText } = await import("@/lib/quick-parse");
-  const parsed = parseQuickText(text, cats ?? [], cards ?? []);
+  const clean = text.replace(/\b(?:dia |em )?\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b/g, " ").replace(/\bdia \d{1,2}\b/gi, " ");
+  const parsed = parseQuickText(clean, cats, cards);
   if ("error" in parsed) return fail(parsed.error);
+  const type = forceType ?? parsed.type;
+  const cat =
+    forceType && forceType !== parsed.type ? null : (cats.find((c) => c.id === parsed.categoryId) ?? null);
+  const date = md.kind === "found" ? md.date : (parsed.date ?? todayISO());
+  return saveMoneyFromText({
+    type,
+    amountCents: parsed.amountCents,
+    date,
+    categoryId: cat?.id ?? null,
+    categoryName: cat?.name ?? null,
+    method: type === "income" ? "pix" : parsed.cardId ? "credit" : parsed.method,
+    card: parsed.cardId ? (cards.find((c) => c.id === parsed.cardId) ?? null) : null,
+    installments: parsed.installments,
+    description: stripDateWords(parsed.description, md),
+    text,
+    cats,
+  });
+}
+
+// Grava gasto ou entrada vindo da barra e responde com a data: "Gasto: R$ 32,00 · Alimentação · 19/11".
+async function saveMoneyFromText(p: {
+  type: "expense" | "income";
+  amountCents: number;
+  date: string;
+  categoryId: string | null;
+  categoryName: string | null;
+  method: string;
+  card: { id: string; name: string } | null;
+  installments: number;
+  description: string;
+  text: string;
+  cats: { id: string; name: string; kind: string }[];
+}): Promise<QuickState> {
+  let categoryId = p.categoryId;
+  let categoryName = p.categoryName;
+  // "vale", "adiantamento" e "salário" são entrada de salário.
+  if (p.type === "income" && /\b(vale|adiantamento|sal[aá]rio)\b/i.test(p.text)) {
+    const sal = p.cats.find((c) => c.kind === "income" && c.name === "Salário");
+    if (sal) {
+      categoryId = sal.id;
+      categoryName = sal.name;
+    }
+  }
   const form = new FormData();
-  form.set("type", parsed.type);
-  form.set("amount", (parsed.amountCents / 100).toFixed(2).replace(".", ","));
-  form.set("occurred_on", parsed.date ?? todayISO());
-  if (parsed.categoryId) form.set("category_id", parsed.categoryId);
-  form.set("payment_method", parsed.method);
-  if (parsed.cardId) form.set("card_id", parsed.cardId);
-  form.set("installments", String(parsed.installments));
-  form.set("description", parsed.description);
+  form.set("type", p.type);
+  form.set("amount", (p.amountCents / 100).toFixed(2).replace(".", ","));
+  form.set("occurred_on", p.date);
+  if (categoryId) form.set("category_id", categoryId);
+  form.set("payment_method", p.card ? "credit" : p.method);
+  if (p.card) form.set("card_id", p.card.id);
+  form.set("installments", String(p.installments));
+  form.set("description", capFirst(p.description || p.text.slice(0, 60)));
   const result = await addMovement({ status: "idle" }, form);
-  if (result.status === "saved") return { status: "saved", message: `${result.message} ${parsed.summary}` };
-  return result;
+  if (result.status !== "saved") return result;
+  const { shortDate } = await import("@/lib/money-date");
+  const how = p.card
+    ? `${p.card.name}${p.installments > 1 ? ` em ${p.installments}x` : ""}`
+    : (METHOD_LABEL[p.method] ?? null);
+  const valor = formatCents(p.amountCents);
+  const when = p.date === todayISO() ? `hoje, ${shortDate(p.date)}` : shortDate(p.date);
+  const parts = [`${p.type === "income" ? "Entrada" : "Gasto"}: ${valor}`, categoryName, p.type === "expense" ? how : null, when];
+  return { status: "saved", message: `${parts.filter(Boolean).join(" · ")}.` };
+}
+
+// Meta, conta fixa, empréstimo e perguntas.
+async function moneyIntentFromText(it: import("@/lib/money-intents").MoneyIntent): Promise<QuickState> {
+  const supabase = await db();
+  if (it.intent === "question") {
+    if (it.topic === "other") {
+      return info("Por enquanto eu respondo: quanto posso gastar, qual meu saldo e quanto tenho de fatura.");
+    }
+    const profile = await requireProfile();
+    const { getFinance } = await import("@/lib/finance");
+    const f = await getFinance(profile.cycleStartDay);
+    const s = f.summary;
+    const { paydayText } = await import("@/lib/cycle");
+    if (it.topic === "per_day") {
+      return info(
+        s.freeCents < 0
+          ? `Neste ciclo está faltando ${formatCents(-s.freeCents)}. ${paydayText(f.cycle)}.`
+          : `Pode gastar ${formatCents(s.perDayCents)} por dia. ${paydayText(f.cycle)}.`,
+      );
+    }
+    if (it.topic === "balance") return info(`Seu saldo é ${formatCents(s.balanceCents)}, pelo que foi lançado.`);
+    return info(
+      f.cards.length
+        ? `Fatura aberta: ${formatCents(s.openStatementCents)}.`
+        : "Você não tem cartão cadastrado.",
+    );
+  }
+  if (it.intent === "goal_deposit") {
+    const { data: goals } = await supabase.from("goals").select("id, name").eq("user_id", OWNER_ID).eq("is_archived", false);
+    const { matchByName } = await import("@/lib/money-intents");
+    const goal = matchByName(it.goal, goals ?? []);
+    if (!goal) return fail(`Não achei a meta “${it.goal}”. Veja o nome em Dinheiro › Metas.`);
+    const fd = new FormData();
+    fd.set("goal_id", goal.id);
+    fd.set("amount", (it.amountCents / 100).toFixed(2).replace(".", ","));
+    const r = await contributeGoal({ status: "idle" }, fd);
+    if (r.status !== "saved") return r;
+    revalidatePath("/app", "layout");
+    return { status: "saved", message: `Guardado: ${formatCents(it.amountCents)} em ${goal.name}.` };
+  }
+  if (it.intent === "fixed_bill") {
+    const { data: cats } = await supabase.from("categories").select("id, name").eq("user_id", OWNER_ID).eq("kind", "expense");
+    const cat = (cats ?? []).find((c) => c.name === (it.subscription ? "Assinaturas" : "Contas"));
+    const fd = new FormData();
+    fd.set("name", it.name);
+    fd.set("amount", (it.amountCents / 100).toFixed(2).replace(".", ","));
+    fd.set("due_day", String(it.dueDay));
+    if (cat) fd.set("category_id", cat.id);
+    if (it.subscription) fd.set("is_subscription", "on");
+    const r = await saveBill({ status: "idle" }, fd);
+    if (r.status !== "saved") return r;
+    revalidatePath("/app", "layout");
+    return {
+      status: "saved",
+      message: `Conta fixa: ${it.name}, ${formatCents(it.amountCents)} todo dia ${it.dueDay}${it.subscription ? " (assinatura)" : ""}.`,
+    };
+  }
+  const fd = new FormData();
+  fd.set("person", it.person);
+  fd.set("direction", it.direction);
+  fd.set("amount", (it.amountCents / 100).toFixed(2).replace(".", ","));
+  if (it.note) fd.set("note", it.note);
+  const r = await saveDebt({ status: "idle" }, fd);
+  if (r.status !== "saved") return r;
+  revalidatePath("/app", "layout");
+  return {
+    status: "saved",
+    message:
+      it.direction === "owed_to_me"
+        ? `Empréstimos: ${it.person} te deve ${formatCents(it.amountCents)}.`
+        : `Empréstimos: você deve ${formatCents(it.amountCents)} para ${it.person}.`,
+  };
 }
 
 const METHOD_LABEL: Record<string, string> = {
