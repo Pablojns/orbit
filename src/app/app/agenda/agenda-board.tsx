@@ -6,22 +6,13 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { saveAgendaItem } from "@/app/app/actions";
 import { Field, inputClass, Select, TextInput } from "@/components/fields";
 import { FormSheet } from "@/components/form-sheet";
+import type { EventType } from "@/lib/routine";
 
 export type Cell = {
   iso: string;
   day: number;
-  items: { key: string; title: string; dot: string; done: boolean }[];
+  items: { key: string; title: string; color: string; done: boolean }[];
 } | null;
-
-const NEW_KINDS = [
-  { value: "exam", label: "Prova" },
-  { value: "appointment", label: "Compromisso" },
-  { value: "deadline", label: "Entrega / prazo" },
-  { value: "task", label: "Tarefa (pode ficar sem data)" },
-  { value: "study", label: "Sessão de estudo" },
-  { value: "bill", label: "Conta / boleto avulso" },
-  { value: "other", label: "Outro" },
-];
 
 const WEEK = ["D", "S", "T", "Q", "Q", "S", "S"];
 const WEEK_FULL = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -50,6 +41,7 @@ export function AgendaBoard({
   listPanel,
   dayPanels,
   legend,
+  types,
 }: {
   monthKey: string;
   monthTitle: string;
@@ -62,6 +54,7 @@ export function AgendaBoard({
   listPanel: React.ReactNode;
   dayPanels: Record<string, React.ReactNode>;
   legend: React.ReactNode;
+  types: EventType[];
 }) {
   const [selected, setSelected] = useState<string | null>(initialSelected);
 
@@ -76,13 +69,13 @@ export function AgendaBoard({
       <section className="glass flex min-w-0 flex-col rounded-[1.75rem] p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="text-lg font-semibold">{selected ? weekdayLong(selected) : "O que vem por aí"}</h2>
+            <h2 className="text-lg font-semibold">{selected ? weekdayLong(selected) : "Esta semana"}</h2>
             {selected ? (
               <button type="button" onClick={() => pick(null)} className="text-sm text-cobalt">
-                Voltar para a lista
+                Voltar para esta semana
               </button>
             ) : (
-              <p className="text-sm text-ink-soft">Próximos 14 dias e o que ficou para trás.</p>
+              <p className="text-sm text-ink-soft">Hoje e os próximos 6 dias.</p>
             )}
           </div>
           <FormSheet
@@ -93,17 +86,22 @@ export function AgendaBoard({
             action={saveAgendaItem}
             autoOpen="novo"
           >
-            <NewItemFields date={selected} />
+            <NewItemFields date={selected} types={types} />
           </FormSheet>
         </div>
         <div className="-mx-1 flex-1 overflow-y-auto px-1 lg:max-h-[34rem]">
-          {selected
-            ? (dayPanels[selected] ?? (
+          {selected ? (
+            // Animação só ao escolher um dia; voltar para "Esta semana" é direto.
+            <div key={selected} className="day-in">
+              {dayPanels[selected] ?? (
                 <p className="mt-4 text-[15px] leading-relaxed text-ink-soft">
                   Nada neste dia. Toque em “Novo” para colocar algo aqui.
                 </p>
-              ))
-            : listPanel}
+              )}
+            </div>
+          ) : (
+            listPanel
+          )}
         </div>
       </section>
 
@@ -171,7 +169,11 @@ export function AgendaBoard({
                 </span>
                 <span className="flex flex-wrap gap-0.5 md:hidden">
                   {c.items.slice(0, 4).map((it) => (
-                    <span key={it.key} className={`h-1.5 w-1.5 rounded-full ${it.done ? "bg-gain" : it.dot}`} />
+                    <span
+                      key={it.key}
+                      className={`h-1.5 w-1.5 rounded-full ${it.done ? "bg-gain" : ""}`}
+                      style={it.done ? undefined : { backgroundColor: it.color }}
+                    />
                   ))}
                 </span>
                 <span className="hidden w-full min-w-0 flex-col gap-0.5 md:flex">
@@ -182,7 +184,10 @@ export function AgendaBoard({
                         it.done ? "text-ink-soft line-through" : ""
                       }`}
                     >
-                      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${it.done ? "bg-gain" : it.dot}`} />
+                      <span
+                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${it.done ? "bg-gain" : ""}`}
+                        style={it.done ? undefined : { backgroundColor: it.color }}
+                      />
                       <span className="truncate">{it.title}</span>
                     </span>
                   ))}
@@ -208,98 +213,95 @@ const REMIND = [
   { value: "14", label: "2 semanas antes" },
 ];
 
-// Campos do "Novo": mudam conforme o tipo (tarefa pode ficar sem data; prova pode ganhar sessões de estudo).
-function NewItemFields({ date }: { date: string | null }) {
-  const [kind, setKind] = useState("exam");
+// Formulário único do "Novo": só o tipo muda. Prova ganha o plano de estudo.
+function NewItemFields({ date, types }: { date: string | null; types: EventType[] }) {
+  const active = types.filter((t) => !t.archived);
+  const [typeId, setTypeId] = useState(active[0]?.id ?? "");
   const [repeat, setRepeat] = useState("none");
-  const isTask = kind === "task";
+  const kind = active.find((t) => t.id === typeId)?.baseKind ?? "other";
   return (
     <>
       <Field label="O que é">
-        <TextInput name="title" required maxLength={120} placeholder="Ex.: Prova de Estatística, Dentista" />
-      </Field>
-      <Field label="Tipo">
-        <select name="kind" value={kind} onChange={(e) => setKind(e.target.value)} className={inputClass}>
-          {NEW_KINDS.map((o) => (
-            <option key={o.value} value={o.value} className="bg-[#0d1126]">
-              {o.label}
-            </option>
-          ))}
-        </select>
+        <TextInput name="title" required maxLength={80} placeholder="Ex.: Prova de Estatística, Dentista" />
       </Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Data" hint={isTask ? "Pode ficar sem." : undefined}>
-          <TextInput name="date" type="date" required={!isTask} defaultValue={date ?? undefined} />
+        <Field label="Tipo">
+          <select name="type_id" value={typeId} onChange={(e) => setTypeId(e.target.value)} className={inputClass}>
+            {active.map((t) => (
+              <option key={t.id} value={t.id} className="bg-[#0d1126]">
+                {t.name}
+              </option>
+            ))}
+          </select>
         </Field>
-        {!isTask ? (
-          <Field label="Hora (opcional)">
-            <TextInput name="time" type="time" />
+        <Field label="Prioridade (opcional)">
+          <Select
+            name="priority"
+            defaultValue=""
+            options={[
+              { value: "", label: "Sem prioridade" },
+              { value: "1", label: "Alta" },
+              { value: "2", label: "Média" },
+              { value: "3", label: "Baixa" },
+            ]}
+          />
+        </Field>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Data">
+          <TextInput name="date" type="date" required defaultValue={date ?? undefined} />
+        </Field>
+        <Field label="Hora (opcional)">
+          <TextInput name="time" type="time" />
+        </Field>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Repete?">
+          <select name="repeat" value={repeat} onChange={(e) => setRepeat(e.target.value)} className={inputClass}>
+            <option value="none" className="bg-[#0d1126]">
+              Não
+            </option>
+            <option value="weekly" className="bg-[#0d1126]">
+              Toda semana
+            </option>
+            <option value="biweekly" className="bg-[#0d1126]">
+              A cada 2 semanas
+            </option>
+            <option value="monthly" className="bg-[#0d1126]">
+              Todo mês
+            </option>
+          </select>
+        </Field>
+        {repeat !== "none" ? (
+          <Field label="Até quando">
+            <TextInput name="repeat_until" type="date" required />
           </Field>
         ) : (
-          <Field label="Prioridade">
-            <Select
-              name="priority"
-              defaultValue="2"
-              options={[
-                { value: "1", label: "Alta" },
-                { value: "2", label: "Média" },
-                { value: "3", label: "Baixa" },
-              ]}
-            />
+          <Field label="Me avisar">
+            <Select key={kind} name="remind_days" defaultValue={kind === "exam" ? "3" : "0"} options={REMIND} />
           </Field>
         )}
       </div>
-      {!isTask ? (
-        <>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Repete?">
-              <select name="repeat" value={repeat} onChange={(e) => setRepeat(e.target.value)} className={inputClass}>
-                <option value="none" className="bg-[#0d1126]">
-                  Não
-                </option>
-                <option value="weekly" className="bg-[#0d1126]">
-                  Toda semana
-                </option>
-                <option value="biweekly" className="bg-[#0d1126]">
-                  A cada 2 semanas
-                </option>
-                <option value="monthly" className="bg-[#0d1126]">
-                  Todo mês
-                </option>
-              </select>
-            </Field>
-            {repeat !== "none" ? (
-              <Field label="Até quando">
-                <TextInput name="repeat_until" type="date" required />
-              </Field>
-            ) : (
-              <Field label="Me avisar">
-                <Select key={kind} name="remind_days" defaultValue={kind === "exam" ? "3" : "0"} options={REMIND} />
-              </Field>
-            )}
-          </div>
-          {repeat !== "none" ? (
-            <Field label="Me avisar">
-              <Select name="remind_days" defaultValue="0" options={REMIND} />
-            </Field>
-          ) : null}
-          {kind === "exam" && repeat === "none" ? (
-            <Field label="Sessões de estudo antes da prova" hint="O Dimeta espalha nos dias livres até a véspera.">
-              <Select
-                name="study_sessions"
-                defaultValue="0"
-                options={[0, 1, 2, 3, 4, 5, 6, 8].map((n) => ({
-                  value: String(n),
-                  label: n === 0 ? "Nenhuma" : `${n} ${n === 1 ? "sessão" : "sessões"}`,
-                }))}
-              />
-            </Field>
-          ) : null}
-          <Field label="Anotação (opcional)">
-            <TextInput name="notes" maxLength={500} placeholder="Ex.: levar documento, sala 12" />
-          </Field>
-        </>
+      {repeat !== "none" ? (
+        <Field label="Me avisar">
+          <Select name="remind_days" defaultValue="0" options={REMIND} />
+        </Field>
       ) : null}
+      {kind === "exam" && repeat === "none" ? (
+        <Field label="Plano de estudo antes da prova" hint="O Dimeta espalha as sessões nos dias livres até a véspera.">
+          <Select
+            name="study_sessions"
+            defaultValue="0"
+            options={[0, 1, 2, 3, 4, 5, 6, 8].map((n) => ({
+              value: String(n),
+              label: n === 0 ? "Nenhuma sessão" : `${n} ${n === 1 ? "sessão" : "sessões"}`,
+            }))}
+          />
+        </Field>
+      ) : null}
+      <Field label="Anotação (opcional)">
+        <TextInput name="notes" maxLength={500} placeholder="Ex.: levar documento, sala 12" />
+      </Field>
     </>
   );
 }

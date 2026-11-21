@@ -362,11 +362,42 @@ export async function archiveGoal(fd: FormData): Promise<UndoResult | void> {
 
 // ---------- agenda e tarefas ----------------------------------------
 
+// Tipo escolhido no formulário (ou, sem tipo, o tipo padrão do comportamento pedido).
+async function resolveType(supabase: Awaited<ReturnType<typeof db>>, fd: FormData) {
+  const typeId = optUuid(str(fd, "type_id"));
+  const askedKind = EVENT_KINDS.has(str(fd, "kind")) ? str(fd, "kind") : "other";
+  if (typeId) {
+    const { data } = await supabase
+      .from("event_types")
+      .select("id, base_kind")
+      .eq("id", typeId)
+      .eq("user_id", OWNER_ID)
+      .maybeSingle();
+    if (data) return { typeId: data.id as string, kind: data.base_kind as string };
+  }
+  const { data } = await supabase
+    .from("event_types")
+    .select("id")
+    .eq("user_id", OWNER_ID)
+    .eq("base_kind", askedKind)
+    .eq("is_archived", false)
+    .order("position")
+    .limit(1)
+    .maybeSingle();
+  return { typeId: (data?.id as string | undefined) ?? null, kind: askedKind };
+}
+
+const priorityOf = (fd: FormData) => {
+  const p = Number(str(fd, "priority"));
+  return [1, 2, 3].includes(p) ? p : null;
+};
+
 export async function saveEvent(_prev: FormState, fd: FormData): Promise<FormState> {
   const title = str(fd, "title").slice(0, 80);
   const date = str(fd, "date");
   const time = str(fd, "time");
-  const kind = EVENT_KINDS.has(str(fd, "kind")) ? str(fd, "kind") : "other";
+  const supabase = await db();
+  const { typeId, kind } = await resolveType(supabase, fd);
   const repeat = str(fd, "repeat");
   const until = str(fd, "repeat_until");
   const remind = Math.min(30, Math.max(0, Number(str(fd, "remind_days")) || 0));
@@ -382,12 +413,14 @@ export async function saveEvent(_prev: FormState, fd: FormData): Promise<FormSta
     if (dates.length > 60) return fail("Repetição longa demais: no máximo 60 vezes. Diminua o “até quando”.");
   }
 
-  const supabase = await db();
   const seriesId = dates.length > 1 || sessions > 0 ? crypto.randomUUID() : null;
+  const priority = priorityOf(fd);
   const rows: Record<string, unknown>[] = dates.map((d) => ({
     user_id: OWNER_ID,
     title,
     kind,
+    type_id: typeId,
+    priority,
     starts_at: `${d}T${hasTime ? time : "12:00"}:00-03:00`,
     all_day: !hasTime,
     notes: str(fd, "notes").slice(0, 500) || null,
@@ -397,11 +430,15 @@ export async function saveEvent(_prev: FormState, fd: FormData): Promise<FormSta
 
   if (sessions > 0) {
     const studyDays = await pickStudyDays(supabase, date, sessions);
+    const study = new FormData();
+    study.set("kind", "study");
+    const { typeId: studyType } = await resolveType(supabase, study);
     for (const d of studyDays) {
       rows.push({
         user_id: OWNER_ID,
         title: `Estudar: ${title}`.slice(0, 80),
         kind: "study",
+        type_id: studyType,
         starts_at: `${d}T12:00:00-03:00`,
         all_day: true,
         notes: null,
@@ -775,18 +812,20 @@ export async function updateEvent(_prev: FormState, fd: FormData): Promise<FormS
   const title = str(fd, "title").slice(0, 80);
   const date = str(fd, "date");
   const time = str(fd, "time");
-  const kind = EVENT_KINDS.has(str(fd, "kind")) ? str(fd, "kind") : "other";
   const remind = Math.min(30, Math.max(0, Number(str(fd, "remind_days")) || 0));
   if (!id) return fail("Item inválido.");
   if (!title) return fail("Escreva o que é.");
   if (!ISO_DATE.test(date)) return fail("Escolha a data.");
   const hasTime = /^\d{2}:\d{2}$/.test(time);
   const supabase = await db();
+  const { typeId, kind } = await resolveType(supabase, fd);
   const { error } = await supabase
     .from("events")
     .update({
       title,
       kind,
+      type_id: typeId,
+      priority: priorityOf(fd),
       starts_at: `${date}T${hasTime ? time : "12:00"}:00-03:00`,
       all_day: !hasTime,
       notes: str(fd, "notes").slice(0, 500) || null,
@@ -898,13 +937,54 @@ export async function deletePushSubscription(endpoint: string) {
 }
 
 // Um botão só na Agenda: "Tarefa" vira uma tarefa (data opcional); o resto vira um item com data.
+// Formulário único da Agenda (21/11): tudo vira item com tipo; tarefa e conta não se criam mais aqui.
 export async function saveAgendaItem(prev: FormState, fd: FormData): Promise<FormState> {
-  if (str(fd, "kind") === "task") {
-    fd.set("due_on", str(fd, "date"));
-    if (!fd.get("priority")) fd.set("priority", "2");
-    return saveTask(prev, fd);
-  }
   return saveEvent(prev, fd);
+}
+
+// ---------- tipos da agenda ----------------------------------------------
+
+const HEX = /^#[0-9A-Fa-f]{6}$/;
+
+export async function saveEventType(_prev: FormState, fd: FormData): Promise<FormState> {
+  const name = str(fd, "name").slice(0, 40);
+  const color = HEX.test(str(fd, "color")) ? str(fd, "color") : "#94A3B8";
+  if (!name) return fail("Dê um nome ao tipo, como Academia.");
+  const supabase = await db();
+  const { count } = await supabase
+    .from("event_types")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", OWNER_ID);
+  const { error } = await supabase
+    .from("event_types")
+    .insert({ user_id: OWNER_ID, name, color, base_kind: "other", position: (count ?? 0) + 1 });
+  if (error) return fail("Não foi possível salvar.");
+  return ok("Tipo criado.");
+}
+
+export async function updateEventType(_prev: FormState, fd: FormData): Promise<FormState> {
+  const id = optUuid(str(fd, "id"));
+  const name = str(fd, "name").slice(0, 40);
+  if (!id) return fail("Tipo inválido.");
+  if (!name) return fail("Dê um nome ao tipo.");
+  const patch: Record<string, unknown> = { name };
+  if (HEX.test(str(fd, "color"))) patch.color = str(fd, "color");
+  const supabase = await db();
+  const { error } = await supabase.from("event_types").update(patch).eq("id", id).eq("user_id", OWNER_ID);
+  if (error) return fail("Não foi possível salvar.");
+  return ok("Tipo atualizado.");
+}
+
+// "Apagar" um tipo arquiva: os itens antigos continuam com a cor dele, e dá para desfazer.
+export async function archiveEventType(fd: FormData) {
+  const supabase = await db();
+  const { count } = await supabase
+    .from("event_types")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", OWNER_ID)
+    .eq("is_archived", false);
+  if ((count ?? 0) <= 1) return;
+  return archiveWithUndo(fd, "event_types", "is_archived", true, "Tipo apagado.");
 }
 
 // ---------- desfazer ------------------------------------------------------
@@ -976,6 +1056,7 @@ const RESTORABLE = new Set([
   "goals",
   "habits",
   "categories",
+  "event_types",
 ]);
 
 export async function restoreTrash(trashId: string) {

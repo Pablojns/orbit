@@ -13,7 +13,7 @@ import {
 } from "@/app/app/actions";
 import type { Bill, Card, Category, Goal, Movement, RecurringIncome } from "@/lib/finance";
 import { centsToInput } from "@/lib/money";
-import type { AgendaEvent, Habit, Task } from "@/lib/routine";
+import type { AgendaEvent, EventType, Habit, Task } from "@/lib/routine";
 import { DaySelect, Field, MoneyInput, Select, TextInput } from "./fields";
 import { FormSheet } from "./form-sheet";
 
@@ -226,13 +226,11 @@ export function EditHabit({ habit }: { habit: Habit }) {
   );
 }
 
-export const EVENT_KINDS = [
-  { value: "exam", label: "Prova" },
-  { value: "appointment", label: "Compromisso" },
-  { value: "deadline", label: "Prazo / entrega" },
-  { value: "bill", label: "Conta / boleto" },
-  { value: "study", label: "Sessão de estudo" },
-  { value: "other", label: "Outro" },
+export const PRIORITY_OPTIONS = [
+  { value: "", label: "Sem prioridade" },
+  { value: "1", label: "Alta" },
+  { value: "2", label: "Média" },
+  { value: "3", label: "Baixa" },
 ];
 
 export const REMIND_OPTIONS = [
@@ -243,7 +241,10 @@ export const REMIND_OPTIONS = [
   { value: "14", label: "2 semanas antes" },
 ];
 
-export function EditEvent({ e }: { e: AgendaEvent }) {
+export function EditEvent({ e, types }: { e: AgendaEvent; types: EventType[] }) {
+  const typeOptions = types
+    .filter((t) => !t.archived || t.id === e.typeId)
+    .map((t) => ({ value: t.id, label: t.name }));
   return (
     <FormSheet
       title="Editar item da agenda"
@@ -256,9 +257,15 @@ export function EditEvent({ e }: { e: AgendaEvent }) {
       <Field label="O que é">
         <TextInput name="title" required maxLength={80} defaultValue={e.title} />
       </Field>
-      <Field label="Tipo">
-        <Select name="kind" defaultValue={e.kind} options={EVENT_KINDS} />
-      </Field>
+      <input type="hidden" name="kind" value={e.kind} />
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Tipo">
+          <Select name="type_id" defaultValue={e.typeId ?? ""} options={typeOptions} />
+        </Field>
+        <Field label="Prioridade">
+          <Select name="priority" defaultValue={e.priority ? String(e.priority) : ""} options={PRIORITY_OPTIONS} />
+        </Field>
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Data">
           <TextInput name="date" type="date" required defaultValue={e.date} />

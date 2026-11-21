@@ -1,56 +1,26 @@
 import Link from "next/link";
-import { DeleteButton } from "@/components/undo";
-import { Check, CreditCard, ListTodo, Receipt } from "lucide-react";
+import { CreditCard, Receipt } from "lucide-react";
 import { AgendaBoard, type Cell } from "./agenda-board";
-import { EditTask } from "@/components/edit-forms";
 import { EventRow } from "@/components/event-row";
 import { AgendaTabs } from "@/components/agenda-tabs";
 import { PageHeader } from "@/components/page-header";
-import { deleteTask, toggleTask } from "@/app/app/actions";
+import { TypesManager } from "@/components/types-manager";
 import { addDays, todayInSaoPaulo, toISODate } from "@/lib/dates";
 import { formatCents } from "@/lib/money";
 import {
   type CalendarItem,
   type ChecklistItem,
-  getAgenda,
+  type EventType,
   getAgendaMonth,
   getChecklists,
-  type Task,
+  getEventTypes,
 } from "@/lib/routine";
-import { Checklist } from "@/components/checklist";
 import { addMonths } from "@/lib/schedule";
 
 export const metadata = { title: "Agenda" };
 export const dynamic = "force-dynamic";
 
-const PRIORITY = {
-  1: { label: "Alta", tone: "bg-loss/15 text-loss" },
-  2: { label: "Média", tone: "bg-sun/20 text-sun" },
-  3: { label: "Baixa", tone: "bg-white/[0.06] text-ink-soft" },
-} as Record<number, { label: string; tone: string }>;
-
-const DOT: Record<CalendarItem["kind"], string> = {
-  exam: "bg-cobalt",
-  appointment: "bg-[#c9a7ff]",
-  deadline: "bg-loss",
-  bill: "bg-sun",
-  other: "bg-ink-soft",
-  study: "bg-[#7ee0d2]",
-  fixed_bill: "bg-sun",
-  statement: "bg-[#5fd4ff]",
-  task: "bg-white/70",
-};
-
-const LEGEND = [
-  { label: "Prova", dot: "bg-cobalt" },
-  { label: "Compromisso", dot: "bg-[#c9a7ff]" },
-  { label: "Entrega", dot: "bg-loss" },
-  { label: "Tarefa", dot: "bg-white/70" },
-  { label: "Estudo", dot: "bg-[#7ee0d2]" },
-  { label: "Conta", dot: "bg-sun" },
-  { label: "Fatura", dot: "bg-[#5fd4ff]" },
-  { label: "Feito", dot: "bg-gain" },
-];
+const MONEY_COLOR = { fixed_bill: "#B49BFF", statement: "#5FD4FF" } as const;
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const monthKey = (y: number, m: number) => `${y}-${pad(m)}`;
@@ -62,75 +32,25 @@ function shortDate(iso: string) {
     .replace(/\./g, "");
 }
 
-function TaskRow({ t, todayISO, checklist }: { t: Task; todayISO: string; checklist?: ChecklistItem[] }) {
-  const late = !t.done && t.dueOn && t.dueOn < todayISO;
-  return (
-    <li className="flex items-start gap-3 py-3">
-      <span className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-white/[0.06]">
-        <ListTodo size={18} aria-hidden />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className={`text-[15px] leading-snug font-medium break-words ${t.done ? "text-ink-soft line-through" : ""}`}>
-          {t.title}
-        </p>
-        <p className={`text-[13px] leading-snug ${late ? "text-loss" : "text-ink-soft"}`}>
-          Tarefa{t.dueOn ? `, ${shortDate(t.dueOn)}` : ", sem data"}
-          {!t.done ? (
-            <span className={`ml-1.5 rounded-full px-1.5 py-px text-[11px] font-semibold ${PRIORITY[t.priority].tone}`}>
-              {PRIORITY[t.priority].label}
-            </span>
-          ) : null}
-        </p>
-        <div className="-ml-2 flex flex-wrap items-center">
-          <EditTask t={t} />
-          <DeleteButton action={deleteTask} fields={{ id: t.id }} label={`Excluir ${t.title}`} />
-          <div className="ml-2 w-full sm:w-auto">
-            <Checklist parentType="task" parentId={t.id} items={checklist ?? []} />
-          </div>
-        </div>
-      </div>
-      <form action={toggleTask}>
-        <input type="hidden" name="id" value={t.id} />
-        <input type="hidden" name="done" value={String(t.done)} />
-        <button
-          type="submit"
-          aria-label={t.done ? `Reabrir ${t.title}` : `Concluir ${t.title}`}
-          title={t.done ? "Reabrir" : "Marcar como feito"}
-          className={`mt-0.5 grid h-9 w-9 place-items-center rounded-full border ${
-            t.done ? "border-gain bg-gain text-[#05201a]" : "border-white/20 text-transparent hover:text-ink-soft"
-          }`}
-        >
-          <Check size={16} strokeWidth={3} aria-hidden />
-        </button>
-      </form>
-    </li>
-  );
+function colorOf(it: CalendarItem) {
+  if (it.event) return it.event.color;
+  return it.kind === "statement" ? MONEY_COLOR.statement : MONEY_COLOR.fixed_bill;
 }
 
-function ItemRow({
-  it,
-  todayISO,
-  checks,
-}: {
-  it: CalendarItem;
-  todayISO: string;
-  checks: Record<string, ChecklistItem[]>;
-}) {
-  if (it.event) return <EventRow e={it.event} checklist={checks[it.event.id]} />;
-  if (it.task) return <TaskRow t={it.task} todayISO={todayISO} checklist={checks[it.task.id]} />;
+// Contas e faturas aparecem só para mostrar a data; criar e pagar é no Dinheiro.
+function MoneyRow({ it, todayISO }: { it: CalendarItem; todayISO: string }) {
   const late = !it.done && it.date < todayISO;
   return (
     <li>
       <Link
-        href={it.kind === "statement" ? "/app/dinheiro/cartoes" : "/app/dinheiro/contas?lado=contas"}
-        className="flex items-center gap-2.5 py-3"
+        href={it.kind === "statement" ? "/app/dinheiro/cartoes" : "/app/dinheiro/contas"}
+        className="flex items-center gap-3 py-3"
       >
         <span
-          className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${
-            it.done ? "bg-gain/15 text-gain" : late ? "bg-loss/15 text-loss" : "bg-sun/15 text-sun"
-          }`}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl"
+          style={{ backgroundColor: `${colorOf(it)}26`, color: it.done ? "#3ee0a8" : colorOf(it) }}
         >
-          {it.kind === "statement" ? <CreditCard size={19} aria-hidden /> : <Receipt size={19} aria-hidden />}
+          {it.kind === "statement" ? <CreditCard size={18} aria-hidden /> : <Receipt size={18} aria-hidden />}
         </span>
         <div className="min-w-0 flex-1">
           <p className={`truncate text-[15px] font-medium ${it.done ? "text-ink-soft line-through" : ""}`}>
@@ -149,30 +69,19 @@ function ItemRow({
   );
 }
 
-function Group({
-  title,
-  tone,
-  items,
+function ItemRow({
+  it,
   todayISO,
   checks,
+  types,
 }: {
-  title: string;
-  tone?: string;
-  items: CalendarItem[];
+  it: CalendarItem;
   todayISO: string;
   checks: Record<string, ChecklistItem[]>;
+  types: EventType[];
 }) {
-  if (!items.length) return null;
-  return (
-    <div className="mt-4 first:mt-3">
-      <p className={`text-sm font-semibold ${tone ?? "text-ink-soft"}`}>{title}</p>
-      <ul className="divide-y divide-white/[0.06]">
-        {items.map((it) => (
-          <ItemRow key={it.key} it={it} todayISO={todayISO} checks={checks} />
-        ))}
-      </ul>
-    </div>
-  );
+  if (it.event) return <EventRow e={it.event} checklist={checks[it.event.id]} types={types} />;
+  return <MoneyRow it={it} todayISO={todayISO} />;
 }
 
 export default async function AgendaPage({ searchParams }: { searchParams: Promise<{ mes?: string; dia?: string }> }) {
@@ -187,39 +96,20 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
 
   const isCurrent = year === today.year && month === today.month;
   const nm = addMonths(today.year, today.month, 1);
-  const [a, cal, curMonth, nextMonth, checks] = await Promise.all([
-    getAgenda(today),
+  const [cal, curMonth, nextMonth, checks, types] = await Promise.all([
     getAgendaMonth(year, month, today),
     isCurrent ? null : getAgendaMonth(today.year, today.month, today),
     getAgendaMonth(nm.year, nm.month, today),
     getChecklists(),
+    getEventTypes(),
   ]);
   const thisMonth = curMonth ?? cal;
 
-  // Lista do lado: o que passou sem fazer, os próximos 14 dias e tarefas sem data.
-  const horizon = toISODate(addDays(today, 14));
-  const soon = [...thisMonth.items, ...nextMonth.items].filter(
-    (i) => !i.done && i.date >= todayISO && i.date <= horizon,
+  // "Esta semana": hoje e os próximos 6 dias, só itens da agenda (sem contas e faturas).
+  const weekEnd = toISODate(addDays(today, 6));
+  const week = [...thisMonth.items, ...nextMonth.items].filter(
+    (i) => i.event && i.date >= todayISO && i.date <= weekEnd,
   );
-  const lateEvents: CalendarItem[] = a.overdue.map((e) => ({
-    key: `e-${e.id}`,
-    date: e.date,
-    time: e.time,
-    title: e.title,
-    kind: e.kind,
-    done: false,
-    event: e,
-  }));
-  const lateTasks: CalendarItem[] = a.tasks
-    .filter((t) => !t.done && t.dueOn && t.dueOn < todayISO)
-    .map((t) => ({ key: `t-${t.id}`, date: t.dueOn!, time: null, title: t.title, kind: "task", done: false, task: t }));
-  const lateMoney = thisMonth.items.filter(
-    (i) => !i.done && i.date < todayISO && (i.kind === "fixed_bill" || i.kind === "statement"),
-  );
-  const late = [...lateEvents, ...lateTasks, ...lateMoney].sort((x, y) => x.date.localeCompare(y.date));
-  const undated: CalendarItem[] = a.tasks
-    .filter((t) => !t.done && !t.dueOn)
-    .map((t) => ({ key: `t-${t.id}`, date: "", time: null, title: t.title, kind: "task", done: false, task: t }));
 
   const byDay = new Map<string, CalendarItem[]>();
   for (const it of cal.items) byDay.set(it.date, [...(byDay.get(it.date) ?? []), it]);
@@ -236,19 +126,29 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
     new Date(Date.UTC(year, month - 1, 1)),
   );
   const monthTitle = monthRaw.charAt(0).toUpperCase() + monthRaw.slice(1);
-  const nothing = !late.length && !soon.length && !undated.length;
 
-  const listPanel = nothing ? (
-    <p className="mt-4 text-[15px] leading-relaxed text-ink-soft">
-      Nada nos próximos 14 dias. Cadastre provas, compromissos e tarefas em “Novo”. Contas fixas e faturas do cartão
-      aparecem sozinhas.
-    </p>
-  ) : (
+  // Agrupa a semana por dia, com o nome do dia em cima.
+  const weekByDay = new Map<string, CalendarItem[]>();
+  for (const it of week) weekByDay.set(it.date, [...(weekByDay.get(it.date) ?? []), it]);
+
+  const listPanel = week.length ? (
     <>
-      <Group title="Ficou para trás" tone="text-loss" items={late} todayISO={todayISO} checks={checks} />
-      <Group title="Próximos 14 dias" items={soon} todayISO={todayISO} checks={checks} />
-      <Group title="Tarefas sem data" items={undated} todayISO={todayISO} checks={checks} />
+      {[...weekByDay.entries()].map(([iso, items]) => (
+        <div key={iso} className="mt-4 first:mt-3">
+          <p className="text-sm font-semibold text-ink-soft">{iso === todayISO ? "Hoje" : shortDate(iso)}</p>
+          <ul className="divide-y divide-white/[0.06]">
+            {items.map((it) => (
+              <ItemRow key={it.key} it={it} todayISO={todayISO} checks={checks} types={types} />
+            ))}
+          </ul>
+        </div>
+      ))}
     </>
+  ) : (
+    <p className="mt-4 text-[15px] leading-relaxed text-ink-soft">
+      Nada nesta semana. Toque em “Novo” para colocar provas e compromissos, ou num dia do calendário para ver outra
+      data.
+    </p>
   );
 
   const dayPanels: Record<string, React.ReactNode> = {};
@@ -256,7 +156,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
     dayPanels[iso] = (
       <ul className="mt-3 divide-y divide-white/[0.06]">
         {items.map((it) => (
-          <ItemRow key={it.key} it={it} todayISO={todayISO} checks={checks} />
+          <ItemRow key={it.key} it={it} todayISO={todayISO} checks={checks} types={types} />
         ))}
       </ul>
     );
@@ -270,16 +170,18 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
           items: (byDay.get(`${key}-${pad(d)}`) ?? []).map((it) => ({
             key: it.key,
             title: it.title,
-            dot: DOT[it.kind],
+            color: colorOf(it),
             done: it.done,
           })),
         }
       : null,
   );
 
+  const activeTypes = types.filter((t) => !t.archived);
+
   return (
     <>
-      <PageHeader title="Agenda" subtitle="Provas, compromissos, entregas, tarefas, contas e faturas num lugar só." />
+      <PageHeader title="Agenda" subtitle="Provas, compromissos e tudo que tem data. Contas e faturas aparecem no calendário." />
       <AgendaTabs />
       <AgendaBoard
         monthKey={key}
@@ -292,14 +194,30 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
         cells={cellData}
         listPanel={listPanel}
         dayPanels={dayPanels}
+        types={types}
         legend={
-          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 border-t border-white/[0.06] pt-3 text-xs text-ink-soft">
-            {LEGEND.map((l) => (
-              <span key={l.label} className="flex items-center gap-1.5">
-                <span className={`h-2 w-2 rounded-full ${l.dot}`} />
-                {l.label}
+          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-white/[0.06] pt-3 text-xs text-ink-soft">
+            {activeTypes.map((t) => (
+              <span key={t.id} className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: t.color }} />
+                {t.name}
               </span>
             ))}
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: MONEY_COLOR.fixed_bill }} />
+              Conta
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: MONEY_COLOR.statement }} />
+              Fatura
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-gain" />
+              Feito
+            </span>
+            <span className="ml-auto">
+              <TypesManager types={types} />
+            </span>
           </div>
         }
       />

@@ -24,7 +24,109 @@ export type AgendaEvent = {
   daysLeft: number;
   seriesId: string | null;
   remindDays: number;
+  typeId: string | null;
+  typeName: string;
+  color: string; // cor do tipo (#RRGGBB)
+  priority: number | null; // 1 alta, 2 média, 3 baixa, ou sem prioridade
 };
+
+// Tipos da agenda: a pessoa cria, renomeia e arquiva. "baseKind" diz o comportamento.
+export type EventType = {
+  id: string;
+  name: string;
+  color: string;
+  baseKind: AgendaEvent["kind"];
+  archived: boolean;
+};
+
+export const DEFAULT_EVENT_TYPES: { name: string; color: string; baseKind: AgendaEvent["kind"] }[] = [
+  { name: "Prova", color: "#3B82F6", baseKind: "exam" },
+  { name: "Compromisso", color: "#F4B740", baseKind: "appointment" },
+  { name: "Entrega", color: "#FF7A93", baseKind: "deadline" },
+  { name: "Lembrete", color: "#94A3B8", baseKind: "other" },
+  { name: "Estudo", color: "#5EEAD4", baseKind: "study" },
+];
+
+// Para itens sem tipo (antigos ou criados pela frase), usa o padrão do comportamento.
+const FALLBACK_TYPE: Record<AgendaEvent["kind"], { name: string; color: string }> = {
+  exam: { name: "Prova", color: "#3B82F6" },
+  appointment: { name: "Compromisso", color: "#F4B740" },
+  deadline: { name: "Entrega", color: "#FF7A93" },
+  other: { name: "Lembrete", color: "#94A3B8" },
+  study: { name: "Estudo", color: "#5EEAD4" },
+  bill: { name: "Conta", color: "#B49BFF" },
+};
+
+export async function getEventTypes(): Promise<EventType[]> {
+  const supabase = await createClient();
+  const read = () =>
+    supabase
+      .from("event_types")
+      .select("id, name, color, base_kind, is_archived")
+      .eq("user_id", OWNER_ID)
+      .order("position")
+      .order("created_at");
+  let { data } = await read();
+  if (data && data.length === 0) {
+    await supabase.from("event_types").insert(
+      DEFAULT_EVENT_TYPES.map((t, i) => ({
+        user_id: OWNER_ID,
+        name: t.name,
+        color: t.color,
+        base_kind: t.baseKind,
+        position: i + 1,
+      })),
+    );
+    ({ data } = await read());
+  }
+  return (data ?? []).map((t) => ({
+    id: t.id,
+    name: t.name,
+    color: t.color,
+    baseKind: t.base_kind,
+    archived: Boolean(t.is_archived),
+  }));
+}
+
+const EVENT_COLUMNS =
+  "id, title, kind, starts_at, all_day, notes, done_at, series_id, remind_days, type_id, priority, type:event_types(name, color)";
+
+type EventRowData = {
+  id: string;
+  title: string;
+  kind: AgendaEvent["kind"];
+  starts_at: string;
+  all_day: boolean;
+  notes: string | null;
+  done_at: string | null;
+  series_id: string | null;
+  remind_days: number | null;
+  type_id: string | null;
+  priority: number | null;
+  type: { name: string; color: string } | { name: string; color: string }[] | null;
+};
+
+function toEvent(e: EventRowData, today: CalendarDate): AgendaEvent {
+  const { date, time } = localParts(e.starts_at);
+  const t = Array.isArray(e.type) ? (e.type[0] ?? null) : e.type;
+  const fb = FALLBACK_TYPE[e.kind] ?? FALLBACK_TYPE.other;
+  return {
+    id: e.id,
+    title: e.title,
+    kind: e.kind,
+    date,
+    time: e.all_day ? null : time,
+    notes: e.notes,
+    done: Boolean(e.done_at),
+    daysLeft: diffInDays(today, fromISODate(date)),
+    seriesId: e.series_id,
+    remindDays: e.remind_days ?? 0,
+    typeId: e.type_id,
+    typeName: t?.name ?? fb.name,
+    color: t?.color ?? fb.color,
+    priority: e.priority ?? null,
+  };
+}
 
 export type ChecklistItem = { id: string; text: string; done: boolean };
 
@@ -66,7 +168,7 @@ export async function getAgenda(today: CalendarDate = todayInSaoPaulo()) {
   const [events, tasks] = await Promise.all([
     supabase
       .from("events")
-      .select("id, title, kind, starts_at, all_day, notes, done_at, series_id, remind_days")
+      .select(EVENT_COLUMNS)
       .eq("user_id", OWNER_ID)
       .gte("starts_at", `${from}T00:00:00-03:00`)
       .order("starts_at"),
@@ -79,21 +181,7 @@ export async function getAgenda(today: CalendarDate = todayInSaoPaulo()) {
       .order("due_on", { ascending: true, nullsFirst: false }),
   ]);
 
-  const list: AgendaEvent[] = (events.data ?? []).map((e) => {
-    const { date, time } = localParts(e.starts_at);
-    return {
-      id: e.id,
-      title: e.title,
-      kind: e.kind,
-      date,
-      time: e.all_day ? null : time,
-      notes: e.notes,
-      done: Boolean(e.done_at),
-      daysLeft: diffInDays(today, fromISODate(date)),
-      seriesId: e.series_id,
-      remindDays: e.remind_days ?? 0,
-    };
-  });
+  const list: AgendaEvent[] = ((events.data ?? []) as EventRowData[]).map((e) => toEvent(e, today));
 
   const taskList: Task[] = (tasks.data ?? []).map((t) => ({
     id: t.id,
@@ -176,10 +264,10 @@ export async function getAgendaMonth(year: number, month: number, today: Calenda
   const endISO = `${year}-${String(month).padStart(2, "0")}-${String(last).padStart(2, "0")}`;
   const monthISO = firstOfMonthISO(year, month);
 
-  const [events, bills, billPays, inst, cards, payments, tasks] = await Promise.all([
+  const [events, bills, billPays, inst, cards, payments] = await Promise.all([
     supabase
       .from("events")
-      .select("id, title, kind, starts_at, all_day, notes, done_at, series_id, remind_days")
+      .select(EVENT_COLUMNS)
       .eq("user_id", OWNER_ID)
       .gte("starts_at", `${startISO}T00:00:00-03:00`)
       .lte("starts_at", `${endISO}T23:59:59-03:00`)
@@ -201,36 +289,22 @@ export async function getAgendaMonth(year: number, month: number, today: Calenda
       .select("card_id, amount_cents")
       .eq("user_id", OWNER_ID)
       .eq("statement_month", monthISO),
-    supabase
-      .from("tasks")
-      .select("id, title, priority, due_on, done_at")
-      .eq("user_id", OWNER_ID)
-      .gte("due_on", startISO)
-      .lte("due_on", endISO),
   ]);
 
+  // Tarefa deixou de ser tipo separado (21/11): o calendário mostra só itens da agenda, contas e faturas.
   const items: CalendarItem[] = [];
 
-  for (const t of tasks.data ?? []) {
-    const task: Task = { id: t.id, title: t.title, priority: t.priority, dueOn: t.due_on, done: Boolean(t.done_at) };
-    items.push({ key: `t-${t.id}`, date: t.due_on, time: null, title: t.title, kind: "task", done: task.done, task });
-  }
-
-  for (const e of events.data ?? []) {
-    const { date, time } = localParts(e.starts_at);
-    const ev: AgendaEvent = {
-      id: e.id,
+  for (const e of (events.data ?? []) as EventRowData[]) {
+    const ev = toEvent(e, today);
+    items.push({
+      key: `e-${e.id}`,
+      date: ev.date,
+      time: ev.time,
       title: e.title,
       kind: e.kind,
-      date,
-      time: e.all_day ? null : time,
-      notes: e.notes,
-      done: Boolean(e.done_at),
-      daysLeft: diffInDays(today, fromISODate(date)),
-      seriesId: e.series_id,
-      remindDays: e.remind_days ?? 0,
-    };
-    items.push({ key: `e-${e.id}`, date, time: ev.time, title: e.title, kind: e.kind, done: ev.done, event: ev });
+      done: ev.done,
+      event: ev,
+    });
   }
 
   const paid = new Set((billPays.data ?? []).map((p) => p.bill_id));
