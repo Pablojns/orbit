@@ -3,7 +3,6 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { EditMovement } from "@/components/edit-forms";
 import { MovementRow } from "@/components/movement-list";
 import { QuickAdd } from "@/components/quick-add";
-import { QuickText } from "@/components/quick-text";
 import { formatDayLabel, formatShort, todayInSaoPaulo } from "@/lib/dates";
 import { getFinance, type Movement } from "@/lib/finance";
 import { formatCents } from "@/lib/money";
@@ -36,9 +35,7 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <QuickText />
-
-      <div className="mt-3 grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <QuickAdd categories={f.categories} cards={f.cards} variant="expense" />
         <QuickAdd categories={f.categories} cards={f.cards} variant="income" />
       </div>

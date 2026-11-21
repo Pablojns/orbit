@@ -74,9 +74,24 @@ export function QuickText() {
 
   const message = voiceError || state.message;
   return (
-    <form ref={formRef} action={action} className="glass rounded-[1.5rem] p-3">
+    <form ref={formRef} action={action} className="glass rounded-[1.5rem] p-2.5">
       <div className="flex items-center gap-2">
-        <Sparkles size={18} className="ml-1 shrink-0 text-cobalt" aria-hidden />
+        {canSpeak ? (
+          <button
+            type="button"
+            onClick={toggleVoice}
+            aria-label={listening ? "Parar de ouvir" : "Falar em vez de escrever"}
+            title={listening ? "Parar de ouvir" : "Falar"}
+            aria-pressed={listening}
+            className={`grid h-12 w-12 shrink-0 place-items-center rounded-full transition-colors ${
+              listening ? "bg-loss text-white" : "grad-primary text-white hover:brightness-110"
+            }`}
+          >
+            <Mic size={24} strokeWidth={2.2} className={listening ? "animate-pulse" : ""} aria-hidden />
+          </button>
+        ) : (
+          <Sparkles size={18} className="ml-1 shrink-0 text-cobalt" aria-hidden />
+        )}
         <input
           ref={inputRef}
           name="text"
@@ -85,24 +100,13 @@ export function QuickText() {
           autoComplete="off"
           enterKeyHint="send"
           aria-label="Lançar escrevendo"
-          placeholder={listening ? "Pode falar…" : "Ex.: mercado 45 pix · prova sexta 19h algoritmo"}
+          placeholder={listening ? "Pode falar…" : "Escreva ou fale: mercado 45 pix · prova sexta 19h"}
           className="min-w-0 flex-1 bg-transparent py-2 text-[15px] outline-none placeholder:text-white/30"
         />
-        {canSpeak ? (
-          <button
-            type="button"
-            onClick={toggleVoice}
-            aria-label={listening ? "Parar de ouvir" : "Falar em vez de escrever"}
-            aria-pressed={listening}
-            className={`shrink-0 rounded-xl p-2 transition-colors ${listening ? "bg-loss/20 text-loss" : "text-ink-soft hover:text-ink"}`}
-          >
-            <Mic size={18} className={listening ? "animate-pulse" : ""} />
-          </button>
-        ) : null}
         <button
           type="submit"
           disabled={pending}
-          className="grad-primary shrink-0 rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          className="shrink-0 rounded-xl bg-white/[0.08] px-4 py-2.5 text-sm font-semibold text-ink hover:bg-white/[0.12] disabled:opacity-60"
         >
           {pending ? "…" : "Lançar"}
         </button>
@@ -116,5 +120,14 @@ export function QuickText() {
         </p>
       ) : null}
     </form>
+  );
+}
+
+// Barra fixa no topo de todas as telas do app (decisão 1, 21/11).
+export function QuickTextBar() {
+  return (
+    <div className="sticky top-0 z-30 -mx-5 bg-[#070a1a]/80 px-5 pt-3 pb-2 backdrop-blur-md lg:-mx-10 lg:px-10 lg:pt-5">
+      <QuickText />
+    </div>
   );
 }

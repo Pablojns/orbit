@@ -6,7 +6,6 @@ import { countdown, EventRow } from "@/components/event-row";
 import { HabitCheck } from "@/components/habit-card";
 import { MovementRow } from "@/components/movement-list";
 import { OrbitRing } from "@/components/orbit-ring";
-import { QuickText } from "@/components/quick-text";
 import { diffInDays } from "@/lib/dates";
 import { paydayText } from "@/lib/cycle";
 import { getFinance } from "@/lib/finance";
@@ -87,7 +86,7 @@ export default async function HomePage() {
   );
 
   return (
-    <div className="space-y-5 pt-7 lg:pt-10">
+    <div className="space-y-5 pt-4 lg:pt-6">
       <header className="flex items-center justify-between gap-4">
         <h1 className="text-[1.6rem] leading-tight font-bold">
           {firstName ? `${greeting()}, ${firstName}` : greeting()}
@@ -101,9 +100,7 @@ export default async function HomePage() {
         </Link>
       </header>
 
-      {/* 1. Barra de escrever e falar */}
-      <QuickText />
-
+      {/* 1. A barra de escrever e falar fica fixa no topo (layout do app) */}
       {showSteps ? (
         <section className="glass rounded-[1.75rem] p-5">
           <div className="flex items-center justify-between">
@@ -179,7 +176,7 @@ export default async function HomePage() {
               >
                 {formatCents(negative ? s.freeCents : s.perDayCents)}
               </span>
-              <span className="mt-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs text-ink-soft">
+              <span className="mt-2 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs whitespace-nowrap text-ink-soft">
                 {paydayText(cycle)}
               </span>
             </OrbitRing>
