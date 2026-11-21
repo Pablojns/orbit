@@ -2,6 +2,7 @@ import { BottomNav, SideNav } from "@/components/app-nav";
 import { QuickAdd } from "@/components/quick-add";
 import { QuickTextBar } from "@/components/quick-text";
 import { UndoProvider } from "@/components/undo";
+import { Welcome } from "@/components/welcome";
 import { getCards, getCategories } from "@/lib/finance";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -17,6 +18,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </main>
         <QuickAdd categories={categories} cards={cards} variant="fab" />
         <BottomNav />
+        <Welcome vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""} />
       </div>
     </UndoProvider>
   );
