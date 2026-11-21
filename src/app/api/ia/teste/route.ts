@@ -18,6 +18,11 @@ const FRASES = [
   "aula de inglês terça 19h", "boleto da faculdade 450", "seminário em grupo dia 05/12 14h",
   "café 8", "recebi o vale 600", "tcc entrega 15/12", "corte de cabelo 40", "corte de cabelo sábado 10h",
   "estudar para a prova amanhã", "transferi 100 pra minha mãe",
+  // Lote 6 (21/11): repetição, aviso, plano de estudo e Estudos.
+  "reunião toda segunda 19h", "academia toda terça e quinta 7h", "pagar aluguel todo dia 10",
+  "prova de cálculo dia 5/12 me avisa uma semana antes", "prova de cálculo sexta quero estudar 3 vezes",
+  "quero estudar 3 vezes para a prova de cálculo", "tirei 7 na prova de cálculo", "faltei em algoritmo",
+  "faltei 2 aulas de inglês", "aula de inglês toda terça 19h",
 ];
 
 export async function GET(request: Request) {

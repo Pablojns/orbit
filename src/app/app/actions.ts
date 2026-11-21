@@ -1451,9 +1451,20 @@ export async function quickText(_prev: FormState, fd: FormData): Promise<FormSta
     if (ai.intent === "question") return fail("Perguntas por voz chegam em breve. Por enquanto, registre gastos e compromissos.");
     if (ai.intent === "event") {
       // Datas e horas: as regras locais são exatas; a IA só cobre o que elas não acharem.
+      // Em repetição, a primeira data vem da IA (as regras não entendem "toda segunda").
       const { parseAgendaText } = await import("@/lib/agenda-parse");
       const rule = parseAgendaText(text, today);
-      return saveAgendaFromText(ai.title, ai.kind, rule?.dateFound ? rule.date : ai.date, rule?.time ?? ai.time);
+      const date = !ai.repeat && rule?.dateFound ? rule.date : ai.date;
+      return saveAgendaFromText(ai.title, ai.kind, date, rule?.time ?? ai.time, {
+        repeat: ai.repeat,
+        repeatUntil: ai.repeatUntil,
+        remindDays: ai.remindDays,
+        studySessions: ai.studySessions,
+        subject: ai.subject,
+      });
+    }
+    if (ai.intent === "grade" || ai.intent === "absence" || ai.intent === "class" || ai.intent === "study_plan") {
+      return studyFromText(ai);
     }
     const card = ai.cardName
       ? (cards ?? []).find((c) => c.name.toLowerCase() === ai.cardName!.toLowerCase())
@@ -1512,18 +1523,176 @@ const METHOD_LABEL: Record<string, string> = {
   transfer: "Transferência",
 };
 
-async function saveAgendaFromText(title: string, kind: string, date: string, time: string | null): Promise<FormState> {
+type AgendaExtras = {
+  repeat?: "weekly" | "biweekly" | "monthly" | null;
+  repeatUntil?: string | null;
+  remindDays?: number | null;
+  studySessions?: number | null;
+  subject?: string | null;
+};
+
+const REPEAT_LABEL = { weekly: "toda semana", biweekly: "a cada 2 semanas", monthly: "todo mês" } as const;
+
+async function saveAgendaFromText(
+  title: string,
+  kind: string,
+  date: string,
+  time: string | null,
+  extra: AgendaExtras = {},
+): Promise<FormState> {
   const form = new FormData();
   form.set("title", title);
   form.set("date", date);
   if (time) form.set("time", time);
   form.set("kind", kind);
+  let until: string | null = null;
+  if (extra.repeat) {
+    const { getTerm } = await import("@/lib/class-slots");
+    const { defaultRepeatUntil } = await import("@/lib/studies-math");
+    until = extra.repeatUntil ?? defaultRepeatUntil(date, await getTerm());
+    form.set("repeat", extra.repeat);
+    form.set("repeat_until", until);
+  }
+  if (extra.remindDays !== null && extra.remindDays !== undefined) form.set("remind_days", String(extra.remindDays));
+  else if (kind === "exam") form.set("remind_days", "3");
+  if (extra.studySessions && kind === "exam" && !extra.repeat) form.set("study_sessions", String(extra.studySessions));
+  if (extra.subject) {
+    const { getSubjects } = await import("@/lib/studies");
+    const { matchSubject } = await import("@/lib/studies-math");
+    const sub = matchSubject(extra.subject, await getSubjects());
+    if (sub) form.set("subject_id", sub.id);
+  }
   const result = await saveEvent({ status: "idle" }, form);
   if (result.status !== "saved") return result;
   revalidatePath("/app", "layout");
   const d = fromISODate(date);
   const wd = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"][new Date(Date.UTC(d.year, d.month - 1, d.day)).getUTCDay()];
   const when = `${wd} ${String(d.day).padStart(2, "0")}/${String(d.month).padStart(2, "0")}${time ? ` às ${time}` : ""}`;
-  const avisos = time ? "Aviso na véspera, no dia e 3 horas antes." : "Aviso na véspera e no dia.";
-  return { status: "saved", message: `Na agenda: ${title} — ${when}. ${avisos}` };
+  const parts = [`Na agenda: ${title} — ${when}.`];
+  if (extra.repeat && until) {
+    const u = fromISODate(until);
+    parts.push(`Repete ${REPEAT_LABEL[extra.repeat]} até ${String(u.day).padStart(2, "0")}/${String(u.month).padStart(2, "0")}.`);
+  }
+  const remind = Number(form.get("remind_days") ?? 0);
+  parts.push(remind ? `Aviso ${remind} dias antes${time ? " e 3 horas antes" : ""}.` : time ? "Aviso na véspera, no dia e 3 horas antes." : "Aviso na véspera e no dia.");
+  if (form.get("study_sessions")) parts.push(result.message ?? "");
+  return { status: "saved", message: parts.filter(Boolean).join(" ") };
+}
+
+// Frases de Estudos: nota, falta, horário de aula e plano de estudo para prova já marcada.
+async function studyFromText(
+  ai:
+    | { intent: "grade"; subject: string; value: number; label: string | null }
+    | { intent: "absence"; subject: string; count: number }
+    | { intent: "class"; subject: string; weekday: number; time: string; endTime: string | null }
+    | { intent: "study_plan"; subject: string; sessions: number },
+): Promise<FormState> {
+  const { getSubjects } = await import("@/lib/studies");
+  const { matchSubject, WEEKDAYS } = await import("@/lib/studies-math");
+  const subjects = await getSubjects();
+  let sub = matchSubject(ai.subject, subjects);
+  const supabase = await db();
+
+  if (!sub && ai.intent === "class") {
+    // Aula de matéria que ainda não existe: cria a matéria com o padrão (média 6 de 10).
+    const name = ai.subject.charAt(0).toUpperCase() + ai.subject.slice(1);
+    const { data } = await supabase
+      .from("subjects")
+      .insert({ user_id: OWNER_ID, name: name.slice(0, 60), pass_grade: 6, max_grade: 10 })
+      .select("id, name")
+      .single();
+    if (data) sub = { id: data.id, name: data.name, pass: 6, max: 10, maxAbsences: null, absences: 0 };
+  }
+  if (!sub) return fail(`Não achei a matéria “${ai.subject}”. Crie ela em Estudos e tente de novo.`);
+
+  if (ai.intent === "absence") {
+    const { data: bumped } = await supabase.rpc("bump_absences", { p_id: sub.id, p_delta: ai.count });
+    const next = typeof bumped === "number" ? bumped : Math.min(500, sub.absences + ai.count);
+    revalidatePath("/app", "layout");
+    const limit = sub.maxAbsences === null ? "" : ` de ${sub.maxAbsences}`;
+    const warn =
+      sub.maxAbsences !== null && sub.maxAbsences - next <= 2
+        ? next > sub.maxAbsences
+          ? " Passou do limite!"
+          : next === sub.maxAbsences
+            ? " No limite: não pode faltar mais."
+            : " Perto do limite."
+        : "";
+    return { status: "saved", message: `Falta em ${sub.name}: ${next}${limit}.${warn}` };
+  }
+
+  if (ai.intent === "grade") {
+    const { data: pending } = await supabase
+      .from("grades")
+      .select("id, label")
+      .eq("subject_id", sub.id)
+      .eq("user_id", OWNER_ID)
+      .is("value", null)
+      .order("created_at");
+    const fold = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const target = ai.label
+      ? (pending ?? []).find((g) => fold(g.label).includes(fold(ai.label!)) || fold(ai.label!).includes(fold(g.label)))
+      : (pending ?? [])[0];
+    const { error } = target
+      ? await supabase.from("grades").update({ value: ai.value }).eq("id", target.id).eq("user_id", OWNER_ID)
+      : await supabase
+          .from("grades")
+          .insert({ user_id: OWNER_ID, subject_id: sub.id, label: (ai.label ?? "Nota").slice(0, 60), weight: 1, value: ai.value });
+    if (error) return fail("Não foi possível salvar a nota.");
+    revalidatePath("/app", "layout");
+    const shown = ai.value.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+    return { status: "saved", message: `Nota ${shown} em ${sub.name}${target ? ` (${target.label})` : ai.label ? ` (${ai.label})` : ""}.` };
+  }
+
+  if (ai.intent === "class") {
+    const { error } = await supabase.from("class_slots").insert({
+      user_id: OWNER_ID,
+      subject_id: sub.id,
+      weekday: ai.weekday,
+      starts_at: ai.time,
+      ends_at: ai.endTime,
+    });
+    if (error) return fail("Não foi possível salvar a aula.");
+    revalidatePath("/app", "layout");
+    return {
+      status: "saved",
+      message: `Aula de ${sub.name} toda ${WEEKDAYS[ai.weekday].toLowerCase()} às ${ai.time}${ai.endTime ? ` até ${ai.endTime}` : ""}. Aparece na Agenda.`,
+    };
+  }
+
+  // Plano de estudo: espalha sessões até a próxima prova dessa matéria.
+  const { data: exams } = await supabase
+    .from("events")
+    .select("id, title, starts_at, subject_id")
+    .eq("user_id", OWNER_ID)
+    .eq("kind", "exam")
+    .is("done_at", null)
+    .gte("starts_at", `${todayISO()}T00:00:00-03:00`)
+    .order("starts_at");
+  const fold = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const exam =
+    (exams ?? []).find((e) => e.subject_id === sub!.id) ??
+    (exams ?? []).find((e) => fold(e.title).includes(fold(sub!.name)) || fold(e.title).includes(fold(ai.subject)));
+  if (!exam) return fail(`Não achei prova de ${sub.name} marcada. Diga junto a data, ex.: prova de ${ai.subject} sexta, quero estudar ${ai.sessions} vezes.`);
+  const examDate = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(exam.starts_at));
+  const days = await pickStudyDays(supabase, examDate, ai.sessions);
+  if (!days.length) return fail("Não sobrou dia livre antes dessa prova.");
+  const study = new FormData();
+  study.set("kind", "study");
+  const { typeId } = await resolveType(supabase, study);
+  const { error } = await supabase.from("events").insert(
+    days.map((d) => ({
+      user_id: OWNER_ID,
+      title: `Estudar: ${exam.title}`.slice(0, 80),
+      kind: "study",
+      type_id: typeId,
+      subject_id: sub!.id,
+      starts_at: `${d}T12:00:00-03:00`,
+      all_day: true,
+      remind_days: 0,
+    })),
+  );
+  if (error) return fail("Não foi possível criar as sessões.");
+  revalidatePath("/app", "layout");
+  return { status: "saved", message: `${days.length} ${days.length === 1 ? "sessão" : "sessões"} de estudo para ${exam.title} na agenda.` };
 }

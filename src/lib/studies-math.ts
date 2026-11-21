@@ -47,3 +47,34 @@ export function classOccurrences(slots: ClassSlot[], term: Term, start: Calendar
 }
 
 export const WEEKDAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+
+const fold = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9 ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+// Acha a matéria pelo nome que a pessoa falou ("calculo", "algoritmo", "ingles").
+// Prefere nome igual; depois nome que contém ou está contido; depois palavra em comum.
+export function matchSubject<T extends { name: string }>(said: string, subjects: T[]): T | null {
+  const q = fold(said);
+  if (!q) return null;
+  const exact = subjects.find((s) => fold(s.name) === q);
+  if (exact) return exact;
+  const contains = subjects.filter((s) => fold(s.name).includes(q) || q.includes(fold(s.name)));
+  if (contains.length === 1) return contains[0];
+  const words = q.split(" ").filter((w) => w.length >= 4);
+  const byWord = subjects.filter((s) => fold(s.name).split(" ").some((w) => words.includes(w)));
+  return byWord.length === 1 ? byWord[0] : (contains[0] ?? null);
+}
+
+// Até quando repete quando a frase não diz: fim do semestre (se houver e for depois)
+// ou 12 semanas depois da primeira data.
+export function defaultRepeatUntil(firstISO: string, term: Term): string {
+  if (term && term.endsOn > firstISO) return term.endsOn;
+  const d = fromISODate(firstISO);
+  return toISODate(addDays(d, 7 * 12));
+}

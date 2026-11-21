@@ -37,3 +37,15 @@ const two = classOccurrences([slot(2, "21:00"), slot(2, "19:00")], null, d(2026,
 assert.deepEqual(two.map((o) => o.slot.startsAt), ["19:00", "21:00"]);
 
 console.log("test-studies: ok");
+
+import { defaultRepeatUntil, matchSubject } from "../src/lib/studies-math";
+const subs = [{ name: "Cálculo I" }, { name: "Algoritmos e Lógica" }, { name: "Inglês" }];
+assert.equal(matchSubject("calculo", subs)?.name, "Cálculo I");
+assert.equal(matchSubject("algoritmo", subs)?.name, "Algoritmos e Lógica");
+assert.equal(matchSubject("ingles", subs)?.name, "Inglês");
+assert.equal(matchSubject("INGLÊS", subs)?.name, "Inglês");
+assert.equal(matchSubject("história", subs), null);
+assert.equal(defaultRepeatUntil("2026-11-23", { startsOn: "2026-08-01", endsOn: "2026-12-15" }), "2026-12-15");
+assert.equal(defaultRepeatUntil("2026-11-23", null), "2027-02-15");
+assert.equal(defaultRepeatUntil("2027-01-10", { startsOn: "2026-08-01", endsOn: "2026-12-15" }), "2027-04-04");
+console.log("test-studies (matérias e repetição): ok");
