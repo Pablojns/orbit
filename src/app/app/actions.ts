@@ -1300,7 +1300,12 @@ export async function quickText(_prev: FormState, fd: FormData): Promise<FormSta
   if (ai) {
     if (ai.intent === "unclear") return fail(ai.ask);
     if (ai.intent === "question") return fail("Perguntas por voz chegam em breve. Por enquanto, registre gastos e compromissos.");
-    if (ai.intent === "event") return saveAgendaFromText(ai.title, ai.kind, ai.date, ai.time);
+    if (ai.intent === "event") {
+      // Datas e horas: as regras locais são exatas; a IA só cobre o que elas não acharem.
+      const { parseAgendaText } = await import("@/lib/agenda-parse");
+      const rule = parseAgendaText(text, today);
+      return saveAgendaFromText(ai.title, ai.kind, rule?.dateFound ? rule.date : ai.date, rule?.time ?? ai.time);
+    }
     const card = ai.cardName
       ? (cards ?? []).find((c) => c.name.toLowerCase() === ai.cardName!.toLowerCase())
       : ai.method === "credit" && (cards ?? []).length === 1

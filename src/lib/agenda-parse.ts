@@ -7,6 +7,7 @@ export type AgendaParsed = {
   title: string;
   date: string; // AAAA-MM-DD
   time: string | null; // HH:MM
+  dateFound: boolean; // false = a frase não tinha data e usamos hoje
   summary: string;
 };
 
@@ -180,6 +181,7 @@ export function parseAgendaText(text: string, today: CalendarDate): AgendaParsed
     title,
     date: iso,
     time,
+    dateFound: date !== null,
     summary: `${title} — ${when}${time ? ` às ${time}` : ""}. ${avisos}`,
   };
 }

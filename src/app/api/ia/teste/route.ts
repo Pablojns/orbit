@@ -38,13 +38,13 @@ export async function GET(request: Request) {
     return Response.json({ modelsStatus: m.status, models, chatStatus: c.status, chat: (await c.text()).slice(0, 300) });
   }
   const lote = Math.max(1, Number(new URL(request.url).searchParams.get("lote")) || 1);
-  const frases = FRASES.slice((lote - 1) * 17, lote * 17);
+  const frases = FRASES.slice((lote - 1) * 10, lote * 10);
   const cats = ["Mercado", "Alimentação", "Transporte", "Moradia", "Contas", "Saúde", "Educação", "Lazer", "Assinaturas", "Compras", "Salário", "Extra"];
   const out: unknown[] = [];
   for (const f of frases) {
     const r = await interpretWithAI(f, todayInSaoPaulo(), cats, ["Nubank"]);
     out.push({ f, r });
-    await new Promise((ok) => setTimeout(ok, 2100));
+    await new Promise((ok) => setTimeout(ok, 4000));
   }
   return Response.json({ model: AI_MODEL, hasKey: Boolean(process.env.GROQ_API_KEY), lote, out });
 }
