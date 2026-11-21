@@ -197,17 +197,13 @@ export async function unpayStatement(fd: FormData) {
 
 // ---------- contas fixas --------------------------------------------
 
-function billExtras(fd: FormData, amount: number) {
-  const split = ["half", "fixed"].includes(str(fd, "split")) ? str(fd, "split") : "none";
-  const share = parseToCents(str(fd, "my_share"));
+// Conta dividida saiu do app (21/11): toda conta grava como inteira.
+function billExtras(fd: FormData) {
   const code = str(fd, "payment_code").replace(/\s+/g, " ").slice(0, 400);
-  if (split === "fixed" && (!share || share <= 0 || share >= amount)) {
-    return { error: "Sua parte precisa ser maior que zero e menor que o total." } as const;
-  }
   return {
     values: {
-      split,
-      my_share_cents: split === "fixed" ? share : null,
+      split: "none",
+      my_share_cents: null,
       is_subscription: str(fd, "is_subscription") === "on",
       payment_code: code || null,
     },
@@ -222,8 +218,7 @@ export async function saveBill(_prev: FormState, fd: FormData): Promise<FormStat
   if (!name) return fail("Dê um nome à conta, como Luz.");
   if (!amount || amount <= 0) return fail("Digite o valor da conta.");
   if (!due) return fail("Informe o dia de vencimento.");
-  const extra = billExtras(fd, amount);
-  if ("error" in extra) return fail(extra.error!);
+  const extra = billExtras(fd);
   const supabase = await db();
   const { error } = await supabase.from("bills").insert({
     user_id: OWNER_ID,
@@ -703,8 +698,7 @@ export async function updateBill(_prev: FormState, fd: FormData): Promise<FormSt
   if (!name) return fail("Dê um nome à conta.");
   if (!amount || amount <= 0) return fail("Digite o valor.");
   if (!due) return fail("Informe o vencimento.");
-  const extra = billExtras(fd, amount);
-  if ("error" in extra) return fail(extra.error!);
+  const extra = billExtras(fd);
   const supabase = await db();
   const { error } = await supabase
     .from("bills")

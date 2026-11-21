@@ -83,9 +83,7 @@ export type Goal = {
 export type Bill = {
   id: string;
   name: string;
-  amountCents: number; // valor total da conta
-  myShareCents: number; // o que sai do seu bolso (igual ao total se não for dividida)
-  split: "none" | "half" | "fixed";
+  amountCents: number;
   isSubscription: boolean;
   paymentCode: string | null;
   dueDay: number;
@@ -94,11 +92,6 @@ export type Bill = {
   categoryId: string | null;
 };
 
-export function billShare(total: number, split: string, fixed: number | null) {
-  if (split === "half") return Math.ceil(total / 2);
-  if (split === "fixed" && fixed && fixed > 0 && fixed < total) return fixed;
-  return total;
-}
 export type RecurringIncome = {
   id: string;
   name: string;
@@ -221,7 +214,7 @@ export async function getFinance(cycleStartDay: number, offset = 0): Promise<Fin
     supabase
       .from("bills")
       .select(
-        "id, name, amount_cents, due_day, starts_on, ends_on, is_active, category_id, split, my_share_cents, is_subscription, payment_code, category:categories(name, icon)",
+        "id, name, amount_cents, due_day, starts_on, ends_on, is_active, category_id, is_subscription, payment_code, category:categories(name, icon)",
       )
       .eq("user_id", OWNER_ID)
       .eq("is_active", true)
@@ -352,12 +345,6 @@ export async function getFinance(cycleStartDay: number, offset = 0): Promise<Fin
     id: b.id as string,
     name: b.name as string,
     amountCents: Number(b.amount_cents),
-    myShareCents: billShare(
-      Number(b.amount_cents),
-      b.split as string,
-      b.my_share_cents === null ? null : Number(b.my_share_cents),
-    ),
-    split: (b.split as Bill["split"]) ?? "none",
     isSubscription: Boolean(b.is_subscription),
     paymentCode: (b.payment_code as string | null) ?? null,
     dueDay: b.due_day as number,
@@ -378,7 +365,7 @@ export async function getFinance(cycleStartDay: number, offset = 0): Promise<Fin
         return {
           billId: b.id,
           name: b.name,
-          amountCents: b.myShareCents,
+          amountCents: b.amountCents,
           dueDate: date,
           referenceMonth,
           paid: paidKeys.has(`${b.id}|${referenceMonth}`),
@@ -477,8 +464,6 @@ export async function getFinance(cycleStartDay: number, offset = 0): Promise<Fin
       id: b.id,
       name: b.name,
       amountCents: b.amountCents,
-      myShareCents: b.myShareCents,
-      split: b.split,
       isSubscription: b.isSubscription,
       paymentCode: b.paymentCode,
       dueDay: b.dueDay,

@@ -313,7 +313,7 @@ export default async function HomePage() {
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">A pagar neste ciclo</h2>
               <Link href="/app/dinheiro/contas" className="flex items-center text-sm font-medium text-cobalt">
-                Fixos <ChevronRight size={16} aria-hidden />
+                Contas fixas <ChevronRight size={16} aria-hidden />
               </Link>
             </div>
             {dues.length ? (

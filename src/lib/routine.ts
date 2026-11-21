@@ -1,7 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { OWNER_ID } from "@/lib/owner";
-import { billShare } from "@/lib/finance";
 import { firstOfMonthISO, monthlyOccurrences, statementDueDate } from "@/lib/schedule";
 import {
   addDays,
@@ -187,7 +186,7 @@ export async function getAgendaMonth(year: number, month: number, today: Calenda
       .order("starts_at"),
     supabase
       .from("bills")
-      .select("id, name, amount_cents, due_day, starts_on, ends_on, split, my_share_cents")
+      .select("id, name, amount_cents, due_day, starts_on, ends_on")
       .eq("user_id", OWNER_ID)
       .eq("is_active", true),
     supabase.from("bill_payments").select("bill_id").eq("user_id", OWNER_ID).eq("reference_month", monthISO),
@@ -245,11 +244,7 @@ export async function getAgendaMonth(year: number, month: number, today: Calenda
         time: null,
         title: b.name,
         kind: "fixed_bill",
-        amountCents: billShare(
-          Number(b.amount_cents),
-          b.split,
-          b.my_share_cents === null ? null : Number(b.my_share_cents),
-        ),
+        amountCents: Number(b.amount_cents),
         done: paid.has(b.id),
       });
     }

@@ -47,3 +47,14 @@ export function cycleAt(today: CalendarDate, startDay: number, offset: number): 
   const c = currentCycle(start, startDay);
   return { ...c, dayNumber: c.totalDays, daysLeft: 0 };
 }
+
+// Dias até o próximo salário (o próximo ciclo começa no dia seguinte ao fim deste).
+// No último dia do ciclo falta 1 dia; no dia do salário já é um ciclo novo.
+export function daysToPayday(c: Cycle): number {
+  return c.daysLeft + 1;
+}
+
+export function paydayText(c: Cycle): string {
+  const n = daysToPayday(c);
+  return n === 1 ? "Falta 1 dia para o salário" : `Faltam ${n} dias para o salário`;
+}

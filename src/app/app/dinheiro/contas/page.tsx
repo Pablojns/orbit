@@ -13,7 +13,7 @@ import { getFinance } from "@/lib/finance";
 import { formatCents } from "@/lib/money";
 import { requireProfile } from "@/lib/profile";
 
-export const metadata = { title: "Fixos" };
+export const metadata = { title: "Contas fixas" };
 export const dynamic = "force-dynamic";
 
 function when(days: number) {
@@ -33,7 +33,7 @@ export default async function FixedPage({ searchParams }: { searchParams: Promis
 
   const incomesTotal = f.incomesInCycle.reduce((a, i) => a + i.amountCents, 0);
   const billsTotal = f.billsInCycle.reduce((a, b) => a + b.amountCents, 0);
-  const subsTotal = f.bills.filter((b) => b.isSubscription).reduce((a, b) => a + b.myShareCents, 0);
+  const subsTotal = f.bills.filter((b) => b.isSubscription).reduce((a, b) => a + b.amountCents, 0);
 
   const incomeColumn = (
     <section className={`${side === "entradas" ? "block" : "hidden"} lg:block`}>
@@ -86,7 +86,10 @@ export default async function FixedPage({ searchParams }: { searchParams: Promis
                         {inc.endsOn ? `, até ${formatShort(fromISODate(inc.endsOn))}` : ""}
                       </p>
                     </div>
-                    <EditIncome income={inc} />
+                    <div className="flex shrink-0 items-center">
+                      <EditIncome income={inc} />
+                      <DeleteButton action={archiveIncome} fields={{ id: inc.id }} label={`Remover ${inc.name}`} />
+                    </div>
                   </div>
                   <div className="mt-3 flex items-center justify-between gap-2">
                     <p className="font-display text-lg font-bold text-gain">{formatCents(inc.amountCents)}</p>
@@ -107,14 +110,6 @@ export default async function FixedPage({ searchParams }: { searchParams: Promis
                         </button>
                       </form>
                     )}
-                  </div>
-                  <div className="mt-2 text-right">
-                    <DeleteButton
-                      action={archiveIncome}
-                      fields={{ id: inc.id }}
-                      label={`Remover ${inc.name}`}
-                      variant="text"
-                    />
                   </div>
                 </li>
               );
@@ -197,11 +192,6 @@ export default async function FixedPage({ searchParams }: { searchParams: Promis
                                 assinatura
                               </span>
                             ) : null}
-                            {bill.split !== "none" ? (
-                              <span className="shrink-0 rounded-full bg-white/[0.07] px-2 py-0.5 text-[10px] font-semibold text-ink-soft">
-                                dividida
-                              </span>
-                            ) : null}
                           </p>
                           <p className={`text-[13px] ${late ? "text-loss" : "text-ink-soft"}`}>
                             {!occ
@@ -213,14 +203,15 @@ export default async function FixedPage({ searchParams }: { searchParams: Promis
                                   : `Vence ${when(days!)}, dia ${occ.dueDate.day}`}
                           </p>
                         </div>
-                        <EditBill bill={bill} categories={f.categories} />
+                        <div className="flex shrink-0 items-center">
+                          <EditBill bill={bill} categories={f.categories} />
+                          <DeleteButton action={archiveBill} fields={{ id: bill.id }} label={`Remover ${bill.name}`} />
+                        </div>
                       </div>
                       <div className="mt-3 flex items-center justify-between gap-2">
-                        <div>
-                          <p className="font-display text-lg font-bold">{formatCents(bill.myShareCents)}</p>
-                          {bill.split !== "none" ? (
-                            <p className="text-xs text-ink-soft">sua parte de {formatCents(bill.amountCents)}</p>
-                          ) : null}
+                        <div className="flex items-center gap-3">
+                          <p className="font-display text-lg font-bold">{formatCents(bill.amountCents)}</p>
+                          {bill.paymentCode ? <CopyButton text={bill.paymentCode} /> : null}
                         </div>
                         {occ ? (
                           <form action={toggleBillPaid}>
@@ -246,15 +237,6 @@ export default async function FixedPage({ searchParams }: { searchParams: Promis
                         ) : (
                           <span className="text-xs text-ink-soft">Fora deste ciclo</span>
                         )}
-                      </div>
-                      <div className="mt-2 flex items-center justify-between gap-2">
-                        {bill.paymentCode ? <CopyButton text={bill.paymentCode} /> : <span />}
-                        <DeleteButton
-                          action={archiveBill}
-                          fields={{ id: bill.id }}
-                          label={`Remover ${bill.name}`}
-                          variant="text"
-                        />
                       </div>
                     </div>
                   </li>

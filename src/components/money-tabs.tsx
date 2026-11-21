@@ -4,11 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
-  { href: "/app/dinheiro", label: "Movimentações" },
+  { href: "/app/dinheiro", label: "Extrato" },
   { href: "/app/dinheiro/cartoes", label: "Cartões" },
-  { href: "/app/dinheiro/contas", label: "Fixos" },
+  { href: "/app/dinheiro/contas", label: "Contas fixas" },
   { href: "/app/dinheiro/metas", label: "Metas" },
-  { href: "/app/dinheiro/pessoas", label: "Pessoas" },
+  { href: "/app/dinheiro/pessoas", label: "Empréstimos" },
 ];
 
 export function MoneyTabs() {

@@ -84,7 +84,7 @@ export function QuickAdd({
         <button
           type="button"
           onClick={() => openSheet("expense")}
-          className="grad-primary flex items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-[15px] font-semibold text-white"
+          className="flex items-center justify-center gap-2 rounded-2xl bg-loss px-4 py-3.5 text-[15px] font-semibold text-[#2a0710] hover:brightness-110"
         >
           <ArrowUpRight size={18} aria-hidden /> Lançar gasto
         </button>
@@ -93,9 +93,9 @@ export function QuickAdd({
         <button
           type="button"
           onClick={() => openSheet("income")}
-          className="glass flex items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-[15px] font-semibold"
+          className="flex items-center justify-center gap-2 rounded-2xl bg-gain px-4 py-3.5 text-[15px] font-semibold text-[#05201a] hover:brightness-110"
         >
-          <ArrowDownLeft size={18} className="text-gain" aria-hidden /> Lançar entrada
+          <ArrowDownLeft size={18} aria-hidden /> Lançar entrada
         </button>
       ) : null}
 

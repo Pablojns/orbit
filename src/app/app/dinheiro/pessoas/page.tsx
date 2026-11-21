@@ -8,7 +8,7 @@ import { todayInSaoPaulo, toISODate } from "@/lib/dates";
 import { type Debt, getDebts } from "@/lib/debts";
 import { centsToInput, formatCents } from "@/lib/money";
 
-export const metadata = { title: "Pessoas" };
+export const metadata = { title: "Empréstimos" };
 export const dynamic = "force-dynamic";
 
 const DIRECTIONS = [

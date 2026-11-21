@@ -141,8 +141,6 @@ export function EditBill({ bill, categories }: { bill: Bill; categories: Categor
         <TextInput name="ends_on" type="date" defaultValue={bill.endsOn ?? ""} />
       </Field>
       <BillExtraFields
-        split={bill.split}
-        myShare={bill.split === "fixed" ? centsToInput(bill.myShareCents) : ""}
         isSubscription={bill.isSubscription}
         paymentCode={bill.paymentCode ?? ""}
       />
