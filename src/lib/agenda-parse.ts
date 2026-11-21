@@ -115,14 +115,17 @@ export function parseAgendaText(text: string, today: CalendarDate): AgendaParsed
     }
     if (!time) {
       const tm = /^(\d{1,2})(?:h|:)(\d{2})?h?$/.exec(k) ?? /^(\d{1,2})h(\d{2})$/.exec(k);
-      const afterAs = (keys[i - 1] === "as" || keys[i - 1] === "às") && /^\d{1,2}$/.test(k);
+      const unitNext = /^(h|hs|hr|hrs|hora|horas)$/.test(keys[i + 1] ?? "") && /^\d{1,2}$/.test(k);
+      const compact = /^(\d{1,2})(hs|hr|hrs|horas?)$/.exec(k);
+      const afterAs = ((keys[i - 1] === "as" || keys[i - 1] === "às") && /^\d{1,2}$/.test(k)) || unitNext || !!compact;
       if ((tm && (k.includes("h") || k.includes(":"))) || afterAs) {
-        const h = Number(tm ? tm[1] : k);
+        const h = Number(tm ? tm[1] : compact ? compact[1] : k);
         const m = tm && tm[2] ? Number(tm[2]) : 0;
         if (h <= 23 && m <= 59) {
           time = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
           used[i] = true;
-          if (afterAs) used[i - 1] = true;
+          if (afterAs && !unitNext && !compact) used[i - 1] = true;
+          if (unitNext) used[i + 1] = true;
           continue;
         }
       }
@@ -140,6 +143,14 @@ export function parseAgendaText(text: string, today: CalendarDate): AgendaParsed
   }
 
   if (!date && !kind) return null;
+  const moneyWord = keys.some((k) => ["pix", "debito", "credito", "dinheiro", "reais", "r$"].includes(k));
+  if (kind && !time && !moneyWord) {
+    const idx = keys.findIndex((k, i) => !used[i] && /^\d{1,2}$/.test(k) && Number(k) <= 23);
+    if (idx >= 0) {
+      time = `${keys[idx].padStart(2, "0")}:00`;
+      used[idx] = true;
+    }
+  }
   // Sobrou número solto (ex.: "mercado 45 amanhã")? Então é dinheiro, não agenda.
   if (keys.some((k, i) => !used[i] && /^r?\$?\d+([.,]\d+)?$/.test(k))) return null;
   if (keys.some((k, i) => !used[i] && ["pix", "debito", "credito", "dinheiro", "reais"].includes(k))) return null;
