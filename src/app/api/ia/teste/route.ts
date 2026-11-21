@@ -25,6 +25,18 @@ export async function GET(request: Request) {
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
     return new Response("Não autorizado", { status: 401 });
   }
+  if (new URL(request.url).searchParams.get("diag")) {
+    const key = process.env.GROQ_API_KEY ?? "";
+    const h = { Authorization: `Bearer ${key}`, "Content-Type": "application/json" };
+    const m = await fetch("https://api.groq.com/openai/v1/models", { headers: h });
+    const models = m.ok ? ((await m.json()) as { data: { id: string }[] }).data.map((x) => x.id) : (await m.text()).slice(0, 300);
+    const c = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: h,
+      body: JSON.stringify({ model: AI_MODEL, messages: [{ role: "user", content: "diga ok" }], max_tokens: 5 }),
+    });
+    return Response.json({ modelsStatus: m.status, models, chatStatus: c.status, chat: (await c.text()).slice(0, 300) });
+  }
   const lote = Math.max(1, Number(new URL(request.url).searchParams.get("lote")) || 1);
   const frases = FRASES.slice((lote - 1) * 17, lote * 17);
   const cats = ["Mercado", "Alimentação", "Transporte", "Moradia", "Contas", "Saúde", "Educação", "Lazer", "Assinaturas", "Compras", "Salário", "Extra"];
