@@ -25,7 +25,7 @@ export type AiIntent =
   | { intent: "unclear"; ask: string };
 
 const WEEK = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
-export const AI_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+export const AI_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
 
 function systemPrompt(today: CalendarDate, categories: string[], cards: string[]) {
   const iso = toISODate(today);
@@ -85,7 +85,8 @@ export async function interpretWithAI(
       body: JSON.stringify({
         model: AI_MODEL,
         temperature: 0,
-        max_tokens: 300,
+        max_tokens: 800,
+        reasoning_effort: "low",
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: systemPrompt(today, categories, cards) },
