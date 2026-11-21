@@ -21,7 +21,7 @@ export async function GET(request: Request) {
   const pub = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const priv = process.env.VAPID_PRIVATE_KEY;
   if (!pub || !priv) return Response.json({ sent: 0, reason: "sem chaves" });
-  webpush.setVapidDetails("https://orbit.gaia.page", pub, priv);
+  webpush.setVapidDetails("https://dimeta.vercel.app", pub, priv);
 
   const today = todayInSaoPaulo();
   const tomorrow = addDays(today, 1);

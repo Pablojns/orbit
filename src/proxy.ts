@@ -1,7 +1,18 @@
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/proxy";
 
+const OLD_HOST = "orbit-orcin-beta.vercel.app";
+const NEW_HOST = "dimeta.vercel.app";
+
 export async function proxy(request: NextRequest) {
+  // Endereço antigo leva para o novo (menos as rotas internas de aviso).
+  if (request.headers.get("host") === OLD_HOST && !request.nextUrl.pathname.startsWith("/api/")) {
+    const url = request.nextUrl.clone();
+    url.host = NEW_HOST;
+    url.port = "";
+    url.protocol = "https:";
+    return NextResponse.redirect(url, 308);
+  }
   return updateSession(request);
 }
 
