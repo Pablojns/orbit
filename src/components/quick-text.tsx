@@ -24,7 +24,7 @@ function getRecognition(): (new () => Recognition) | null {
 
 // Lança escrevendo ou falando uma frase:
 // dinheiro ("mercado 45 pix", "uber 18 nubank") ou agenda ("prova sexta 19h algoritmo").
-export function QuickText() {
+export function QuickText({ floating = false }: { floating?: boolean }) {
   const [state, action, pending] = useActionState<FormState, FormData>(quickText, { status: "idle" });
   const formRef = useRef<HTMLFormElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -74,7 +74,11 @@ export function QuickText() {
 
   const message = voiceError || state.message;
   return (
-    <form ref={formRef} action={action} className="glass rounded-[1.5rem] p-2.5">
+    <form
+      ref={formRef}
+      action={action}
+      className={`glass rounded-[1.5rem] p-2.5 ${floating ? "bg-[#0b0f24]/85 shadow-lg shadow-black/30 backdrop-blur-xl" : ""}`}
+    >
       <div className="flex items-center gap-2">
         {canSpeak ? (
           <button
@@ -126,8 +130,8 @@ export function QuickText() {
 // Barra fixa no topo de todas as telas do app (decisão 1, 21/11).
 export function QuickTextBar() {
   return (
-    <div className="sticky top-0 z-30 -mx-5 bg-[#070a1a]/80 px-5 pt-3 pb-2 backdrop-blur-md lg:-mx-10 lg:px-10 lg:pt-5">
-      <QuickText />
+    <div className="sticky top-0 z-30 pt-3 pb-2 lg:pt-5">
+      <QuickText floating />
     </div>
   );
 }
