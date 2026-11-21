@@ -15,3 +15,9 @@ create policy reminder_log_owner on public.reminder_log
 
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
+
+-- Agendamento (feito fora do arquivo, porque usa o segredo guardado no Vault com o nome 'reminder_secret'):
+-- select cron.schedule('dimeta-avisos-hora', '*/15 * * * *', $$ select net.http_get(
+--   url := 'https://orbit-orcin-beta.vercel.app/api/cron/avisos-hora',
+--   headers := jsonb_build_object('Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'reminder_secret')),
+--   timeout_milliseconds := 15000); $$);
