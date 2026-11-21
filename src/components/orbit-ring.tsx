@@ -1,4 +1,4 @@
-import type { Cycle } from "@/lib/cycle";
+import { type Cycle, paydayText } from "@/lib/cycle";
 
 // Anel do ciclo (versão do app): trilho metálico, progresso em degradê e o
 // "sol" de hoje com brilho. O conteúdo do centro vem de quem usa o componente.
@@ -19,7 +19,7 @@ export function OrbitRing({ cycle, size = 248, children }: { cycle: Cycle; size?
         height={size}
         viewBox={`0 0 ${size} ${size}`}
         role="img"
-        aria-label={`Dia ${cycle.dayNumber} de ${cycle.totalDays} do seu ciclo`}
+        aria-label={paydayText(cycle)}
         className="overflow-visible"
       >
         <defs>
