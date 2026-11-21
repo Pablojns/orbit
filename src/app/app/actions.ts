@@ -1437,6 +1437,11 @@ export async function quickText(_prev: FormState, fd: FormData): Promise<FormSta
   ]);
   const today = todayInSaoPaulo();
 
+  // 0) Frases de Estudos (nota, falta, aula, plano de estudo) têm padrão fixo: regras primeiro.
+  const { parseStudyText } = await import("@/lib/studies-math");
+  const study = parseStudyText(text);
+  if (study) return studyFromText(study);
+
   // 1) IA entende a intenção (gasto, entrada, compromisso, pergunta ou dúvida).
   const { interpretWithAI } = await import("@/lib/ai-intent");
   const ai = await interpretWithAI(

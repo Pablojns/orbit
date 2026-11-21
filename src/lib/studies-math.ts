@@ -78,3 +78,69 @@ export function defaultRepeatUntil(firstISO: string, term: Term): string {
   const d = fromISODate(firstISO);
   return toISODate(addDays(d, 7 * 12));
 }
+
+// Frases de Estudos por regras (antes da IA): são padrões fixos, então as regras acertam sempre.
+export type StudyParsed =
+  | { intent: "grade"; subject: string; value: number; label: string | null }
+  | { intent: "absence"; subject: string; count: number }
+  | { intent: "class"; subject: string; weekday: number; time: string; endTime: string | null }
+  | { intent: "study_plan"; subject: string; sessions: number };
+
+const NUM_WORDS: Record<string, number> = { um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro: 4, cinco: 5, seis: 6 };
+const WD: Record<string, number> = { domingo: 0, segunda: 1, terca: 2, quarta: 3, quinta: 4, sexta: 5, sabado: 6 };
+const hm = (h: string, m?: string) => {
+  const hh = Number(h);
+  const mm = m ? Number(m) : 0;
+  return hh <= 23 && mm <= 59 ? `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}` : null;
+};
+const clean = (s: string) => s.replace(/[.!?]+$/, "").trim();
+
+export function parseStudyText(text: string): StudyParsed | null {
+  const t = text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const original = text.replace(/\s+/g, " ").trim();
+  // Recorta da frase original o mesmo trecho achado na versão sem acento (mesmo tamanho).
+  const cut = (start: number, len: number) => clean(original.slice(start, start + len));
+
+  let m = /^faltei(?: (\d+|uma|duas|tres) aulas?)?(?: hoje)? (?:em|de|na|no|nas|nos|a aula de) (.+)$/.exec(t);
+  if (m) {
+    const c = m[1] ? (NUM_WORDS[m[1]] ?? Number(m[1])) : 1;
+    const subject = cut(t.lastIndexOf(m[2]), m[2].length);
+    return subject ? { intent: "absence", subject, count: Math.min(10, Math.max(1, c)) } : null;
+  }
+
+  m = /^(?:tirei|minha nota foi|nota)(?: nota)? (\d{1,3}(?:[.,]\d{1,2})?) (?:na|no|em) (?:(prova|trabalho|atividade|mapa|seminario|p\d|av\d)(?: \d)? (?:de|da|do) )?(.+)$/.exec(
+    t,
+  );
+  if (m) {
+    const value = Number(m[1].replace(",", "."));
+    const subject = cut(t.lastIndexOf(m[3]), m[3].length);
+    const label = m[2] ? m[2].charAt(0).toUpperCase() + m[2].slice(1) : null;
+    return subject && value <= 100 ? { intent: "grade", subject, value, label: label === "Seminario" ? "Seminário" : label } : null;
+  }
+
+  m =
+    /^(?:tenho )?aula de (.+?) (?:toda |todas as |as )?(domingo|segunda|terca|quarta|quinta|sexta|sabado)s?(?:-feiras?)?(?: (?:as|a partir das))? (\d{1,2})(?:h|:)(\d{2})?h?(?: (?:as|ate|-) (\d{1,2})(?:h|:)?(\d{2})?h?)?$/.exec(
+      t,
+    );
+  if (m) {
+    const time = hm(m[3], m[4]);
+    const end = m[5] ? hm(m[5], m[6]) : null;
+    const subject = cut(t.indexOf(m[1], 4), m[1].length);
+    return subject && time
+      ? { intent: "class", subject, weekday: WD[m[2]], time, endTime: end && end > time ? end : null }
+      : null;
+  }
+
+  m = /^quero estudar (\d|uma|duas|tres|quatro|cinco|seis) vez(?:es)? (?:para|pra) (?:a )?prova (?:de|da|do) (.+)$/.exec(t);
+  if (m) {
+    const n = NUM_WORDS[m[1]] ?? Number(m[1]);
+    const subject = cut(t.lastIndexOf(m[2]), m[2].length);
+    return subject ? { intent: "study_plan", subject, sessions: Math.min(8, n) } : null;
+  }
+  return null;
+}

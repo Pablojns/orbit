@@ -49,3 +49,22 @@ assert.equal(defaultRepeatUntil("2026-11-23", { startsOn: "2026-08-01", endsOn: 
 assert.equal(defaultRepeatUntil("2026-11-23", null), "2027-02-15");
 assert.equal(defaultRepeatUntil("2027-01-10", { startsOn: "2026-08-01", endsOn: "2026-12-15" }), "2027-04-04");
 console.log("test-studies (matérias e repetição): ok");
+
+import { parseStudyText } from "../src/lib/studies-math";
+assert.deepEqual(parseStudyText("faltei em algoritmo"), { intent: "absence", subject: "algoritmo", count: 1 });
+assert.deepEqual(parseStudyText("Faltei 2 aulas de Inglês"), { intent: "absence", subject: "Inglês", count: 2 });
+assert.deepEqual(parseStudyText("tirei 7 na prova de cálculo"), { intent: "grade", subject: "cálculo", value: 7, label: "Prova" });
+assert.deepEqual(parseStudyText("tirei 8,5 no trabalho de Algoritmos"), { intent: "grade", subject: "Algoritmos", value: 8.5, label: "Trabalho" });
+assert.deepEqual(parseStudyText("tirei 9 em estatística"), { intent: "grade", subject: "estatística", value: 9, label: null });
+assert.deepEqual(parseStudyText("aula de inglês toda terça 19h"), { intent: "class", subject: "inglês", weekday: 2, time: "19:00", endTime: null });
+assert.deepEqual(parseStudyText("aula de TESTE cálculo toda terça 19h às 21h"), {
+  intent: "class", subject: "TESTE cálculo", weekday: 2, time: "19:00", endTime: "21:00",
+});
+assert.deepEqual(parseStudyText("tenho aula de cálculo segunda 19:30 até 22h"), {
+  intent: "class", subject: "cálculo", weekday: 1, time: "19:30", endTime: "22:00",
+});
+assert.deepEqual(parseStudyText("quero estudar 3 vezes para a prova de cálculo"), { intent: "study_plan", subject: "cálculo", sessions: 3 });
+assert.deepEqual(parseStudyText("quero estudar duas vezes pra prova de inglês"), { intent: "study_plan", subject: "inglês", sessions: 2 });
+assert.equal(parseStudyText("mercado 45 pix"), null);
+assert.equal(parseStudyText("prova de cálculo sexta 19h"), null);
+console.log("test-studies (frases de Estudos): ok");
