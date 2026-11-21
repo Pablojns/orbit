@@ -64,7 +64,7 @@ Decida a intenção:
 Regras importantes:
 - Número seguido de h, hs, hrs, horas, ou "às N", é HORA, nunca dinheiro.
 - Nome de loja/app de gasto (ifood, uber, 99, mercado, farmácia, posto) com número é gasto.
-- "prova", "entrega", "trabalho da facul", "reunião", "consulta" com dia ou hora é evento.
+- "prova", "entrega", "trabalho da facul", "mapa", "atividade", "tcc", "reunião", "consulta" com dia ou hora é evento.
 - Dias da semana referem-se à próxima ocorrência a partir de hoje (o próprio dia de hoje conta).
 - "estudar para X" é evento com event_kind "other" (título "Estudar para X"), não prova.
 - "pagar X dia N" ou "lembrar de X" SEM valor é evento (event_kind "other", título "Pagar X"), não gasto.

@@ -1297,7 +1297,8 @@ export async function quickText(_prev: FormState, fd: FormData): Promise<FormSta
     (cats ?? []).map((c) => c.name),
     (cards ?? []).map((c) => c.name),
   );
-  if (ai) {
+  const aiMissedValue = ai?.intent === "unclear" && ai.ask === "Qual foi o valor?";
+  if (ai && !aiMissedValue) {
     if (ai.intent === "unclear") return fail(ai.ask);
     if (ai.intent === "question") return fail("Perguntas por voz chegam em breve. Por enquanto, registre gastos e compromissos.");
     if (ai.intent === "event") {
