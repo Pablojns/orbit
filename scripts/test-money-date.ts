@@ -25,3 +25,12 @@ assert.equal(date("mercado 45 pix"), "none");
 assert.equal(date("tênis 480 no inter em 4x"), "none");
 assert.equal(date("café 8 hoje"), "2026-11-21");
 console.log("test-money-date: ok");
+{
+  const r = findMoneyDate("dentista 150 sexta", today);
+  assert.ok(r.kind === "found" && !r.explicit, "dia da semana solto não é passado certo");
+  const p = findMoneyDate("cinema 64 sábado passado", today);
+  assert.ok(p.kind === "found" && p.explicit);
+  const d = findMoneyDate("gasolina 120 dia 2/11", today);
+  assert.ok(d.kind === "found" && d.explicit);
+  console.log("test-money-date (explícita): ok");
+}

@@ -1560,6 +1560,7 @@ export async function quickText(_prev: QuickState, fd: FormData): Promise<QuickS
   // Data passada + valor nunca é compromisso: é dinheiro ("gasolina 120 no inter dia 2/11").
   const pastMoney =
     md.kind === "found" &&
+    md.explicit === true &&
     md.date < todayIso &&
     /\b\d+(?:[.,]\d{1,2})?\b(?!\s*(?:h\b|hs\b|hrs\b|horas\b|:))/.test(
       text.replace(/\d{1,2}\/\d{1,2}(\/\d{2,4})?/g, "").replace(/dia \d{1,2}/gi, ""),
