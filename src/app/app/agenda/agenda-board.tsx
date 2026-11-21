@@ -42,6 +42,7 @@ export function AgendaBoard({
   dayPanels,
   legend,
   types,
+  subjects,
 }: {
   monthKey: string;
   monthTitle: string;
@@ -55,6 +56,7 @@ export function AgendaBoard({
   dayPanels: Record<string, React.ReactNode>;
   legend: React.ReactNode;
   types: EventType[];
+  subjects: { id: string; name: string }[];
 }) {
   const [selected, setSelected] = useState<string | null>(initialSelected);
 
@@ -86,7 +88,7 @@ export function AgendaBoard({
             action={saveAgendaItem}
             autoOpen="novo"
           >
-            <NewItemFields date={selected} types={types} />
+            <NewItemFields date={selected} types={types} subjects={subjects} />
           </FormSheet>
         </div>
         <div className="-mx-1 flex-1 overflow-y-auto px-1 lg:max-h-[34rem]">
@@ -214,7 +216,15 @@ const REMIND = [
 ];
 
 // Formulário único do "Novo": só o tipo muda. Prova ganha o plano de estudo.
-function NewItemFields({ date, types }: { date: string | null; types: EventType[] }) {
+function NewItemFields({
+  date,
+  types,
+  subjects,
+}: {
+  date: string | null;
+  types: EventType[];
+  subjects: { id: string; name: string }[];
+}) {
   const active = types.filter((t) => !t.archived);
   const [typeId, setTypeId] = useState(active[0]?.id ?? "");
   const [repeat, setRepeat] = useState("none");
@@ -296,6 +306,15 @@ function NewItemFields({ date, types }: { date: string | null; types: EventType[
               value: String(n),
               label: n === 0 ? "Nenhuma sessão" : `${n} ${n === 1 ? "sessão" : "sessões"}`,
             }))}
+          />
+        </Field>
+      ) : null}
+      {subjects.length ? (
+        <Field label="Matéria (opcional)" hint="Liga a prova ou o trabalho à matéria em Estudos.">
+          <Select
+            name="subject_id"
+            defaultValue=""
+            options={[{ value: "", label: "Nenhuma" }, ...subjects.map((s) => ({ value: s.id, label: s.name }))]}
           />
         </Field>
       ) : null}

@@ -258,6 +258,7 @@ export function EditEvent({ e, types }: { e: AgendaEvent; types: EventType[] }) 
         <TextInput name="title" required maxLength={80} defaultValue={e.title} />
       </Field>
       <input type="hidden" name="kind" value={e.kind} />
+      <input type="hidden" name="subject_id" value={e.subjectId ?? ""} />
       <div className="grid grid-cols-2 gap-3">
         <Field label="Tipo">
           <Select name="type_id" defaultValue={e.typeId ?? ""} options={typeOptions} />

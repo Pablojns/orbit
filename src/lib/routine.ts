@@ -2,6 +2,8 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { OWNER_ID } from "@/lib/owner";
 import { firstOfMonthISO, monthlyOccurrences, statementDueDate } from "@/lib/schedule";
+import { classOccurrences } from "@/lib/studies-math";
+import { getClassSlots, getTerm } from "@/lib/class-slots";
 import {
   addDays,
   daysInMonth,
@@ -28,6 +30,7 @@ export type AgendaEvent = {
   typeName: string;
   color: string; // cor do tipo (#RRGGBB)
   priority: number | null; // 1 alta, 2 média, 3 baixa, ou sem prioridade
+  subjectId: string | null; // matéria de Estudos, quando é prova ou trabalho
 };
 
 // Tipos da agenda: a pessoa cria, renomeia e arquiva. "baseKind" diz o comportamento.
@@ -89,7 +92,7 @@ export async function getEventTypes(): Promise<EventType[]> {
 }
 
 const EVENT_COLUMNS =
-  "id, title, kind, starts_at, all_day, notes, done_at, series_id, remind_days, type_id, priority, type:event_types(name, color)";
+  "id, title, kind, starts_at, all_day, notes, done_at, series_id, remind_days, type_id, priority, subject_id, type:event_types(name, color)";
 
 type EventRowData = {
   id: string;
@@ -103,6 +106,7 @@ type EventRowData = {
   remind_days: number | null;
   type_id: string | null;
   priority: number | null;
+  subject_id: string | null;
   type: { name: string; color: string } | { name: string; color: string }[] | null;
 };
 
@@ -125,6 +129,7 @@ function toEvent(e: EventRowData, today: CalendarDate): AgendaEvent {
     typeName: t?.name ?? fb.name,
     color: t?.color ?? fb.color,
     priority: e.priority ?? null,
+    subjectId: e.subject_id ?? null,
   };
 }
 
@@ -250,11 +255,12 @@ export type CalendarItem = {
   date: string; // AAAA-MM-DD
   time: string | null;
   title: string;
-  kind: "exam" | "appointment" | "deadline" | "bill" | "other" | "study" | "fixed_bill" | "statement" | "task";
+  kind: "exam" | "appointment" | "deadline" | "bill" | "other" | "study" | "fixed_bill" | "statement" | "task" | "class";
   amountCents?: number;
   done: boolean;
   event?: AgendaEvent; // presente quando é um prazo editável
   task?: Task; // presente quando é uma tarefa com data
+  room?: string | null; // aula: sala
 };
 
 export async function getAgendaMonth(year: number, month: number, today: CalendarDate = todayInSaoPaulo()) {
@@ -340,6 +346,20 @@ export async function getAgendaMonth(year: number, month: number, today: Calenda
       kind: "statement",
       amountCents: total,
       done: (paidByCard.get(c.id) ?? 0) >= total,
+    });
+  }
+
+  // Aulas do horário de Estudos (só para mostrar; editar é em Estudos).
+  const [slots, term] = await Promise.all([getClassSlots(), getTerm()]);
+  for (const o of classOccurrences(slots, term, start, end)) {
+    items.push({
+      key: `a-${o.slot.id}-${o.date}`,
+      date: o.date,
+      time: o.slot.startsAt,
+      title: `Aula: ${o.slot.subjectName}`,
+      kind: "class",
+      done: false,
+      room: o.slot.room,
     });
   }
 

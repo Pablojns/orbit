@@ -415,12 +415,14 @@ export async function saveEvent(_prev: FormState, fd: FormData): Promise<FormSta
 
   const seriesId = dates.length > 1 || sessions > 0 ? crypto.randomUUID() : null;
   const priority = priorityOf(fd);
+  const subjectId = optUuid(str(fd, "subject_id"));
   const rows: Record<string, unknown>[] = dates.map((d) => ({
     user_id: OWNER_ID,
     title,
     kind,
     type_id: typeId,
     priority,
+    subject_id: subjectId,
     starts_at: `${d}T${hasTime ? time : "12:00"}:00-03:00`,
     all_day: !hasTime,
     notes: str(fd, "notes").slice(0, 500) || null,
@@ -826,6 +828,7 @@ export async function updateEvent(_prev: FormState, fd: FormData): Promise<FormS
       kind,
       type_id: typeId,
       priority: priorityOf(fd),
+      subject_id: optUuid(str(fd, "subject_id")),
       starts_at: `${date}T${hasTime ? time : "12:00"}:00-03:00`,
       all_day: !hasTime,
       notes: str(fd, "notes").slice(0, 500) || null,
@@ -1057,6 +1060,7 @@ const RESTORABLE = new Set([
   "habits",
   "categories",
   "event_types",
+  "class_slots",
 ]);
 
 export async function restoreTrash(trashId: string) {
@@ -1278,7 +1282,7 @@ export async function saveSubject(_prev: FormState, fd: FormData): Promise<FormS
   const supabase = await db();
   const { error } = await supabase
     .from("subjects")
-    .insert({ user_id: OWNER_ID, name, pass_grade: pass, max_grade: max });
+    .insert({ user_id: OWNER_ID, name, pass_grade: pass, max_grade: max, max_absences: maxAbsencesOf(fd) });
   if (error) return fail("Não foi possível salvar.");
   return ok("Matéria criada.");
 }
@@ -1294,11 +1298,83 @@ export async function updateSubject(_prev: FormState, fd: FormData): Promise<For
   const supabase = await db();
   const { error } = await supabase
     .from("subjects")
-    .update({ name, pass_grade: pass, max_grade: max })
+    .update({ name, pass_grade: pass, max_grade: max, max_absences: maxAbsencesOf(fd) })
     .eq("id", id)
     .eq("user_id", OWNER_ID);
   if (error) return fail("Não foi possível salvar.");
   return ok("Matéria atualizada.");
+}
+
+// Máximo de faltas da matéria: vazio = sem limite.
+function maxAbsencesOf(fd: FormData) {
+  const raw = str(fd, "max_absences");
+  if (!raw) return null;
+  const v = Math.round(Number(raw.replace(",", ".")));
+  return Number.isFinite(v) && v >= 0 && v <= 500 ? v : null;
+}
+
+// Soma ou tira uma falta (delta +1 ou -1).
+export async function changeAbsence(fd: FormData) {
+  const id = optUuid(str(fd, "id"));
+  const delta = str(fd, "delta") === "-1" ? -1 : 1;
+  if (!id) return;
+  const supabase = await db();
+  const { data } = await supabase.from("subjects").select("absences").eq("id", id).eq("user_id", OWNER_ID).maybeSingle();
+  if (!data) return;
+  const next = Math.min(500, Math.max(0, Number(data.absences ?? 0) + delta));
+  await supabase.from("subjects").update({ absences: next }).eq("id", id).eq("user_id", OWNER_ID);
+  revalidatePath("/app", "layout");
+}
+
+// ---------- horário de aulas e semestre ---------------------------------
+
+const HHMM = /^\d{2}:\d{2}$/;
+
+export async function saveClassSlot(_prev: FormState, fd: FormData): Promise<FormState> {
+  const subjectId = optUuid(str(fd, "subject_id"));
+  const weekday = Number(str(fd, "weekday"));
+  const startsAt = str(fd, "starts_at");
+  const endsAt = str(fd, "ends_at");
+  if (!subjectId) return fail("Escolha a matéria.");
+  if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) return fail("Escolha o dia da semana.");
+  if (!HHMM.test(startsAt)) return fail("Diga a hora que a aula começa.");
+  if (endsAt && (!HHMM.test(endsAt) || endsAt <= startsAt)) return fail("A aula precisa terminar depois de começar.");
+  const supabase = await db();
+  const { error } = await supabase.from("class_slots").insert({
+    user_id: OWNER_ID,
+    subject_id: subjectId,
+    weekday,
+    starts_at: startsAt,
+    ends_at: endsAt || null,
+    room: str(fd, "room").slice(0, 60) || null,
+  });
+  if (error) return fail("Não foi possível salvar.");
+  return ok("Aula no horário.");
+}
+
+export async function deleteClassSlot(fd: FormData): Promise<UndoResult | void> {
+  const id = optUuid(str(fd, "id"));
+  if (!id) return;
+  const supabase = await db();
+  const { data: rows } = await supabase.from("class_slots").select("*").eq("id", id).eq("user_id", OWNER_ID);
+  return deleteWithUndo(
+    [{ table: "class_slots", rows: rows ?? [] }],
+    () => supabase.from("class_slots").delete().eq("id", id).eq("user_id", OWNER_ID),
+    "Aula tirada do horário.",
+  );
+}
+
+export async function saveTerm(_prev: FormState, fd: FormData): Promise<FormState> {
+  const startsOn = str(fd, "starts_on");
+  const endsOn = str(fd, "ends_on");
+  if (!ISO_DATE.test(startsOn) || !ISO_DATE.test(endsOn)) return fail("Escolha as duas datas do semestre.");
+  if (endsOn < startsOn) return fail("O fim precisa ser depois do início.");
+  const supabase = await db();
+  const { error } = await supabase
+    .from("study_terms")
+    .upsert({ user_id: OWNER_ID, starts_on: startsOn, ends_on: endsOn }, { onConflict: "user_id" });
+  if (error) return fail("Não foi possível salvar.");
+  return ok("Semestre salvo.");
 }
 
 export async function archiveSubject(fd: FormData): Promise<UndoResult | void> {

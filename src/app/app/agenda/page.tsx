@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { CreditCard, Receipt } from "lucide-react";
+import { CreditCard, GraduationCap, Receipt } from "lucide-react";
 import { AgendaBoard, type Cell } from "./agenda-board";
 import { EventRow } from "@/components/event-row";
-import { AgendaTabs } from "@/components/agenda-tabs";
 import { PageHeader } from "@/components/page-header";
 import { TypesManager } from "@/components/types-manager";
 import { addDays, todayInSaoPaulo, toISODate } from "@/lib/dates";
@@ -15,12 +14,14 @@ import {
   getChecklists,
   getEventTypes,
 } from "@/lib/routine";
+import { getSubjects } from "@/lib/studies";
 import { addMonths } from "@/lib/schedule";
 
 export const metadata = { title: "Agenda" };
 export const dynamic = "force-dynamic";
 
 const MONEY_COLOR = { fixed_bill: "#B49BFF", statement: "#5FD4FF" } as const;
+const CLASS_COLOR = "#A3E635";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const monthKey = (y: number, m: number) => `${y}-${pad(m)}`;
@@ -34,6 +35,7 @@ function shortDate(iso: string) {
 
 function colorOf(it: CalendarItem) {
   if (it.event) return it.event.color;
+  if (it.kind === "class") return CLASS_COLOR;
   return it.kind === "statement" ? MONEY_COLOR.statement : MONEY_COLOR.fixed_bill;
 }
 
@@ -69,6 +71,30 @@ function MoneyRow({ it, todayISO }: { it: CalendarItem; todayISO: string }) {
   );
 }
 
+// Aula do horário de Estudos: só mostra; editar é em Estudos.
+function ClassRow({ it }: { it: CalendarItem }) {
+  return (
+    <li>
+      <Link href="/app/estudos" className="flex items-center gap-3 py-3">
+        <span
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl"
+          style={{ backgroundColor: `${CLASS_COLOR}26`, color: CLASS_COLOR }}
+        >
+          <GraduationCap size={18} aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[15px] font-medium">{it.title}</p>
+          <p className="text-[13px] text-ink-soft">
+            Aula, {shortDate(it.date)}
+            {it.time ? ` às ${it.time}` : ""}
+            {it.room ? `, ${it.room}` : ""}
+          </p>
+        </div>
+      </Link>
+    </li>
+  );
+}
+
 function ItemRow({
   it,
   todayISO,
@@ -81,6 +107,7 @@ function ItemRow({
   types: EventType[];
 }) {
   if (it.event) return <EventRow e={it.event} checklist={checks[it.event.id]} types={types} />;
+  if (it.kind === "class") return <ClassRow it={it} />;
   return <MoneyRow it={it} todayISO={todayISO} />;
 }
 
@@ -96,19 +123,20 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
 
   const isCurrent = year === today.year && month === today.month;
   const nm = addMonths(today.year, today.month, 1);
-  const [cal, curMonth, nextMonth, checks, types] = await Promise.all([
+  const [cal, curMonth, nextMonth, checks, types, subjects] = await Promise.all([
     getAgendaMonth(year, month, today),
     isCurrent ? null : getAgendaMonth(today.year, today.month, today),
     getAgendaMonth(nm.year, nm.month, today),
     getChecklists(),
     getEventTypes(),
+    getSubjects(),
   ]);
   const thisMonth = curMonth ?? cal;
 
   // "Esta semana": hoje e os próximos 6 dias, só itens da agenda (sem contas e faturas).
   const weekEnd = toISODate(addDays(today, 6));
   const week = [...thisMonth.items, ...nextMonth.items].filter(
-    (i) => i.event && i.date >= todayISO && i.date <= weekEnd,
+    (i) => (i.event || i.kind === "class") && i.date >= todayISO && i.date <= weekEnd,
   );
 
   const byDay = new Map<string, CalendarItem[]>();
@@ -181,8 +209,10 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
 
   return (
     <>
-      <PageHeader title="Agenda" subtitle="Provas, compromissos e tudo que tem data. Contas e faturas aparecem no calendário." />
-      <AgendaTabs />
+      <PageHeader
+        title="Agenda"
+        subtitle="Provas, compromissos e tudo que tem data. Aulas, contas e faturas aparecem no calendário."
+      />
       <AgendaBoard
         monthKey={key}
         monthTitle={monthTitle}
@@ -195,6 +225,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
         listPanel={listPanel}
         dayPanels={dayPanels}
         types={types}
+        subjects={subjects.map((x) => ({ id: x.id, name: x.name }))}
         legend={
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-white/[0.06] pt-3 text-xs text-ink-soft">
             {activeTypes.map((t) => (
@@ -203,6 +234,10 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
                 {t.name}
               </span>
             ))}
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: CLASS_COLOR }} />
+              Aula
+            </span>
             <span className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: MONEY_COLOR.fixed_bill }} />
               Conta

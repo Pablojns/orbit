@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Flame, House, UserRound, Wallet } from "lucide-react";
+import { CalendarDays, Flame, GraduationCap, House, UserRound, Wallet } from "lucide-react";
 import { Logo } from "./logo";
 
 const ITEMS = [
   { href: "/app", label: "Início", icon: House },
   { href: "/app/dinheiro", label: "Dinheiro", icon: Wallet },
   { href: "/app/agenda", label: "Agenda", icon: CalendarDays },
+  { href: "/app/estudos", label: "Estudos", icon: GraduationCap },
   { href: "/app/habitos", label: "Hábitos", icon: Flame },
   { href: "/app/perfil", label: "Perfil", icon: UserRound },
 ] as const;
