@@ -1282,27 +1282,57 @@ export async function deleteGrade(fd: FormData): Promise<UndoResult | void> {
 export async function quickText(_prev: FormState, fd: FormData): Promise<FormState> {
   const text = str(fd, "text").slice(0, 160);
   if (!text) return fail("Escreva algo como: mercado 45 pix");
-  // Frase de agenda ("prova sexta 19h algoritmo") vira item na agenda com avisos automáticos.
-  const { parseAgendaText } = await import("@/lib/agenda-parse");
-  const agenda = parseAgendaText(text, todayInSaoPaulo());
-  if (agenda) {
-    const form = new FormData();
-    form.set("title", agenda.title);
-    form.set("date", agenda.date);
-    if (agenda.time) form.set("time", agenda.time);
-    form.set("kind", agenda.kind);
-    const result = await saveEvent({ status: "idle" }, form);
-    if (result.status === "saved") {
-      revalidatePath("/app", "layout");
-      return { status: "saved", message: `Na agenda: ${agenda.summary}` };
-    }
-    return result;
-  }
   const supabase = await db();
   const [{ data: cats }, { data: cards }] = await Promise.all([
     supabase.from("categories").select("id, name, kind").eq("user_id", OWNER_ID).eq("is_archived", false),
     supabase.from("credit_cards").select("id, name").eq("user_id", OWNER_ID).eq("is_archived", false),
   ]);
+  const today = todayInSaoPaulo();
+
+  // 1) IA entende a intenção (gasto, entrada, compromisso, pergunta ou dúvida).
+  const { interpretWithAI } = await import("@/lib/ai-intent");
+  const ai = await interpretWithAI(
+    text,
+    today,
+    (cats ?? []).map((c) => c.name),
+    (cards ?? []).map((c) => c.name),
+  );
+  if (ai) {
+    if (ai.intent === "unclear") return fail(ai.ask);
+    if (ai.intent === "question") return fail("Perguntas por voz chegam em breve. Por enquanto, registre gastos e compromissos.");
+    if (ai.intent === "event") return saveAgendaFromText(ai.title, ai.kind, ai.date, ai.time);
+    const card = ai.cardName
+      ? (cards ?? []).find((c) => c.name.toLowerCase() === ai.cardName!.toLowerCase())
+      : ai.method === "credit" && (cards ?? []).length === 1
+        ? cards![0]
+        : undefined;
+    if (ai.intent === "expense" && ai.method === "credit" && !card) return fail("Em qual cartão? Escreva o nome dele junto.");
+    const cat = (cats ?? []).find(
+      (c) => c.name.toLowerCase() === (ai.categoryName ?? "").toLowerCase() && c.kind === ai.intent,
+    );
+    const form = new FormData();
+    form.set("type", ai.intent);
+    form.set("amount", (ai.amountCents / 100).toFixed(2).replace(".", ","));
+    form.set("occurred_on", ai.date ?? toISODate(today));
+    if (cat) form.set("category_id", cat.id);
+    form.set("payment_method", card ? "credit" : ai.method);
+    if (card) form.set("card_id", card.id);
+    form.set("installments", String(ai.installments));
+    form.set("description", ai.description || text.slice(0, 60));
+    const result = await addMovement({ status: "idle" }, form);
+    if (result.status !== "saved") return result;
+    const how = card ? `${card.name}${ai.installments > 1 ? ` em ${ai.installments}x` : ""}` : METHOD_LABEL[ai.method];
+    const valor = (ai.amountCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    return {
+      status: "saved",
+      message: `${ai.intent === "income" ? "Entrada" : "Gasto"}: ${valor}${cat ? ` · ${cat.name}` : ""}${ai.intent === "expense" ? ` · ${how}` : ""}.`,
+    };
+  }
+
+  // 2) Sem IA (sem chave ou limite atingido): regras locais.
+  const { parseAgendaText } = await import("@/lib/agenda-parse");
+  const agenda = parseAgendaText(text, today);
+  if (agenda) return saveAgendaFromText(agenda.title, agenda.kind, agenda.date, agenda.time);
   const { parseQuickText } = await import("@/lib/quick-parse");
   const parsed = parseQuickText(text, cats ?? [], cards ?? []);
   if ("error" in parsed) return fail(parsed.error);
@@ -1318,4 +1348,28 @@ export async function quickText(_prev: FormState, fd: FormData): Promise<FormSta
   const result = await addMovement({ status: "idle" }, form);
   if (result.status === "saved") return { status: "saved", message: `${result.message} ${parsed.summary}` };
   return result;
+}
+
+const METHOD_LABEL: Record<string, string> = {
+  pix: "Pix",
+  debit: "Débito",
+  credit: "Crédito",
+  cash: "Dinheiro",
+  transfer: "Transferência",
+};
+
+async function saveAgendaFromText(title: string, kind: string, date: string, time: string | null): Promise<FormState> {
+  const form = new FormData();
+  form.set("title", title);
+  form.set("date", date);
+  if (time) form.set("time", time);
+  form.set("kind", kind);
+  const result = await saveEvent({ status: "idle" }, form);
+  if (result.status !== "saved") return result;
+  revalidatePath("/app", "layout");
+  const d = fromISODate(date);
+  const wd = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"][new Date(Date.UTC(d.year, d.month - 1, d.day)).getUTCDay()];
+  const when = `${wd} ${String(d.day).padStart(2, "0")}/${String(d.month).padStart(2, "0")}${time ? ` às ${time}` : ""}`;
+  const avisos = time ? "Aviso na véspera, no dia e 3 horas antes." : "Aviso na véspera e no dia.";
+  return { status: "saved", message: `Na agenda: ${title} — ${when}. ${avisos}` };
 }
