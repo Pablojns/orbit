@@ -1282,6 +1282,22 @@ export async function deleteGrade(fd: FormData): Promise<UndoResult | void> {
 export async function quickText(_prev: FormState, fd: FormData): Promise<FormState> {
   const text = str(fd, "text").slice(0, 160);
   if (!text) return fail("Escreva algo como: mercado 45 pix");
+  // Frase de agenda ("prova sexta 19h algoritmo") vira item na agenda com avisos automáticos.
+  const { parseAgendaText } = await import("@/lib/agenda-parse");
+  const agenda = parseAgendaText(text, todayInSaoPaulo());
+  if (agenda) {
+    const form = new FormData();
+    form.set("title", agenda.title);
+    form.set("date", agenda.date);
+    if (agenda.time) form.set("time", agenda.time);
+    form.set("kind", agenda.kind);
+    const result = await saveEvent({ status: "idle" }, form);
+    if (result.status === "saved") {
+      revalidatePath("/app", "layout");
+      return { status: "saved", message: `Na agenda: ${agenda.summary}` };
+    }
+    return result;
+  }
   const supabase = await db();
   const [{ data: cats }, { data: cards }] = await Promise.all([
     supabase.from("categories").select("id, name, kind").eq("user_id", OWNER_ID).eq("is_archived", false),
