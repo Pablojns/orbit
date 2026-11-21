@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { CalendarClock, Check, ChevronRight, CircleDashed, CreditCard, Flame, Receipt, Sparkles } from "lucide-react";
-import { finishOnboarding, receiveIncome } from "@/app/app/actions";
+import { finishOnboarding, payStatement, receiveIncome, toggleBillPaid } from "@/app/app/actions";
 import { CategoryIcon } from "@/components/category-icon";
 import { countdown, EventRow } from "@/components/event-row";
 import { HabitCheck } from "@/components/habit-card";
 import { MovementRow } from "@/components/movement-list";
 import { OrbitRing } from "@/components/orbit-ring";
-import { diffInDays, formatShort } from "@/lib/dates";
+import { addDays, diffInDays, formatShort, toISODate } from "@/lib/dates";
+import { getClassSlots, getTerm } from "@/lib/class-slots";
+import { classOccurrences } from "@/lib/studies-math";
+import { ClassMini } from "@/components/class-mini";
 import { paydayText } from "@/lib/cycle";
 import { MoneyStrip } from "@/components/money-strip";
 import { FirstSalary } from "@/components/first-salary";
@@ -30,7 +33,13 @@ function greeting() {
 
 export default async function HomePage() {
   const profile = await requireProfile();
-  const [f, agenda, habits] = await Promise.all([getFinance(profile.cycleStartDay), getAgenda(), getHabits()]);
+  const [f, agenda, habits, slots, term] = await Promise.all([
+    getFinance(profile.cycleStartDay),
+    getAgenda(),
+    getHabits(),
+    getClassSlots(),
+    getTerm(),
+  ]);
   const { cycle, today, summary: s } = f;
   const firstName = profile.displayName?.split(" ")[0];
   const negative = s.freeCents < 0;
@@ -49,6 +58,7 @@ export default async function HomePage() {
         cents: st.remainingCents,
         date: st.dueDate,
         card: true,
+        pay: { card_id: st.cardId, month: st.month, amount: String(st.remainingCents) } as Record<string, string>,
       })),
     ...f.billsInCycle
       .filter((b) => !b.paid)
@@ -58,14 +68,35 @@ export default async function HomePage() {
         cents: b.amountCents,
         date: b.dueDate,
         card: false,
+        pay: {
+          bill_id: b.billId,
+          reference_month: b.referenceMonth,
+          amount: String(b.amountCents),
+          paid: "false",
+        } as Record<string, string>,
       })),
   ].sort((a, b) => diffInDays(b.date, a.date));
 
   const pendingIncomes = f.incomesInCycle.filter((i) => !i.received);
 
   // Agenda no Início: só compromissos e rotina, sem pagamentos (decisão de 21/11).
-  const todayEvents = agenda.upcoming.filter((e) => e.daysLeft === 0);
-  const nextEvents = agenda.upcoming.filter((e) => e.daysLeft >= 1 && e.daysLeft <= 7);
+  // Agenda + aulas do horário de Estudos, na mesma lista, por dia e hora.
+  type Row = { key: string; date: string; time: string | null; node: React.ReactNode };
+  const classRows: Row[] = classOccurrences(slots, term, today, addDays(today, 7)).map((o) => ({
+    key: `a-${o.slot.id}-${o.date}`,
+    date: o.date,
+    time: o.slot.startsAt,
+    node: <ClassMini key={`a-${o.slot.id}-${o.date}`} o={o} today={today} />,
+  }));
+  const eventRows: Row[] = agenda.upcoming
+    .filter((e) => e.daysLeft >= 0 && e.daysLeft <= 7)
+    .map((e) => ({ key: e.id, date: e.date, time: e.time, node: <EventRow key={e.id} e={e} compact /> }));
+  const allRows = [...eventRows, ...classRows].sort((a, b) =>
+    a.date === b.date ? (a.time ?? "99").localeCompare(b.time ?? "99") : a.date.localeCompare(b.date),
+  );
+  const todayIsoStr = toISODate(today);
+  const todayEvents = allRows.filter((r) => r.date === todayIsoStr);
+  const nextEvents = allRows.filter((r) => r.date > todayIsoStr);
   const topCategories = s.byCategory.slice(0, 5);
   const maxCategory = topCategories[0]?.cents ?? 1;
   const categoryTotal = s.byCategory.reduce((a, c) => a + c.cents, 0);
@@ -154,9 +185,7 @@ export default async function HomePage() {
           <p className="mt-3 text-sm font-semibold text-ink-soft">Hoje</p>
           {todayEvents.length ? (
             <ul className="divide-y divide-white/[0.06]">
-              {todayEvents.map((e) => (
-                <EventRow key={e.id} e={e} compact />
-              ))}
+              {todayEvents.map((r) => r.node)}
             </ul>
           ) : (
             <p className="mt-1 text-[15px] text-ink-soft">Nada marcado para hoje.</p>
@@ -164,9 +193,7 @@ export default async function HomePage() {
           <p className="mt-4 text-sm font-semibold text-ink-soft">Próximos 7 dias</p>
           {nextEvents.length ? (
             <ul className="divide-y divide-white/[0.06]">
-              {nextEvents.map((e) => (
-                <EventRow key={e.id} e={e} compact />
-              ))}
+              {nextEvents.map((r) => r.node)}
             </ul>
           ) : (
             <p className="mt-1 flex items-center gap-2 text-[15px] text-ink-soft">
@@ -223,6 +250,19 @@ export default async function HomePage() {
                       </p>
                     </div>
                     <p className="text-[15px] font-semibold">{formatCents(d.cents)}</p>
+                    {days < 0 ? (
+                      <form action={d.card ? payStatement : toggleBillPaid}>
+                        {Object.entries(d.pay).map(([k, v]) => (
+                          <input key={k} type="hidden" name={k} value={v} />
+                        ))}
+                        <button
+                          type="submit"
+                          className="rounded-full bg-gain/90 px-3 py-1.5 text-xs font-semibold text-[#05201a]"
+                        >
+                          Pagar
+                        </button>
+                      </form>
+                    ) : null}
                   </li>
                 );
               })}

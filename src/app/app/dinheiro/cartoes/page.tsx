@@ -85,16 +85,16 @@ export default async function CardsPage() {
                     action={archiveCard}
                     fields={{ id: card.id }}
                     label={`Remover cartão ${card.name}`}
-                    variant="text"
                   />
                 </div>
               </div>
-              <p className="relative mt-5 text-xs text-white/70">Fatura aberta</p>
-              <p className="font-display metal-text relative text-3xl font-bold">
-                {formatCents(open?.totalCents ?? 0)}
-              </p>
+              {/* A fatura aberta aparece uma vez só: na lista de faturas logo abaixo. */}
               {card.limitCents ? (
-                <div className="relative mt-3">
+                <div className="relative mt-5">
+                  <p className="text-xs text-white/70">Limite livre aproximado</p>
+                  <p className="font-display metal-text text-3xl font-bold">
+                    {formatCents(Math.max(0, card.limitCents - usedCents))}
+                  </p>
                   <div className="h-1.5 overflow-hidden rounded-full bg-white/15">
                     <div
                       className="h-full rounded-full bg-white/80"
@@ -102,10 +102,14 @@ export default async function CardsPage() {
                     />
                   </div>
                   <p className="mt-1 text-xs text-white/70">
-                    Limite livre aproximado: {formatCents(Math.max(0, card.limitCents - usedCents))}
+                    de {formatCents(card.limitCents)}, contando todas as parcelas que ainda vão vir
                   </p>
                 </div>
-              ) : null}
+              ) : (
+                <p className="relative mt-5 text-xs text-white/70">
+                  Fatura aberta: {formatCents(open?.totalCents ?? 0)}. Cadastre o limite para ver quanto ainda tem.
+                </p>
+              )}
             </div>
 
             <ul className="divide-y divide-white/[0.06] px-5">
@@ -180,7 +184,7 @@ export default async function CardsPage() {
                 })
               ) : (
                 <li className="py-4 text-[15px] text-ink-soft">
-                  Nenhuma compra neste cartão. Use o botão + e escolha “Cartão de crédito”.
+                  Nenhuma compra neste cartão. Use “Lançar gasto” e escolha “Cartão de crédito”, ou escreva na barra: “tênis 200 no {card.name}”.
                 </li>
               )}
             </ul>

@@ -15,13 +15,16 @@ import {
   getEventTypes,
 } from "@/lib/routine";
 import { getSubjects } from "@/lib/studies";
+import { getClassSlots, getTerm } from "@/lib/class-slots";
+import { TermEnded } from "@/components/term-ended";
 import { addMonths } from "@/lib/schedule";
 
 export const metadata = { title: "Agenda" };
 export const dynamic = "force-dynamic";
 
-const MONEY_COLOR = { fixed_bill: "#B49BFF", statement: "#5FD4FF" } as const;
+const MONEY_COLOR = { fixed_bill: "#B49BFF", statement: "#B49BFF" } as const;
 const CLASS_COLOR = "#A3E635";
+// Legenda enxuta: tipos da pessoa + Aula + Dinheiro (conta e fatura juntos). "Feito" vira um risco, não uma cor.
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const monthKey = (y: number, m: number) => `${y}-${pad(m)}`;
@@ -59,7 +62,7 @@ function MoneyRow({ it, todayISO }: { it: CalendarItem; todayISO: string }) {
             {it.title}
           </p>
           <p className={`text-[13px] ${late ? "text-loss" : "text-ink-soft"}`}>
-            {it.kind === "statement" ? "Fatura" : "Conta fixa"}, {shortDate(it.date)}
+            {it.kind === "statement" ? "Fatura" : "Conta fixa"}
             {it.done ? ", paga" : late ? ", não paga" : ""}
           </p>
         </div>
@@ -85,8 +88,8 @@ function ClassRow({ it }: { it: CalendarItem }) {
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-medium">{it.title}</p>
           <p className="text-[13px] text-ink-soft">
-            Aula, {shortDate(it.date)}
-            {it.time ? ` às ${it.time}` : ""}
+            Aula
+            {it.time ? `, ${it.time}` : ""}
             {it.room ? `, ${it.room}` : ""}
           </p>
         </div>
@@ -106,7 +109,7 @@ function ItemRow({
   checks: Record<string, ChecklistItem[]>;
   types: EventType[];
 }) {
-  if (it.event) return <EventRow e={it.event} checklist={checks[it.event.id]} types={types} />;
+  if (it.event) return <EventRow e={it.event} checklist={checks[it.event.id]} types={types} hideDate />;
   if (it.kind === "class") return <ClassRow it={it} />;
   return <MoneyRow it={it} todayISO={todayISO} />;
 }
@@ -123,14 +126,17 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
 
   const isCurrent = year === today.year && month === today.month;
   const nm = addMonths(today.year, today.month, 1);
-  const [cal, curMonth, nextMonth, checks, types, subjects] = await Promise.all([
+  const [cal, curMonth, nextMonth, checks, types, subjects, term, slots] = await Promise.all([
     getAgendaMonth(year, month, today),
     isCurrent ? null : getAgendaMonth(today.year, today.month, today),
     getAgendaMonth(nm.year, nm.month, today),
     getChecklists(),
     getEventTypes(),
     getSubjects(),
+    getTerm(),
+    getClassSlots(),
   ]);
+  const termEnded = Boolean(term && slots.length && term.endsOn < todayISO);
   const thisMonth = curMonth ?? cal;
 
   // "Esta semana": hoje e os próximos 6 dias, só itens da agenda (sem contas e faturas).
@@ -213,6 +219,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
         title="Agenda"
         subtitle="Provas, compromissos e tudo que tem data. Aulas, contas e faturas aparecem no calendário."
       />
+      {termEnded ? <TermEnded /> : null}
       <AgendaBoard
         monthKey={key}
         monthTitle={monthTitle}
@@ -240,15 +247,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: MONEY_COLOR.fixed_bill }} />
-              Conta
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: MONEY_COLOR.statement }} />
-              Fatura
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-gain" />
-              Feito
+              Contas e faturas
             </span>
             <span className="ml-auto">
               <TypesManager types={types} />

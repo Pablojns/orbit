@@ -22,6 +22,8 @@ import { formatShort, fromISODate } from "@/lib/dates";
 import { fmtGrade, gradeStatus } from "@/lib/grades-math";
 import { getEventTypes } from "@/lib/routine";
 import { getStudies } from "@/lib/studies";
+import { TermEnded } from "@/components/term-ended";
+import { todayInSaoPaulo, toISODate } from "@/lib/dates";
 import { absenceStatus, WEEKDAYS } from "@/lib/studies-math";
 
 export const metadata = { title: "Estudos" };
@@ -77,6 +79,7 @@ function SubjectFields({
 export default async function StudiesPage() {
   const [{ subjects, grades, slots, term, linked }, types] = await Promise.all([getStudies(), getEventTypes()]);
   const activeTypes = types.filter((t) => !t.archived);
+  const todayISO = toISODate(todayInSaoPaulo());
   const examType = activeTypes.find((t) => t.baseKind === "exam") ?? activeTypes[0];
   const subjectOptions = subjects.map((s) => ({ value: s.id, label: s.name }));
   const days = [1, 2, 3, 4, 5, 6, 0].filter((d) => d !== 0 || slots.some((s) => s.weekday === 0));
@@ -84,6 +87,7 @@ export default async function StudiesPage() {
   return (
     <>
       <PageHeader title="Estudos" subtitle="Faculdade, escola ou cursinho: matérias, notas, faltas, provas e aulas." />
+      {term && slots.length && term.endsOn < todayISO ? <TermEnded link={false} /> : null}
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <FormSheet title="Nova matéria" trigger="Nova matéria" submitLabel="Criar matéria" action={saveSubject}>
@@ -155,7 +159,7 @@ export default async function StudiesPage() {
               </FormSheet>
             </div>
             {slots.length ? (
-              <div className="mt-4 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+              <div className="mt-4 grid gap-2 sm:grid-cols-3 2xl:grid-cols-6">
                 {days.map((d) => {
                   const list = slots.filter((s) => s.weekday === d);
                   return (
@@ -166,7 +170,7 @@ export default async function StudiesPage() {
                           {list.map((s) => (
                             <li key={s.id} className="flex items-start gap-1 rounded-xl bg-white/[0.05] px-2 py-1.5">
                               <div className="min-w-0 flex-1">
-                                <p className="truncate text-[13px] font-medium">{s.subjectName}</p>
+                                <p className="text-[13px] leading-snug font-medium break-words">{s.subjectName}</p>
                                 <p className="text-[11px] text-ink-soft">
                                   {s.startsAt}
                                   {s.endsAt ? `–${s.endsAt}` : ""}
@@ -204,7 +208,11 @@ export default async function StudiesPage() {
                 max,
               );
               const ab = absenceStatus(sub.absences, sub.maxAbsences);
-              const exams = linked.filter((e) => e.subjectId === sub.id);
+              const mine = linked.filter((e) => e.subjectId === sub.id);
+              // Sessões "Estudar:" ficam numa linha própria, separadas das provas e trabalhos.
+              const exams = mine.filter((e) => e.kind !== "study");
+              const studies = mine.filter((e) => e.kind === "study");
+              const examAhead = exams.some((e) => e.kind === "exam" && e.daysLeft >= 0);
               return (
                 <li key={sub.id} className="glass rounded-[1.75rem] p-5">
                   <div className="flex items-start justify-between gap-2">
@@ -355,11 +363,24 @@ export default async function StudiesPage() {
                     ) : (
                       <p className="mt-1 text-[13px] text-ink-soft">Nada marcado. Fica na Agenda com os mesmos avisos.</p>
                     )}
+                    {studies.length ? (
+                      <p className="mt-2 text-[13px] text-ink-soft">
+                        <span className="font-semibold text-ink">
+                          {studies.length} {studies.length === 1 ? "sessão" : "sessões"} de estudo
+                        </span>{" "}
+                        marcadas: {studies.map((e) => formatShort(fromISODate(e.date))).join(", ")}.
+                      </p>
+                    ) : null}
                   </div>
 
                 <div className="mt-3 rounded-2xl bg-white/[0.04] p-3 text-[14px]">
                   {st.kind === "empty" ? (
                     <p className="text-ink-soft">Cadastre as avaliações (com ou sem nota) para ver a conta.</p>
+                  ) : st.kind === "final" && examAhead ? (
+                    <p>
+                      Média parcial <strong className="font-display text-lg">{fmtGrade(st.average)}</strong>{" "}
+                      <span className="text-ink-soft">· ainda tem prova marcada</span>
+                    </p>
                   ) : st.kind === "final" ? (
                     <p>
                       Média final <strong className="font-display text-lg">{fmtGrade(st.average)}</strong>{" "}

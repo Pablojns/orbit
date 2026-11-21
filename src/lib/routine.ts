@@ -47,7 +47,7 @@ export const DEFAULT_EVENT_TYPES: { name: string; color: string; baseKind: Agend
   { name: "Compromisso", color: "#F4B740", baseKind: "appointment" },
   { name: "Entrega", color: "#FF7A93", baseKind: "deadline" },
   { name: "Lembrete", color: "#94A3B8", baseKind: "other" },
-  { name: "Estudo", color: "#5EEAD4", baseKind: "study" },
+  { name: "Estudo", color: "#22D3EE", baseKind: "study" },
 ];
 
 // Para itens sem tipo (antigos ou criados pela frase), usa o padrão do comportamento.
@@ -56,7 +56,7 @@ const FALLBACK_TYPE: Record<AgendaEvent["kind"], { name: string; color: string }
   appointment: { name: "Compromisso", color: "#F4B740" },
   deadline: { name: "Entrega", color: "#FF7A93" },
   other: { name: "Lembrete", color: "#94A3B8" },
-  study: { name: "Estudo", color: "#5EEAD4" },
+  study: { name: "Estudo", color: "#22D3EE" },
   bill: { name: "Conta", color: "#B49BFF" },
 };
 

@@ -2,10 +2,11 @@ import { PiggyBank, Target } from "lucide-react";
 import { DeleteButton } from "@/components/undo";
 import { EditGoal } from "@/components/edit-forms";
 import { EmptyState } from "@/components/empty-state";
-import { Field, MoneyInput, Select, TextInput } from "@/components/fields";
+import { Field, MoneyInput, TextInput } from "@/components/fields";
 import { FormSheet } from "@/components/form-sheet";
 import { archiveGoal, contributeGoal, saveGoal } from "@/app/app/actions";
-import { diffInDays, fromISODate } from "@/lib/dates";
+import { diffInDays, fromISODate, toISODate } from "@/lib/dates";
+import { GoalFields } from "@/components/goal-fields";
 import { getFinance } from "@/lib/finance";
 import { formatCents } from "@/lib/money";
 import { requireProfile } from "@/lib/profile";
@@ -15,7 +16,9 @@ export const dynamic = "force-dynamic";
 
 export default async function GoalsPage() {
   const profile = await requireProfile();
-  const f = await getFinance(profile.cycleStartDay);
+  const [f, prev] = await Promise.all([getFinance(profile.cycleStartDay), getFinance(profile.cycleStartDay, -1)]);
+  // Gasto de um mês para a dica da reserva: o ciclo passado; sem histórico, o atual (o que já saiu + o que vence).
+  const monthlyCents = prev.summary.spentCents || f.summary.spentCents + f.summary.committedCents;
   const hasEmergency = f.goals.some((g) => g.kind === "emergency");
 
   return (
@@ -23,30 +26,7 @@ export default async function GoalsPage() {
       <div className="flex items-center justify-between gap-3">
         <p className="text-[15px] text-ink-soft">O que você guarda aqui sai do seu livre para gastar.</p>
         <FormSheet title="Nova meta" trigger="Meta" submitLabel="Criar meta" action={saveGoal}>
-          <Field label="Tipo">
-            <Select
-              name="kind"
-              defaultValue={hasEmergency ? "custom" : "emergency"}
-              options={[
-                ...(hasEmergency ? [] : [{ value: "emergency", label: "Reserva de emergência" }]),
-                { value: "custom", label: "Outra meta" },
-              ]}
-            />
-          </Field>
-          <Field label="Nome">
-            <TextInput
-              name="name"
-              required
-              maxLength={60}
-              placeholder={hasEmergency ? "Ex.: Viagem" : "Reserva de emergência"}
-            />
-          </Field>
-          <Field label="Quanto quer juntar" hint="Reserva de emergência: o ideal é de 3 a 6 meses dos seus gastos.">
-            <MoneyInput name="target" required />
-          </Field>
-          <Field label="Até quando (opcional)">
-            <TextInput name="target_date" type="date" />
-          </Field>
+          <GoalFields hasEmergency={hasEmergency} monthlyCents={monthlyCents} />
         </FormSheet>
       </div>
 
@@ -76,13 +56,7 @@ export default async function GoalsPage() {
                 </div>
                 <div className="flex items-center gap-1">
                   <EditGoal goal={g} />
-                  <DeleteButton
-                    action={archiveGoal}
-                    fields={{ id: g.id }}
-                    label={`Arquivar ${g.name}`}
-                    variant="text"
-                    text="Arquivar"
-                  />
+                  <DeleteButton action={archiveGoal} fields={{ id: g.id }} label={`Arquivar ${g.name}`} />
                 </div>
               </div>
               <p className="font-display metal-text mt-4 text-3xl font-bold">{formatCents(g.savedCents)}</p>
@@ -103,9 +77,14 @@ export default async function GoalsPage() {
                   action={contributeGoal}
                   hidden={{ goal_id: g.id, direction: "in" }}
                 >
-                  <Field label="Quanto">
-                    <MoneyInput name="amount" required autoFocus />
-                  </Field>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Quanto">
+                      <MoneyInput name="amount" required autoFocus />
+                    </Field>
+                    <Field label="Quando">
+                      <TextInput name="contributed_on" type="date" required defaultValue={toISODate(f.today)} />
+                    </Field>
+                  </div>
                 </FormSheet>
                 <FormSheet
                   title={`Retirar de ${g.name}`}
@@ -115,9 +94,14 @@ export default async function GoalsPage() {
                   hidden={{ goal_id: g.id, direction: "out" }}
                   variant="glass"
                 >
-                  <Field label="Quanto">
-                    <MoneyInput name="amount" required autoFocus />
-                  </Field>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Quanto">
+                      <MoneyInput name="amount" required autoFocus />
+                    </Field>
+                    <Field label="Quando">
+                      <TextInput name="contributed_on" type="date" required defaultValue={toISODate(f.today)} />
+                    </Field>
+                  </div>
                 </FormSheet>
               </div>
             </li>

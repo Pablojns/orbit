@@ -67,7 +67,7 @@ export function AgendaBoard({
   }
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,23rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,27rem)_minmax(0,1fr)]">
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] xl:grid-cols-[minmax(0,1fr)_minmax(0,25rem)]">
       <section className="glass flex min-w-0 flex-col rounded-[1.75rem] p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -91,7 +91,7 @@ export function AgendaBoard({
             <NewItemFields date={selected} types={types} subjects={subjects} />
           </FormSheet>
         </div>
-        <div className="-mx-1 flex-1 overflow-y-auto px-1 lg:max-h-[34rem]">
+        <div className="flex-1">
           {selected ? (
             // Animação só ao escolher um dia; voltar para "Esta semana" é direto.
             <div key={selected} className="day-in">
@@ -173,8 +173,8 @@ export function AgendaBoard({
                   {c.items.slice(0, 4).map((it) => (
                     <span
                       key={it.key}
-                      className={`h-1.5 w-1.5 rounded-full ${it.done ? "bg-gain" : ""}`}
-                      style={it.done ? undefined : { backgroundColor: it.color }}
+                      className={`h-1.5 w-1.5 rounded-full ${it.done ? "opacity-30" : ""}`}
+                      style={{ backgroundColor: it.color }}
                     />
                   ))}
                 </span>
@@ -187,8 +187,8 @@ export function AgendaBoard({
                       }`}
                     >
                       <span
-                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${it.done ? "bg-gain" : ""}`}
-                        style={it.done ? undefined : { backgroundColor: it.color }}
+                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${it.done ? "opacity-30" : ""}`}
+                        style={{ backgroundColor: it.color }}
                       />
                       <span className="truncate">{it.title}</span>
                     </span>

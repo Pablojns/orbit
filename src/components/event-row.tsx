@@ -47,7 +47,7 @@ function TypeIcon({ e }: { e: AgendaEvent }) {
   );
 }
 
-function Meta({ e }: { e: AgendaEvent }) {
+function Meta({ e, hideDate }: { e: AgendaEvent; hideDate?: boolean }) {
   const urgent = !e.done && e.daysLeft <= 2;
   return (
     <p className="text-[13px] leading-snug text-ink-soft">
@@ -59,8 +59,8 @@ function Meta({ e }: { e: AgendaEvent }) {
         <span className="font-semibold text-gain">Feito</span>
       )}
       {", "}
-      {e.typeName.toLowerCase()}, {dateLabelOf(e.date)}
-      {e.time ? ` às ${e.time}` : ""}
+      {e.typeName.toLowerCase()}
+      {hideDate ? (e.time ? `, ${e.time}` : "") : `, ${dateLabelOf(e.date)}${e.time ? ` às ${e.time}` : ""}`}
       {e.seriesId ? <Repeat size={11} className="ml-1 inline align-[-1px]" aria-label="Faz parte de uma série" /> : null}
       {e.remindDays ? (
         <span className="ml-1 whitespace-nowrap" title={`Aviso ${e.remindDays} dia(s) antes`}>
@@ -81,8 +81,10 @@ export function EventRow({
   compact,
   checklist,
   types = [],
+  hideDate,
 }: {
   e: AgendaEvent;
+  hideDate?: boolean;
   compact?: boolean;
   checklist?: ChecklistItem[];
   types?: EventType[];
@@ -113,7 +115,7 @@ export function EventRow({
       body={
         <>
           {title}
-          <Meta e={e} />
+          <Meta e={e} hideDate={hideDate} />
         </>
       }
       actions={

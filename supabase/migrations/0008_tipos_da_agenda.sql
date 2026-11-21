@@ -35,7 +35,7 @@ cross join (values
   ('Compromisso', '#F4B740', 'appointment', 2),
   ('Entrega',     '#FF7A93', 'deadline',    3),
   ('Lembrete',    '#94A3B8', 'other',       4),
-  ('Estudo',      '#5EEAD4', 'study',       5)
+  ('Estudo',      '#22D3EE', 'study',       5)
 ) as t(name, color, kind, pos)
 where not exists (select 1 from public.event_types e where e.user_id = p.id);
 

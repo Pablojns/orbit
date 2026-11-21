@@ -47,7 +47,7 @@ export default async function FixedPage({ searchParams }: { searchParams: Promis
           </div>
           <FormSheet
             title="Nova entrada fixa"
-            trigger="Nova"
+            trigger="Nova entrada"
             submitLabel="Salvar entrada"
             action={saveIncome}
             variant="glass"
@@ -134,7 +134,7 @@ export default async function FixedPage({ searchParams }: { searchParams: Promis
             </h2>
             <p className="text-sm text-ink-soft">Neste ciclo: {formatCents(billsTotal)}</p>
           </div>
-          <FormSheet title="Nova conta fixa" trigger="Nova" submitLabel="Salvar conta" action={saveBill}>
+          <FormSheet title="Nova conta fixa" trigger="Nova conta" submitLabel="Salvar conta" action={saveBill} variant="glass">
             <Field label="Nome">
               <TextInput name="name" required maxLength={60} placeholder="Ex.: Luz, Internet, Aluguel" />
             </Field>

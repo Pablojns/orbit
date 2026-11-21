@@ -12,7 +12,7 @@ export const TYPE_COLORS = [
   "#8B5CF6",
   "#F4B740",
   "#FF7A93",
-  "#5EEAD4",
+  "#22D3EE",
   "#22C55E",
   "#F97316",
   "#EC4899",

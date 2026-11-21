@@ -392,14 +392,16 @@ export async function contributeGoal(_prev: FormState, fd: FormData): Promise<Fo
   const id = optUuid(str(fd, "goal_id"));
   const amount = parseToCents(str(fd, "amount"));
   const withdraw = str(fd, "direction") === "out";
+  const on = str(fd, "contributed_on");
   if (!id) return fail("Meta inválida.");
+  if (on && (!ISO_DATE.test(on) || on > todayISO())) return fail("Escolha uma data até hoje.");
   if (!amount || amount <= 0) return fail("Digite um valor.");
   const supabase = await db();
   const { error } = await supabase.from("goal_contributions").insert({
     user_id: OWNER_ID,
     goal_id: id,
     amount_cents: withdraw ? -amount : amount,
-    contributed_on: todayISO(),
+    contributed_on: on || todayISO(),
   });
   if (error) return fail("Não foi possível salvar.");
   return ok(withdraw ? "Retirada registrada." : "Valor guardado.");
