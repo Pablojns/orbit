@@ -34,9 +34,9 @@ export function OrbitRing({ cycle, size = 248, children }: { cycle: Cycle; size?
             <stop offset="100%" stopColor="rgba(255,255,255,0.14)" />
           </linearGradient>
           <radialGradient id="orbit-sun" cx="35%" cy="30%" r="75%">
-            <stop offset="0%" stopColor="#fff4cf" />
-            <stop offset="45%" stopColor="#ffc65c" />
-            <stop offset="100%" stopColor="#e5822f" />
+            <stop offset="0%" stopColor="#efe9ff" />
+            <stop offset="45%" stopColor="#b49bff" />
+            <stop offset="100%" stopColor="#6d4fe0" />
           </radialGradient>
           <filter id="orbit-glow" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="6" />
@@ -57,7 +57,7 @@ export function OrbitRing({ cycle, size = 248, children }: { cycle: Cycle; size?
           transform={`rotate(-90 ${mid} ${mid})`}
           style={{ ["--ring-length" as string]: c, animation: "orbit-draw 1100ms cubic-bezier(.2,.8,.2,1)" }}
         />
-        <circle cx={cx} cy={cy} r={14} fill="#ffb648" opacity={0.55} filter="url(#orbit-glow)" />
+        <circle cx={cx} cy={cy} r={14} fill="#a78bfa" opacity={0.55} filter="url(#orbit-glow)" />
         <circle cx={cx} cy={cy} r={10} fill="url(#orbit-sun)" stroke="rgba(255,255,255,0.7)" strokeWidth={1.5} />
       </svg>
       <figcaption className="absolute inset-0 flex flex-col items-center justify-center px-10 text-center">

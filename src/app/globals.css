@@ -13,7 +13,7 @@
   --ink-soft: #5d6386; /* texto secundário */
   --cobalt: #3a4be0; /* ação */
   --cobalt-soft: #e3e6fd;
-  --sun: #f4b740; /* destaque do ciclo */
+  --sun: #8b5cf6; /* destaque do ciclo */
   --gain: #1f9d6b; /* entradas */
   --loss: #d6455d; /* saídas / alertas */
 }
@@ -85,7 +85,7 @@ h2,
   --ink-soft: #9aa3c0;
   --cobalt: #8b97ff;
   --cobalt-soft: rgba(124, 140, 255, 0.16);
-  --sun: #ffc65c;
+  --sun: #b49bff;
   --gain: #3ee0a8;
   --loss: #ff7a93;
   color: var(--ink);
@@ -149,7 +149,7 @@ h2,
 }
 
 .grad-sun {
-  background: linear-gradient(135deg, #ffe29a, #ffb648 60%, #f08a3c);
+  background: linear-gradient(135deg, #d9ccff, #a78bfa 60%, #6d4fe0);
 }
 
 .app-theme ::selection {
