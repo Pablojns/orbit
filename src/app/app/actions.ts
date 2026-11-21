@@ -1319,10 +1319,7 @@ export async function changeAbsence(fd: FormData) {
   const delta = str(fd, "delta") === "-1" ? -1 : 1;
   if (!id) return;
   const supabase = await db();
-  const { data } = await supabase.from("subjects").select("absences").eq("id", id).eq("user_id", OWNER_ID).maybeSingle();
-  if (!data) return;
-  const next = Math.min(500, Math.max(0, Number(data.absences ?? 0) + delta));
-  await supabase.from("subjects").update({ absences: next }).eq("id", id).eq("user_id", OWNER_ID);
+  await supabase.rpc("bump_absences", { p_id: id, p_delta: delta });
   revalidatePath("/app", "layout");
 }
 
