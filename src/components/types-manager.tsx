@@ -1,9 +1,14 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { createPortal } from "react-dom";
+import { Modal } from "./modal";
 import { Settings2, X } from "lucide-react";
-import { archiveEventType, type FormState, saveEventType, updateEventType } from "@/app/app/actions";
+import {
+  archiveEventType,
+  type FormState,
+  saveEventType,
+  updateEventType,
+} from "@/app/app/actions";
 import type { EventType } from "@/lib/routine";
 import { DeleteButton } from "./undo";
 
@@ -40,9 +45,12 @@ function ColorPicker({ name, value }: { name: string; value: string }) {
 }
 
 function TypeForm({ t }: { t?: EventType }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(t ? updateEventType : saveEventType, {
-    status: "idle",
-  });
+  const [state, action, pending] = useActionState<FormState, FormData>(
+    t ? updateEventType : saveEventType,
+    {
+      status: "idle",
+    },
+  );
   return (
     <form action={action} className="space-y-2 rounded-2xl bg-white/[0.04] p-3">
       {t ? <input type="hidden" name="id" value={t.id} /> : null}
@@ -63,11 +71,21 @@ function TypeForm({ t }: { t?: EventType }) {
         >
           {pending ? "…" : t ? "Salvar" : "Criar"}
         </button>
-        {t ? <DeleteButton action={archiveEventType} fields={{ id: t.id }} label={`Apagar o tipo ${t.name}`} /> : null}
+        {t ? (
+          <DeleteButton
+            action={archiveEventType}
+            fields={{ id: t.id }}
+            label={`Apagar o tipo ${t.name}`}
+          />
+        ) : null}
       </div>
       <ColorPicker name="color" value={t?.color ?? TYPE_COLORS[0]} />
-      {state.status === "error" ? <p className="text-xs text-loss">{state.message}</p> : null}
-      {state.status === "saved" && !t ? <p className="text-xs text-gain">{state.message}</p> : null}
+      {state.status === "error" ? (
+        <p className="text-xs text-loss">{state.message}</p>
+      ) : null}
+      {state.status === "saved" && !t ? (
+        <p className="text-xs text-gain">{state.message}</p>
+      ) : null}
     </form>
   );
 }
@@ -85,40 +103,30 @@ export function TypesManager({ types }: { types: EventType[] }) {
       >
         <Settings2 size={13} aria-hidden /> Editar tipos
       </button>
-      {open
-        ? createPortal(
-            <div className="app-vars fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center">
-              <button type="button" aria-label="Fechar" className="absolute inset-0" onClick={() => setOpen(false)} />
-              <div
-                role="dialog"
-                aria-modal="true"
-                aria-label="Tipos da agenda"
-                className="relative max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[2rem] border border-line bg-[#0d1126] p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-3xl"
-                style={{ animation: "sheet-up 220ms cubic-bezier(.2,.8,.2,1)" }}
-              >
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-bold">Tipos da agenda</h2>
-                  <button
-                    type="button"
-                    onClick={() => setOpen(false)}
-                    aria-label="Fechar"
-                    className="grid h-10 w-10 place-items-center rounded-full bg-white/5 text-ink-soft"
-                  >
-                    <X size={20} aria-hidden />
-                  </button>
-                </div>
-                <p className="mt-1 text-sm text-ink-soft">Cada tipo tem uma cor na lista e no calendário.</p>
-                <div className="mt-4 space-y-2">
-                  {active.map((t) => (
-                    <TypeForm key={`${t.id}-${t.name}-${t.color}`} t={t} />
-                  ))}
-                  <TypeForm key={`novo-${active.length}`} />
-                </div>
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
+      {open ? (
+        <Modal label="Tipos da agenda" onClose={() => setOpen(false)}>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold">Tipos da agenda</h2>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="Fechar"
+              className="grid h-10 w-10 place-items-center rounded-full bg-white/5 text-ink-soft"
+            >
+              <X size={20} aria-hidden />
+            </button>
+          </div>
+          <p className="mt-1 text-sm text-ink-soft">
+            Cada tipo tem uma cor na lista e no calendário.
+          </p>
+          <div className="mt-4 space-y-2">
+            {active.map((t) => (
+              <TypeForm key={`${t.id}-${t.name}-${t.color}`} t={t} />
+            ))}
+            <TypeForm key={`novo-${active.length}`} />
+          </div>
+        </Modal>
+      ) : null}
     </>
   );
 }

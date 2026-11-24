@@ -5,7 +5,7 @@ Leia docs/PLANO-RODADAS.md primeiro. Este arquivo diz onde a sessão parou. Ele 
 ## Estado atual
 - Rodada atual: **4**
 - Último item concluído: R3 fechada (relatório em docs/RELATORIO-RODADA-3.md)
-- Próximo passo: R4 item 1, a regra "sem rolagem no computador" em Início, Estudos e Hábitos
+- Próximo passo: R4 — novos pop-ups (extrato rápido, conta explicada etc.) e depois sem rolagem
 
 ## Rodadas
 | Rodada | Situação |
@@ -29,3 +29,4 @@ Leia docs/PLANO-RODADAS.md primeiro. Este arquivo diz onde a sessão parou. Ele 
 
 ## Registro por commit
 - R3: 05bc17a visual · 48536e1 Início · 9d97565 Estudos · a86a5db Hábitos · bbc9bda tutorial · 136e35e Dinheiro · f3d7c38 voz · (fechamento) conta nova a partir de hoje + docs
+- R4: janela única (Modal: Esc, voltar, foco preso)
