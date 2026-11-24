@@ -244,7 +244,9 @@ export async function saveBill(_prev: FormState, fd: FormData): Promise<FormStat
     amount_cents: amount,
     due_day: due,
     category_id: optUuid(str(fd, "category_id")),
-    starts_on: await currentCycleStartISO(),
+    // Conta nova conta a partir de hoje: um vencimento que já passou neste ciclo
+    // não aparece como vencido nem sai do Saldo (decisão da Rodada 3).
+    starts_on: todayISO(),
     ends_on: ISO_DATE.test(endsOn) ? endsOn : null,
     ...extra.values,
   });
