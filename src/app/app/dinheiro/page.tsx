@@ -13,8 +13,12 @@ import { MoneyStrip } from "@/components/money-strip";
 export const metadata = { title: "Dinheiro" };
 export const dynamic = "force-dynamic";
 
-export default async function MoneyPage({ searchParams }: { searchParams: Promise<{ ciclo?: string }> }) {
-  const { ciclo } = await searchParams;
+export default async function MoneyPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ciclo?: string; q?: string; tipo?: string; cat?: string }>;
+}) {
+  const { ciclo, q = "", tipo = "", cat = "" } = await searchParams;
   const offset = Math.max(-24, Math.min(0, Number.parseInt(ciclo ?? "0", 10) || 0));
   const profile = await requireProfile();
   const f = await getFinance(profile.cycleStartDay, offset);
@@ -22,8 +26,22 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
   const { summary: s, cycle } = f;
   const today = todayInSaoPaulo();
 
+  // Busca e filtros do extrato (Rodada 8): texto, entrada/gasto e categoria.
+  const fold = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const query = fold(q.trim());
+  const filtered = f.movements.filter(
+    (m) =>
+      (!query || fold(`${m.description ?? ""} ${m.category?.name ?? ""} ${m.cardName ?? ""}`).includes(query)) &&
+      (tipo !== "entrada" || m.type === "income") &&
+      (tipo !== "gasto" || m.type === "expense") &&
+      (!cat || (m.category?.name ?? "Sem categoria") === cat),
+  );
+  const filtering = Boolean(query || tipo || cat);
+  const filteredTotal = filtered.reduce((a, m) => a + (m.type === "income" ? m.amountCents : -m.amountCents), 0);
+  const catNames = [...new Set(f.movements.map((m) => m.category?.name ?? "Sem categoria"))].sort();
+
   const byDay = new Map<string, Movement[]>();
-  for (const m of f.movements) byDay.set(m.occurredOn, [...(byDay.get(m.occurredOn) ?? []), m]);
+  for (const m of filtered) byDay.set(m.occurredOn, [...(byDay.get(m.occurredOn) ?? []), m]);
 
   const rows = [
     { label: "Entrou", cents: s.receivedCents, tone: "text-gain" },
@@ -75,6 +93,54 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
         </Link>
       </div>
 
+      <form method="get" className="mt-2 flex flex-wrap gap-2" role="search" aria-label="Buscar no extrato">
+        {offset ? <input type="hidden" name="ciclo" value={offset} /> : null}
+        <input
+          name="q"
+          defaultValue={q}
+          placeholder="Buscar (ex.: ifood, uber)"
+          aria-label="Buscar no extrato"
+          className="h-11 min-w-0 flex-[2] rounded-xl border border-white/[0.1] bg-[#0f1634] px-3.5 text-[15px] outline-none placeholder:text-white/35 focus:border-[#a78bfa]"
+        />
+        <select
+          name="tipo"
+          defaultValue={tipo}
+          aria-label="Tipo"
+          className="h-11 flex-1 rounded-xl border border-white/[0.1] bg-[#0f1634] px-3 text-[15px]"
+        >
+          <option value="">Tudo</option>
+          <option value="gasto">Gastos</option>
+          <option value="entrada">Entradas</option>
+        </select>
+        <select
+          name="cat"
+          defaultValue={cat}
+          aria-label="Categoria"
+          className="h-11 flex-1 rounded-xl border border-white/[0.1] bg-[#0f1634] px-3 text-[15px]"
+        >
+          <option value="">Todas as categorias</option>
+          {catNames.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+        <button type="submit" className="grad-primary h-11 rounded-xl px-4 text-sm font-bold text-white">
+          Filtrar
+        </button>
+      </form>
+      {filtering ? (
+        <p className="mt-2 flex items-center justify-between gap-3 text-sm text-ink-soft">
+          <span>
+            {filtered.length} {filtered.length === 1 ? "lançamento" : "lançamentos"}, saldo dos filtrados{" "}
+            <strong className="text-ink">{formatCents(filteredTotal)}</strong>
+          </span>
+          <Link href={href(offset)} className="font-bold text-[#a78bfa]">
+            Limpar
+          </Link>
+        </p>
+      ) : null}
+
       <section className="glass mt-2 rounded-3xl px-5 py-3">
         {byDay.size ? (
           [...byDay.entries()].map(([day, items]) => (
@@ -95,7 +161,9 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
           ))
         ) : (
           <p className="py-4 text-[15px] leading-relaxed text-ink-soft">
-            Nenhuma movimentação neste ciclo. Use os botões acima para lançar a primeira.
+            {filtering
+              ? "Nada encontrado com esses filtros."
+              : "Nenhuma movimentação neste ciclo. Use os botões acima para lançar a primeira."}
           </p>
         )}
       </section>
