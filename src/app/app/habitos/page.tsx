@@ -34,7 +34,7 @@ export default async function HabitsPage() {
   );
 
   return (
-    <div className="pt-5 lg:pt-7">
+    <div className="pt-5 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:pt-7">
       <header className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl leading-tight lg:text-[28px]">Hábitos</h1>
@@ -67,9 +67,9 @@ export default async function HabitsPage() {
       </header>
 
       {habits.length ? (
-        <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start lg:gap-5">
+        <div className="mt-5 grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:items-start lg:gap-5">
           <div className="lg:hidden">{total}</div>
-          <ul className="space-y-4">
+          <ul className="space-y-4 lg:max-h-full lg:min-h-0 lg:overflow-y-auto lg:pr-1">
             {habits.map((h) => (
               <li key={h.id} className="glass flex flex-col gap-4 rounded-3xl p-[18px] lg:px-6 lg:py-[22px]">
                 <div className="flex items-center justify-between gap-2.5">

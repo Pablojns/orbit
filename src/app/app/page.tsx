@@ -11,7 +11,8 @@ import { QuickText } from "@/components/quick-text";
 import { addDays, diffInDays, fromISODate, toISODate } from "@/lib/dates";
 import { getClassSlots, getTerm } from "@/lib/class-slots";
 import { classOccurrences } from "@/lib/studies-math";
-import { getFinance } from "@/lib/finance";
+import { getFinance, type Movement } from "@/lib/finance";
+import { SheetButton } from "@/components/sheet-button";
 import { formatCents } from "@/lib/money";
 import { requireProfile } from "@/lib/profile";
 import { getAgenda, getHabits } from "@/lib/routine";
@@ -60,6 +61,40 @@ function inDays(n: number) {
 }
 
 const CAT_COLORS = ["#4361F5", "#A78BFA", "#7DD3FC", "#C4B5FD"];
+
+function MiniMovements({ list }: { list: Movement[] }) {
+  if (!list.length)
+    return (
+      <p className="text-[15px] text-ink-soft">Nada lançado neste ciclo.</p>
+    );
+  return (
+    <ul>
+      {list.map((m) => (
+        <li
+          key={`${m.source}-${m.id}`}
+          className="flex items-center gap-3 border-t border-white/[0.07] py-2.5 first:border-t-0"
+        >
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[15px] font-bold">
+              {m.description || m.category?.name || "Lançamento"}
+            </span>
+            <span className="block text-[13px] text-ink-soft">
+              {fromISODate(m.occurredOn).day}/{fromISODate(m.occurredOn).month}
+              {m.category?.name ? ` · ${m.category.name}` : ""}
+              {m.cardName ? ` · ${m.cardName}` : ""}
+            </span>
+          </span>
+          <span
+            className={`shrink-0 text-[15px] font-extrabold ${m.type === "income" ? "text-[#b9c6ff]" : ""}`}
+          >
+            {m.type === "income" ? "+ " : "− "}
+            {formatCents(m.amountCents)}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export default async function HomePage() {
   const profile = await requireProfile();
@@ -127,6 +162,8 @@ export default async function HomePage() {
     sub: string;
     study: boolean;
     cls: boolean;
+    type: string;
+    notes: string | null;
   };
   const classRows: Row[] = classOccurrences(
     slots,
@@ -141,6 +178,8 @@ export default async function HomePage() {
     sub: `às ${o.slot.startsAt}${o.slot.room ? `, ${o.slot.room}` : ""}`,
     study: false,
     cls: true,
+    type: "Aula",
+    notes: null,
   }));
   const eventRows: Row[] = agenda.upcoming
     .filter((e) => e.daysLeft >= 0 && e.daysLeft <= 7 && e.id !== nextExam?.id)
@@ -152,6 +191,8 @@ export default async function HomePage() {
       sub: e.time ? `às ${e.time}` : e.typeName,
       study: e.kind === "study",
       cls: false,
+      type: e.typeName,
+      notes: e.notes,
     }));
   const rows = [...eventRows, ...classRows]
     .sort((a, b) =>
@@ -190,7 +231,7 @@ export default async function HomePage() {
   );
 
   return (
-    <div className="space-y-4 pt-5 lg:space-y-5 lg:pt-7">
+    <div className="space-y-4 pt-5 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:gap-5 lg:space-y-0 lg:pt-7">
       <header className="flex items-center justify-between gap-4 lg:items-baseline">
         <div>
           <h1 className="text-2xl leading-tight lg:text-[28px]">
@@ -208,41 +249,91 @@ export default async function HomePage() {
         </div>
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-2 lg:items-start lg:gap-5">
+      <div className="grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-2 lg:grid-rows-[minmax(0,1fr)] lg:gap-5">
         {/* Coluna da esquerda: Saldo, barra de IA e Agenda */}
-        <div className="space-y-4 lg:space-y-5">
-          <section className="hero-card space-y-3.5 rounded-3xl p-[22px] lg:px-7">
-            <Link href="/app/dinheiro" className="block">
-              <p className="text-[13px] font-bold text-[#b9c2f5] lg:text-sm">
-                Saldo
-              </p>
-              <p
-                className={`mt-0.5 text-[44px] leading-[1.05] font-extrabold tracking-[-0.03em] lg:text-[52px] ${
-                  s.balanceCents < 0 ? "text-[#ff9db0]" : ""
-                }`}
-              >
-                {formatCents(s.balanceCents)}
-              </p>
-              {s.upcomingCents > 0 ? (
-                <p className="mt-1 text-[13px] font-semibold text-[#c7cff7]">
-                  já descontadas {formatCents(s.upcomingCents)} de contas a
-                  vencer
-                </p>
-              ) : null}
-            </Link>
-            <div className="flex gap-2.5 lg:gap-3">
-              <div className="flex-1 rounded-2xl bg-white/[0.08] px-3.5 py-3 lg:px-4 lg:py-3.5">
-                <p className="text-xs font-semibold text-[#c7cff7] lg:text-[13px]">
-                  Pode gastar
-                </p>
-                <p className="mt-0.5 text-lg font-extrabold lg:text-[22px]">
-                  {formatCents(s.perDayCents)}
-                  <span className="text-[15px] font-bold lg:text-lg">
-                    {" "}
-                    por dia
+        <div className="space-y-4 lg:flex lg:min-h-0 lg:flex-col lg:gap-5 lg:space-y-0">
+          <section className="hero-card space-y-3.5 rounded-3xl p-[22px] lg:shrink-0 lg:px-7">
+            <SheetButton
+              title="Extrato rápido"
+              label={`Saldo ${formatCents(s.balanceCents)}. Abrir extrato rápido`}
+              className="block w-full text-left"
+              trigger={
+                <>
+                  <span className="block text-[13px] font-bold text-[#b9c2f5] lg:text-sm">
+                    Saldo
                   </span>
+                  <span
+                    className={`mt-0.5 block text-[44px] leading-[1.05] font-extrabold tracking-[-0.03em] lg:text-[52px] ${
+                      s.balanceCents < 0 ? "text-[#ff9db0]" : ""
+                    }`}
+                  >
+                    {formatCents(s.balanceCents)}
+                  </span>
+                  {s.upcomingCents > 0 ? (
+                    <span className="mt-1 block text-[13px] font-semibold text-[#c7cff7]">
+                      já descontadas {formatCents(s.upcomingCents)} de contas a
+                      vencer
+                    </span>
+                  ) : null}
+                </>
+              }
+            >
+              <MiniMovements list={f.movements.slice(0, 8)} />
+              <Link
+                href="/app/dinheiro"
+                className="mt-4 flex h-12 items-center justify-center rounded-2xl border border-white/[0.14] text-[15px] font-bold hover:bg-white/[0.05]"
+              >
+                Ver extrato completo
+              </Link>
+            </SheetButton>
+            <div className="flex gap-2.5 lg:gap-3">
+              <SheetButton
+                title="Como chegamos no “pode gastar”"
+                className="flex-1 rounded-2xl bg-white/[0.08] px-3.5 py-3 text-left hover:bg-white/[0.12] lg:px-4 lg:py-3.5"
+                trigger={
+                  <>
+                    <span className="block text-xs font-semibold text-[#c7cff7] lg:text-[13px]">
+                      Pode gastar
+                    </span>
+                    <span className="mt-0.5 block text-lg font-extrabold lg:text-[22px]">
+                      {formatCents(s.perDayCents)}
+                      <span className="text-[15px] font-bold lg:text-lg">
+                        {" "}
+                        por dia
+                      </span>
+                    </span>
+                  </>
+                }
+              >
+                <dl className="space-y-2.5 text-[15px]">
+                  {(
+                    [
+                      ["Entrou neste ciclo", s.receivedCents],
+                      ["Saiu", -s.spentCents],
+                      ["Guardado em metas", -s.savedCents],
+                      ["Contas e faturas que ainda vencem", -s.committedCents],
+                    ] as const
+                  ).map(([label, v]) => (
+                    <div key={label} className="flex justify-between gap-3">
+                      <dt className="text-ink-soft">{label}</dt>
+                      <dd className="font-bold">{formatCents(v)}</dd>
+                    </div>
+                  ))}
+                  <div className="flex justify-between gap-3 border-t border-white/10 pt-2.5">
+                    <dt className="font-bold">Livre até o salário</dt>
+                    <dd
+                      className={`font-extrabold ${s.freeCents < 0 ? "text-loss" : ""}`}
+                    >
+                      {formatCents(s.freeCents)}
+                    </dd>
+                  </div>
+                </dl>
+                <p className="mt-4 text-sm leading-relaxed text-ink-soft">
+                  {s.freeCents > 0
+                    ? `${formatCents(s.freeCents)} divididos por ${daysToPay} ${daysToPay === 1 ? "dia" : "dias"} até o salário dá ${formatCents(s.perDayCents)} por dia.`
+                    : "O que vence até o salário passa do que entrou, então não sobra nada por dia. Veja o que dá para adiar."}
                 </p>
-              </div>
+              </SheetButton>
               <div className="flex-1 rounded-2xl bg-white/[0.08] px-3.5 py-3 lg:px-4 lg:py-3.5">
                 <p className="text-xs font-semibold text-[#c7cff7] lg:text-[13px]">
                   Até o salário
@@ -266,7 +357,7 @@ export default async function HomePage() {
 
           <QuickText />
 
-          <section className="rounded-3xl border border-[#a78bfa]/45 bg-[#121a45] px-[18px] pt-5 pb-2.5 lg:px-6 lg:pb-4">
+          <section className="rounded-3xl border border-[#a78bfa]/45 bg-[#121a45] px-[18px] pt-5 pb-2.5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:px-6 lg:pb-4">
             {sectionHead("Agenda", "/app/agenda", "Ver tudo", true)}
             {nextExam ? (
               <Link
@@ -298,32 +389,64 @@ export default async function HomePage() {
                 {rows.map((r) => {
                   const days = diffInDays(today, fromISODate(r.date));
                   return (
-                    <li
-                      key={r.key}
-                      className="flex items-center gap-3 border-t border-white/[0.07] py-3"
-                    >
-                      <span className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-xl bg-[#151d45] text-[15px] font-extrabold text-ink-soft lg:h-[46px] lg:w-[46px]">
-                        {r.study ? (
-                          <BookOpen size={19} aria-hidden />
-                        ) : r.cls ? (
-                          <GraduationCap size={19} aria-hidden />
-                        ) : (
-                          fromISODate(r.date).day
-                        )}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[15px] font-bold">
-                          {r.title}
-                        </span>
-                        <span className="block text-[13px] text-ink-soft">
-                          {days === 0
-                            ? "Hoje"
-                            : days === 1
-                              ? "Amanhã"
-                              : shortDay(r.date)}{" "}
-                          · {r.sub}
-                        </span>
-                      </span>
+                    <li key={r.key} className="border-t border-white/[0.07]">
+                      <SheetButton
+                        title={r.title}
+                        className="flex w-full items-center gap-3 py-3 text-left hover:bg-white/[0.02]"
+                        trigger={
+                          <>
+                            <span className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-xl bg-[#151d45] text-[15px] font-extrabold text-ink-soft lg:h-[46px] lg:w-[46px]">
+                              {r.study ? (
+                                <BookOpen size={19} aria-hidden />
+                              ) : r.cls ? (
+                                <GraduationCap size={19} aria-hidden />
+                              ) : (
+                                fromISODate(r.date).day
+                              )}
+                            </span>
+                            <span className="min-w-0 flex-1 block">
+                              <span className="block truncate text-[15px] font-bold">
+                                {r.title}
+                              </span>
+                              <span className="block text-[13px] text-ink-soft">
+                                {days === 0
+                                  ? "Hoje"
+                                  : days === 1
+                                    ? "Amanhã"
+                                    : shortDay(r.date)}{" "}
+                                · {r.sub}
+                              </span>
+                            </span>
+                          </>
+                        }
+                      >
+                        <dl className="space-y-2 text-[15px]">
+                          <div className="flex justify-between gap-3">
+                            <dt className="text-ink-soft">Quando</dt>
+                            <dd className="font-bold">
+                              {longDate(r.date)}
+                              {r.time ? `, ${r.time}` : ""}
+                            </dd>
+                          </div>
+                          <div className="flex justify-between gap-3">
+                            <dt className="text-ink-soft">Tipo</dt>
+                            <dd className="font-bold">{r.type}</dd>
+                          </div>
+                        </dl>
+                        {r.notes ? (
+                          <p className="mt-3 rounded-xl bg-white/[0.05] p-3 text-sm whitespace-pre-line">
+                            {r.notes}
+                          </p>
+                        ) : null}
+                        <Link
+                          href={
+                            r.cls ? "/app/estudos" : `/app/agenda?dia=${r.date}`
+                          }
+                          className="mt-5 flex h-12 items-center justify-center rounded-2xl border border-white/[0.14] text-[15px] font-bold hover:bg-white/[0.05]"
+                        >
+                          {r.cls ? "Abrir Estudos" : "Abrir na Agenda"}
+                        </Link>
+                      </SheetButton>
                     </li>
                   );
                 })}
@@ -338,8 +461,8 @@ export default async function HomePage() {
         </div>
 
         {/* Coluna da direita: Contas, Hábitos, Para onde foi */}
-        <div className="space-y-4 lg:space-y-5">
-          <section className="glass rounded-3xl p-[18px] lg:px-6 lg:py-[22px]">
+        <div className="space-y-4 lg:flex lg:min-h-0 lg:flex-col lg:gap-5 lg:space-y-0">
+          <section className="glass rounded-3xl p-[18px] lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:px-6 lg:py-[22px]">
             {sectionHead("Contas", "/app/dinheiro/contas", "Contas fixas")}
             <p className="mt-3 text-xs font-bold text-ink-soft">A pagar</p>
             {dues.length ? (
@@ -368,18 +491,34 @@ export default async function HomePage() {
                       <span className="text-[15px] font-extrabold">
                         {formatCents(d.cents)}
                       </span>
-                      <form action={d.card ? payStatement : toggleBillPaid}>
-                        {Object.entries(d.pay).map(([k, v]) => (
-                          <input key={k} type="hidden" name={k} value={v} />
-                        ))}
-                        <button
-                          type="submit"
-                          aria-label={`Pagar ${d.name}`}
-                          className="h-11 rounded-xl border border-[#4361f5] px-3.5 text-[13px] font-bold text-[#b9c6ff] hover:bg-[#4361f5]/20 lg:h-9"
+                      <SheetButton
+                        title="Confirmar pagamento"
+                        label={`Pagar ${d.name}`}
+                        className="h-11 rounded-xl border border-[#4361f5] px-3.5 text-[13px] font-bold text-[#b9c6ff] hover:bg-[#4361f5]/20 lg:h-9"
+                        trigger="Pagar"
+                      >
+                        <p className="text-[15px]">
+                          <strong>{d.name}</strong>, {formatCents(d.cents)},
+                          vencimento dia {d.date.day}.
+                        </p>
+                        <p className="mt-1 text-sm text-ink-soft">
+                          O pagamento entra hoje no seu extrato e sai do Saldo.
+                        </p>
+                        <form
+                          action={d.card ? payStatement : toggleBillPaid}
+                          className="mt-5"
                         >
-                          Pagar
-                        </button>
-                      </form>
+                          {Object.entries(d.pay).map(([k, v]) => (
+                            <input key={k} type="hidden" name={k} value={v} />
+                          ))}
+                          <button
+                            type="submit"
+                            className="grad-primary h-12 w-full rounded-2xl text-base font-bold text-white"
+                          >
+                            Confirmar pagamento de {formatCents(d.cents)}
+                          </button>
+                        </form>
+                      </SheetButton>
                     </li>
                   );
                 })}
@@ -441,7 +580,7 @@ export default async function HomePage() {
           </section>
 
           {profile.hideHabits ? null : (
-            <section className="glass rounded-3xl p-[18px] lg:px-6 lg:py-[22px]">
+            <section className="glass rounded-3xl p-[18px] lg:shrink-0 lg:px-6 lg:py-[22px]">
               {sectionHead("Hábitos de hoje", "/app/habitos", "Ver todos")}
               {habits.length ? (
                 <ul className="mt-3 grid grid-cols-2 gap-2.5 lg:gap-3">
@@ -495,7 +634,7 @@ export default async function HomePage() {
             </section>
           )}
 
-          <section className="glass rounded-3xl p-[18px] lg:px-6 lg:py-[22px]">
+          <section className="glass rounded-3xl p-[18px] lg:shrink-0 lg:px-6 lg:py-[22px]">
             {sectionHead(
               "Para onde foi o dinheiro",
               "/app/dinheiro",
@@ -519,16 +658,32 @@ export default async function HomePage() {
                 </div>
                 <ul className="mt-3.5 space-y-2 text-sm font-semibold">
                   {topCategories.map((c, i) => (
-                    <li key={c.name} className="flex items-center gap-2.5">
-                      <span
-                        className="h-2.5 w-2.5 rounded-[3px]"
-                        style={{ background: CAT_COLORS[i] }}
-                        aria-hidden
-                      />
-                      <span className="flex-1">{c.name}</span>
-                      <span className="font-extrabold">
-                        {formatCents(c.cents)}
-                      </span>
+                    <li key={c.name}>
+                      <SheetButton
+                        title={c.name}
+                        className="flex min-h-9 w-full items-center gap-2.5 rounded-lg text-left hover:bg-white/[0.04]"
+                        trigger={
+                          <>
+                            <span
+                              className="h-2.5 w-2.5 rounded-[3px]"
+                              style={{ background: CAT_COLORS[i] }}
+                              aria-hidden
+                            />
+                            <span className="flex-1">{c.name}</span>
+                            <span className="font-extrabold">
+                              {formatCents(c.cents)}
+                            </span>
+                          </>
+                        }
+                      >
+                        <MiniMovements
+                          list={f.movements.filter(
+                            (m) =>
+                              m.type === "expense" &&
+                              (m.category?.name ?? "Sem categoria") === c.name,
+                          )}
+                        />
+                      </SheetButton>
                     </li>
                   ))}
                 </ul>

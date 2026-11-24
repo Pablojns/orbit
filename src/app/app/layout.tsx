@@ -16,7 +16,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <UndoProvider>
       <div className="app-theme lg:flex">
         <SideNav hidden={hidden} action={<QuickAdd categories={categories} cards={cards} variant="sidebar" />} />
-        <main className="mx-auto min-h-dvh w-full max-w-md px-5 pb-[calc(7rem+env(safe-area-inset-bottom))] lg:w-auto lg:max-w-5xl lg:min-w-0 lg:flex-1 lg:px-10 lg:pb-12">
+        <main className="mx-auto min-h-dvh w-full max-w-md px-5 pb-[calc(7rem+env(safe-area-inset-bottom))] lg:flex lg:h-dvh lg:w-auto lg:max-w-5xl lg:min-w-0 lg:flex-1 lg:flex-col lg:overflow-y-auto lg:px-10 lg:pb-8">
           <MobileTop initial={initial} />
           <QuickTextBar />
           {children}

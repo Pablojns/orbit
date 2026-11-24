@@ -168,7 +168,7 @@ export default async function StudiesPage() {
   );
 
   return (
-    <div className="pt-5 lg:pt-7">
+    <div className="pt-5 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:pt-7">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl leading-tight lg:text-[28px]">Estudos</h1>
@@ -206,10 +206,10 @@ export default async function StudiesPage() {
           />
         </div>
       ) : (
-        <div className="mt-5 grid gap-4 lg:grid-cols-2 lg:items-start lg:gap-5">
+        <div className="mt-5 grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-flow-col lg:grid-cols-2 lg:grid-rows-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-5">
           {/* Coluna da esquerda: próxima prova e esta semana */}
-          <div className="space-y-4 lg:space-y-5">
-            <section className="hero-card flex flex-col gap-3.5 rounded-3xl p-[22px] lg:p-7">
+          <div className="space-y-4 lg:contents">
+            <section className="hero-card flex flex-col justify-center gap-3.5 rounded-3xl p-[22px] lg:min-h-0 lg:overflow-y-auto lg:p-7">
               <p className="text-[13px] font-bold text-[#b9c2f5] lg:text-sm">Próxima prova</p>
               {nextExam ? (
                 <>
@@ -289,7 +289,7 @@ export default async function StudiesPage() {
               )}
             </section>
 
-            <section className="glass rounded-3xl px-[18px] pt-[18px] pb-2 lg:px-6 lg:pt-[22px]">
+            <section className="glass rounded-3xl px-[18px] pt-[18px] pb-2 lg:min-h-0 lg:overflow-y-auto lg:px-6 lg:pt-[22px]">
               <h2 className="text-base lg:text-[17px]">Esta semana</h2>
               {weekRows.length ? (
                 <ul className="mt-2">
@@ -324,8 +324,8 @@ export default async function StudiesPage() {
           </div>
 
           {/* Coluna da direita: matérias e horário */}
-          <div className="space-y-4 lg:space-y-5">
-            <section className="glass rounded-3xl p-[18px] lg:px-6 lg:py-[22px]">
+          <div className="space-y-4 lg:contents">
+            <section className="glass rounded-3xl p-[18px] lg:min-h-0 lg:overflow-y-auto lg:px-6 lg:py-[22px]">
               <h2 className="text-base lg:text-[17px]">Matérias</h2>
 
               {unlinked.length && subjects.length ? (
@@ -599,7 +599,7 @@ export default async function StudiesPage() {
               )}
             </section>
 
-            <section className="glass rounded-3xl p-[18px] lg:px-6 lg:py-[22px]">
+            <section className="glass rounded-3xl p-[18px] lg:min-h-0 lg:overflow-y-auto lg:px-6 lg:py-[22px]">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="text-base lg:text-[17px]">Horário de aulas</h2>
                 {subjects.length ? (
