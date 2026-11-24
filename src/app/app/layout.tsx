@@ -27,13 +27,19 @@ export default async function AppLayout({
   return (
     <UndoProvider>
       <div className="app-theme lg:flex">
+        <a
+          href="#conteudo"
+          className="sr-only z-50 rounded-xl bg-[#4361f5] px-4 py-2 font-bold text-white focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+        >
+          Pular para o conteúdo
+        </a>
         <SideNav
           hidden={hidden}
           action={
             <QuickAdd categories={categories} cards={cards} variant="sidebar" />
           }
         />
-        <main className="mx-auto min-h-dvh w-full max-w-md px-5 pb-[calc(7rem+env(safe-area-inset-bottom))] lg:flex lg:h-dvh lg:w-auto lg:max-w-5xl lg:min-w-0 lg:flex-1 lg:flex-col lg:overflow-y-auto lg:px-10 lg:pb-8">
+        <main id="conteudo" className="mx-auto min-h-dvh w-full max-w-md px-5 pb-[calc(7rem+env(safe-area-inset-bottom))] lg:flex lg:h-dvh lg:w-auto lg:max-w-5xl lg:min-w-0 lg:flex-1 lg:flex-col lg:overflow-y-auto lg:px-10 lg:pb-8">
           <MobileTop initial={initial} />
           <QuickTextBar />
           {children}

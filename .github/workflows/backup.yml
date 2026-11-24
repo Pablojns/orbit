@@ -1,0 +1,26 @@
+# Backup semanal do banco (Rodada 10). Fica parado até o Pablo criar o segredo
+# SUPABASE_DB_URL no GitHub (Settings > Secrets and variables > Actions).
+# O arquivo fica guardado 30 dias como "artifact" da execução, só para quem tem acesso ao repositório.
+name: backup-semanal
+on:
+  schedule:
+    - cron: "0 6 * * 1" # segunda, 3h em São Paulo
+  workflow_dispatch: {}
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Instala o cliente do Postgres
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Gera o backup
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$DB_URL" ]; then echo "Segredo SUPABASE_DB_URL ainda não criado: nada a fazer."; exit 0; fi
+          pg_dump "$DB_URL" --schema=public --no-owner --no-privileges -Fc -f dimeta-$(date +%F).dump
+      - uses: actions/upload-artifact@v4
+        if: ${{ hashFiles('dimeta-*.dump') != '' }}
+        with:
+          name: dimeta-backup
+          path: dimeta-*.dump
+          retention-days: 30
