@@ -3,9 +3,9 @@
 Leia docs/PLANO-RODADAS.md primeiro. Este arquivo diz onde a sessão parou. Ele é atualizado a cada commit.
 
 ## Estado atual
-- Rodada atual: **9**
-- Último item concluído: R8 fechada
-- Próximo passo: R9 — AUTH_ENABLED e BILLING_ENABLED desligados; login Supabase; RLS por usuário (migração escrita e testada fora da produção); cobrança em modo de teste; termos e privacidade
+- Rodada atual: **10**
+- Último item concluído: R9 fechada
+- Próximo passo: R10 — testes automáticos, alertas do Supabase, limite da IA, acessibilidade, desempenho, backup, registro de erros
 
 ## Rodadas
 | Rodada | Situação |
@@ -16,8 +16,8 @@ Leia docs/PLANO-RODADAS.md primeiro. Este arquivo diz onde a sessão parou. Ele 
 | R6 Hábitos e Perfil completos | feita |
 | R7 voz completa | feita |
 | R8 completude | feita |
-| R9 contas, teste grátis, cobrança (desligados) | em andamento |
-| R10 qualidade, segurança, desempenho | a fazer |
+| R9 contas, teste grátis, cobrança (desligados) | feita |
+| R10 qualidade, segurança, desempenho | em andamento |
 | R11 pronto para lançar | a fazer |
 | R12 caça-bugs final | a fazer |
 
