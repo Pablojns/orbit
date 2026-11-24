@@ -711,6 +711,63 @@ export async function archiveHabit(fd: FormData): Promise<UndoResult | void> {
 
 // ---------- primeiros passos ----------------------------------------
 
+// Tutorial de primeiro uso: cada resposta usa as funções que o app já tem.
+export async function tutorialSalary(_prev: FormState, fd: FormData): Promise<FormState> {
+  const dom = day(str(fd, "day"));
+  const amount = parseToCents(str(fd, "amount"));
+  if (!dom) return fail("Escolha o dia em que o salário cai.");
+  if (!amount || amount <= 0) return fail("Digite quanto é o salário, como 2.800.");
+  const supabase = await db();
+  const { error } = await supabase.from("profiles").update({ cycle_start_day: dom }).eq("id", OWNER_ID);
+  if (error) return fail("Não foi possível salvar agora. Tente de novo.");
+  const income = new FormData();
+  income.set("name", "Salário");
+  income.set("amount", str(fd, "amount"));
+  income.set("day_of_month", String(dom));
+  const saved = await saveIncome({ status: "idle" }, income);
+  if (saved.status !== "saved") return saved;
+  if (str(fd, "fell") === "yes") {
+    const first = new FormData();
+    first.set("amount", str(fd, "amount"));
+    const r = await saveFirstSalary({ status: "idle" }, first);
+    if (r.status !== "saved") return r;
+  }
+  revalidatePath("/app", "layout");
+  return ok("Salário salvo.");
+}
+
+export async function tutorialBills(_prev: FormState, fd: FormData): Promise<FormState> {
+  const names = fd.getAll("bill").map(String).slice(0, 10);
+  for (const [i, name] of names.entries()) {
+    const bill = new FormData();
+    bill.set("name", name);
+    bill.set("amount", str(fd, `amount_${i}`));
+    bill.set("due_day", str(fd, `due_${i}`));
+    if (fd.get(`sub_${i}`) === "on") bill.set("is_subscription", "on");
+    const r = await saveBill({ status: "idle" }, bill);
+    if (r.status !== "saved") return fail(`${name}: ${r.message}`);
+  }
+  revalidatePath("/app", "layout");
+  return ok(names.length ? "Contas salvas." : "Nenhuma conta marcada.");
+}
+
+// Esconde ou mostra Estudos e Hábitos no menu.
+export async function setNavPrefs(fd: FormData) {
+  const patch: Record<string, boolean> = {};
+  if (fd.has("hide_studies")) patch.hide_studies = str(fd, "hide_studies") === "true";
+  if (fd.has("hide_habits")) patch.hide_habits = str(fd, "hide_habits") === "true";
+  if (!Object.keys(patch).length) return;
+  const supabase = await db();
+  await supabase.from("profiles").update(patch).eq("id", OWNER_ID);
+  revalidatePath("/app", "layout");
+}
+
+export async function finishTutorial() {
+  const supabase = await db();
+  await supabase.from("profiles").update({ tutorial_done_at: new Date().toISOString() }).eq("id", OWNER_ID);
+  revalidatePath("/app", "layout");
+}
+
 export async function finishOnboarding() {
   const supabase = await db();
   await supabase.from("profiles").update({ onboarded_at: new Date().toISOString() }).eq("id", OWNER_ID);
