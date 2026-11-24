@@ -30,7 +30,7 @@ export function HabitCheck({ h, size = "md" }: { h: Habit; size?: "md" | "lg" })
 export function HabitCard({ h }: { h: Habit }) {
   const pct = Math.min(100, (h.weekCount / h.targetPerWeek) * 100);
   return (
-    <li className="glass rounded-[1.75rem] p-5">
+    <li className="glass rounded-3xl p-5">
       <div className="flex items-center gap-4">
         <HabitCheck h={h} size="lg" />
         <div className="min-w-0 flex-1">

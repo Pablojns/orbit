@@ -37,7 +37,7 @@ export default async function FixedPage({ searchParams }: { searchParams: Promis
 
   const incomeColumn = (
     <section className={`${side === "entradas" ? "block" : "hidden"} lg:block`}>
-      <div className="rounded-[1.75rem] border border-gain/25 bg-gain/[0.04]">
+      <div className="rounded-3xl border border-gain/25 bg-gain/[0.04]">
         <header className="flex items-center justify-between gap-3 border-b border-gain/15 px-5 py-4">
           <div>
             <h2 className="flex items-center gap-2 text-lg font-semibold">
@@ -104,7 +104,7 @@ export default async function FixedPage({ searchParams }: { searchParams: Promis
                         <input type="hidden" name="income_id" value={inc.id} />
                         <button
                           type="submit"
-                          className="rounded-full bg-gain/90 px-4 py-1.5 text-xs font-semibold text-[#05201a]"
+                          className="rounded-full bg-gain/90 px-4 py-1.5 text-xs font-semibold text-[#0b1440]"
                         >
                           Recebi
                         </button>
@@ -126,7 +126,7 @@ export default async function FixedPage({ searchParams }: { searchParams: Promis
 
   const billColumn = (
     <section className={`${side === "contas" ? "block" : "hidden"} lg:block`}>
-      <div className="rounded-[1.75rem] border border-sun/25 bg-sun/[0.04]">
+      <div className="rounded-3xl border border-sun/25 bg-sun/[0.04]">
         <header className="flex items-center justify-between gap-3 border-b border-sun/15 px-5 py-4">
           <div>
             <h2 className="flex items-center gap-2 text-lg font-semibold">
@@ -261,7 +261,7 @@ export default async function FixedPage({ searchParams }: { searchParams: Promis
         <Link
           href="/app/dinheiro/contas?lado=entradas"
           className={`rounded-xl px-3 py-2.5 text-center text-sm font-semibold ${
-            side === "entradas" ? "bg-gain/90 text-[#05201a]" : "text-ink-soft"
+            side === "entradas" ? "bg-gain/90 text-[#0b1440]" : "text-ink-soft"
           }`}
         >
           Entradas · {formatCents(incomesTotal)}

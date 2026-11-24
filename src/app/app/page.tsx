@@ -17,6 +17,7 @@ import { getFinance } from "@/lib/finance";
 import { formatCents } from "@/lib/money";
 import { requireProfile } from "@/lib/profile";
 import { getAgenda, getHabits } from "@/lib/routine";
+import { QuickText } from "@/components/quick-text";
 
 export const dynamic = "force-dynamic";
 
@@ -142,9 +143,10 @@ export default async function HomePage() {
         openStatementCents={s.openStatementCents}
         hasCards={f.cards.length > 0}
       />
+      <QuickText />
       {!s.hasAnyIncome ? <FirstSalary dayLabel={formatShort(cycle.start)} /> : null}
       {showSteps ? (
-        <section className="glass rounded-[1.75rem] p-5">
+        <section className="glass rounded-3xl p-5">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Primeiros passos</h2>
             <form action={finishOnboarding}>
@@ -162,7 +164,7 @@ export default async function HomePage() {
                   className="flex items-center gap-3 rounded-2xl px-2 py-2.5 hover:bg-white/[0.04]"
                 >
                   {step.done ? (
-                    <span className="grid h-6 w-6 place-items-center rounded-full bg-gain text-[#05201a]">
+                    <span className="grid h-6 w-6 place-items-center rounded-full bg-gain text-[#0b1440]">
                       <Check size={14} strokeWidth={3} aria-hidden />
                     </span>
                   ) : (
@@ -181,7 +183,7 @@ export default async function HomePage() {
 
       <div className="grid gap-5 lg:grid-cols-2">
         {/* 2. Agenda: hoje em cima, próximos 7 dias embaixo */}
-        <section className="glass rounded-[1.75rem] p-5">
+        <section className="glass rounded-3xl p-5">
           {blockHead("Agenda", "/app/agenda", "Agenda")}
           <p className="mt-3 text-sm font-semibold text-ink-soft">Hoje</p>
           {todayEvents.length ? (
@@ -204,7 +206,7 @@ export default async function HomePage() {
         </section>
 
         {/* 3. Anel */}
-        <section className="glass rounded-[2rem] px-5 pt-5 pb-6">
+        <section className="glass rounded-3xl px-5 pt-5 pb-6">
           {blockHead("Seu ciclo", "/app/dinheiro", "Dinheiro")}
           <div className="mt-4">
             <OrbitRing cycle={cycle}>
@@ -229,7 +231,7 @@ export default async function HomePage() {
         </section>
 
         {/* 4. A pagar */}
-        <section className="glass rounded-[1.75rem] p-5">
+        <section className="glass rounded-3xl p-5">
           {blockHead("A pagar", "/app/dinheiro/contas", "Contas fixas")}
           {dues.length ? (
             <ul className="mt-2 divide-y divide-white/[0.06]">
@@ -258,7 +260,7 @@ export default async function HomePage() {
                         ))}
                         <button
                           type="submit"
-                          className="rounded-full bg-gain/90 px-3 py-1.5 text-xs font-semibold text-[#05201a]"
+                          className="rounded-full bg-gain/90 px-3 py-1.5 text-xs font-semibold text-[#0b1440]"
                         >
                           Pagar
                         </button>
@@ -278,7 +280,7 @@ export default async function HomePage() {
         </section>
 
         {/* 5. Ainda vai entrar */}
-        <section className="glass rounded-[1.75rem] p-5">
+        <section className="glass rounded-3xl p-5">
           {blockHead("Ainda vai entrar", "/app/dinheiro/contas", "Entradas fixas")}
           {pendingIncomes.length ? (
             <ul className="mt-2 divide-y divide-white/[0.06]">
@@ -298,7 +300,7 @@ export default async function HomePage() {
                         <input type="hidden" name="income_id" value={i.incomeId} />
                         <button
                           type="submit"
-                          className="rounded-full bg-gain/90 px-3 py-1.5 text-xs font-semibold text-[#05201a]"
+                          className="rounded-full bg-gain/90 px-3 py-1.5 text-xs font-semibold text-[#0b1440]"
                         >
                           Recebi
                         </button>
@@ -316,7 +318,7 @@ export default async function HomePage() {
         </section>
 
         {/* 6. Hábitos de hoje */}
-        <section className="glass rounded-[1.75rem] p-5">
+        <section className="glass rounded-3xl p-5">
           {blockHead("Hábitos de hoje", "/app/habitos", "Hábitos")}
           {habits.length ? (
             <ul className="mt-3 space-y-2.5">
@@ -343,7 +345,7 @@ export default async function HomePage() {
         </section>
 
         {/* 7. Para onde foi o dinheiro */}
-        <section className="glass rounded-[2rem] p-5">
+        <section className="glass rounded-3xl p-5">
           {blockHead("Para onde foi o dinheiro", "/app/dinheiro", "Extrato")}
           {topCategories.length ? (
             <ul className="mt-4 space-y-3.5">
@@ -382,7 +384,7 @@ export default async function HomePage() {
         </section>
 
         {/* 8. Últimos lançamentos: só os 3 últimos */}
-        <section className="glass rounded-[2rem] p-5">
+        <section className="glass rounded-3xl p-5">
           {blockHead("Últimos lançamentos", "/app/dinheiro", "Extrato")}
           {f.movements.length ? (
             <ul className="mt-1 divide-y divide-white/[0.06]">

@@ -23,7 +23,7 @@ export function CategoriesSection({ categories }: { categories: Category[] }) {
   const expense = categories.filter((c) => c.kind === "expense");
   const income = categories.filter((c) => c.kind === "income");
   return (
-    <section className="glass mt-5 rounded-[1.75rem] p-5">
+    <section className="glass mt-5 rounded-3xl p-5">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">Categorias</h2>

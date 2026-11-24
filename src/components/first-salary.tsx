@@ -34,7 +34,7 @@ export function FirstSalary({ dayLabel }: { dayLabel: string }) {
   }
 
   return (
-    <section className="glass rounded-[1.75rem] p-5">
+    <section className="glass rounded-3xl p-5">
       <div className="flex items-start gap-3">
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-gain/15 text-gain">
           <Wallet size={19} aria-hidden />
@@ -57,7 +57,7 @@ export function FirstSalary({ dayLabel }: { dayLabel: string }) {
             <button
               type="submit"
               disabled={pending}
-              className="rounded-2xl bg-gain px-4 py-2.5 text-sm font-semibold text-[#05201a] disabled:opacity-60"
+              className="rounded-2xl bg-gain px-4 py-2.5 text-sm font-semibold text-[#0b1440] disabled:opacity-60"
             >
               {pending ? "Salvando…" : "Já caiu"}
             </button>

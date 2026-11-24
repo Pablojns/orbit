@@ -94,7 +94,7 @@ export function QuickAdd({
         <button
           type="button"
           onClick={() => openSheet("income")}
-          className="flex items-center justify-center gap-2 rounded-2xl bg-gain px-4 py-3.5 text-[15px] font-semibold text-[#05201a] hover:brightness-110"
+          className="flex items-center justify-center gap-2 rounded-2xl bg-gain px-4 py-3.5 text-[15px] font-semibold text-[#0b1440] hover:brightness-110"
         >
           <ArrowDownLeft size={18} aria-hidden /> Lançar entrada
         </button>
@@ -108,7 +108,7 @@ export function QuickAdd({
                 role="dialog"
                 aria-modal="true"
                 aria-label={kind === "expense" ? "Lançar gasto" : "Lançar entrada"}
-                className="relative max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[2rem] border border-line bg-[#0d1126] p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-[2rem]"
+                className="relative max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[2rem] border border-line bg-[#0d1126] p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-3xl"
                 style={{ animation: "sheet-up 220ms cubic-bezier(.2,.8,.2,1)" }}
               >
                 <div className="flex items-center justify-between">
@@ -126,7 +126,7 @@ export function QuickAdd({
                           kind === k
                             ? k === "expense"
                               ? "grad-primary text-white"
-                              : "bg-gain/90 text-[#05201a]"
+                              : "bg-gain/90 text-[#0b1440]"
                             : "text-ink-soft"
                         }`}
                       >
@@ -280,7 +280,7 @@ export function QuickAdd({
                     type="submit"
                     disabled={pending}
                     className={`w-full rounded-2xl px-5 py-4 text-base font-semibold transition-opacity disabled:opacity-60 ${
-                      kind === "expense" ? "grad-primary text-white" : "bg-gain text-[#05201a]"
+                      kind === "expense" ? "grad-primary text-white" : "bg-gain text-[#0b1440]"
                     }`}
                   >
                     {pending ? "Salvando…" : kind === "expense" ? "Salvar gasto" : "Salvar entrada"}

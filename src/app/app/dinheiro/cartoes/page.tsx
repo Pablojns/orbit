@@ -69,7 +69,7 @@ export default async function CardsPage() {
           .filter((st) => st.status !== "paid")
           .reduce((a, st) => a + st.remainingCents, 0);
         return (
-          <section key={card.id} className="glass overflow-hidden rounded-[1.75rem]">
+          <section key={card.id} className="glass overflow-hidden rounded-3xl">
             <div className="relative overflow-hidden bg-gradient-to-br from-[#2a2f6b] via-[#3b2a78] to-[#0f4a6b] p-5">
               <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" aria-hidden />
               <div className="relative flex items-start justify-between">
@@ -164,7 +164,7 @@ export default async function CardsPage() {
                           <input type="hidden" name="amount" value={st.remainingCents} />
                           <button
                             type="submit"
-                            className="w-full rounded-2xl bg-gain/90 px-4 py-2.5 text-sm font-semibold text-[#05201a]"
+                            className="w-full rounded-2xl bg-gain/90 px-4 py-2.5 text-sm font-semibold text-[#0b1440]"
                           >
                             Paguei {formatCents(st.remainingCents)}
                           </button>

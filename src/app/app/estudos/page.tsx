@@ -128,7 +128,7 @@ export default async function StudiesPage() {
         />
       ) : (
         <>
-          <section className="glass mb-5 rounded-[1.75rem] p-5">
+          <section className="glass mb-5 rounded-3xl p-5">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold">Horário de aulas</h2>
@@ -214,7 +214,7 @@ export default async function StudiesPage() {
               const studies = mine.filter((e) => e.kind === "study");
               const examAhead = exams.some((e) => e.kind === "exam" && e.daysLeft >= 0);
               return (
-                <li key={sub.id} className="glass rounded-[1.75rem] p-5">
+                <li key={sub.id} className="glass rounded-3xl p-5">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <h2 className="truncate text-lg font-semibold">{sub.name}</h2>

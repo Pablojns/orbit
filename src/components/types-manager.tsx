@@ -93,7 +93,7 @@ export function TypesManager({ types }: { types: EventType[] }) {
                 role="dialog"
                 aria-modal="true"
                 aria-label="Tipos da agenda"
-                className="relative max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[2rem] border border-line bg-[#0d1126] p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-[2rem]"
+                className="relative max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-[2rem] border border-line bg-[#0d1126] p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-3xl"
                 style={{ animation: "sheet-up 220ms cubic-bezier(.2,.8,.2,1)" }}
               >
                 <div className="flex items-center justify-between">

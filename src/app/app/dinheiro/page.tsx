@@ -78,7 +78,7 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
         </Link>
       </div>
 
-      <section className="glass mt-2 rounded-[1.75rem] px-5 py-3">
+      <section className="glass mt-2 rounded-3xl px-5 py-3">
         {byDay.size ? (
           [...byDay.entries()].map(([day, items]) => (
             <div key={day} className="py-2">
@@ -103,7 +103,7 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
         )}
       </section>
 
-      <section className="glass mt-5 rounded-[1.75rem] p-5">
+      <section className="glass mt-5 rounded-3xl p-5">
         {past ? (
           <p className="text-sm text-ink-soft">
             Resumo de {formatShort(cycle.start)} a {formatShort(cycle.end)}

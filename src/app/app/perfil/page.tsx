@@ -14,7 +14,7 @@ export default async function ProfilePage() {
   return (
     <>
       <PageHeader title="Perfil" subtitle="Seu nome, seu ciclo, lembretes e categorias." />
-      <section className="glass rounded-[1.75rem] p-5">
+      <section className="glass rounded-3xl p-5">
         <ProfileForm displayName={profile.displayName ?? ""} cycleStartDay={profile.cycleStartDay} />
       </section>
       <PushToggle vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""} />

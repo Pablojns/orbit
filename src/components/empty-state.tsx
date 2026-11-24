@@ -13,7 +13,7 @@ export function EmptyState({
   children?: React.ReactNode;
 }) {
   return (
-    <section className="glass rounded-[1.75rem] px-5 py-6">
+    <section className="glass rounded-3xl px-5 py-6">
       <div className="flex items-start gap-4">
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-cobalt-soft text-cobalt">
           <Icon size={22} aria-hidden />

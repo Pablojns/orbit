@@ -43,7 +43,7 @@ export default async function GoalsPage() {
           const pct = Math.min(100, Math.max(0, (g.savedCents / g.targetCents) * 100));
           const missing = Math.max(0, g.targetCents - g.savedCents);
           return (
-            <li key={g.id} className="glass rounded-[1.75rem] p-5">
+            <li key={g.id} className="glass rounded-3xl p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <span className="grad-sun grid h-11 w-11 place-items-center rounded-2xl text-[#3a2300]">

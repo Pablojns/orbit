@@ -53,7 +53,7 @@ function MoneyRow({ it, todayISO }: { it: CalendarItem; todayISO: string }) {
       >
         <span
           className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl"
-          style={{ backgroundColor: `${colorOf(it)}26`, color: it.done ? "#3ee0a8" : colorOf(it) }}
+          style={{ backgroundColor: `${colorOf(it)}26`, color: it.done ? "#b9c6ff" : colorOf(it) }}
         >
           {it.kind === "statement" ? <CreditCard size={18} aria-hidden /> : <Receipt size={18} aria-hidden />}
         </span>

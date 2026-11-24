@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import "@fontsource-variable/bricolage-grotesque/wdth.css";
+import "@fontsource-variable/manrope";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";

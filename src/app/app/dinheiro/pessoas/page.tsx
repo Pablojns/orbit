@@ -58,7 +58,7 @@ function DebtRow({ d }: { d: Debt }) {
           }
           title={d.settled ? "Reabrir" : mine ? "Recebi" : "Paguei"}
           className={`grid h-9 w-9 place-items-center rounded-full border ${
-            d.settled ? "border-gain bg-gain text-[#05201a]" : "border-white/20 text-transparent hover:text-ink-soft"
+            d.settled ? "border-gain bg-gain text-[#0b1440]" : "border-white/20 text-transparent hover:text-ink-soft"
           }`}
         >
           <Check size={16} strokeWidth={3} aria-hidden />
@@ -107,11 +107,11 @@ export default async function PeoplePage() {
   return (
     <>
       <section className="grid grid-cols-2 gap-3">
-        <div className="glass rounded-[1.5rem] p-4">
+        <div className="glass rounded-3xl p-4">
           <p className="text-sm text-ink-soft">Te devem</p>
           <p className="font-display text-2xl font-bold text-gain">{formatCents(owedToMe)}</p>
         </div>
-        <div className="glass rounded-[1.5rem] p-4">
+        <div className="glass rounded-3xl p-4">
           <p className="text-sm text-ink-soft">Você deve</p>
           <p className="font-display text-2xl font-bold text-loss">{formatCents(iOwe)}</p>
         </div>
@@ -140,7 +140,7 @@ export default async function PeoplePage() {
       </div>
 
       {byPerson.size > 1 ? (
-        <section className="glass mt-5 rounded-[1.75rem] p-5">
+        <section className="glass mt-5 rounded-3xl p-5">
           <h2 className="text-lg font-semibold">Saldo por pessoa</h2>
           <ul className="mt-2 divide-y divide-white/[0.06]">
             {[...byPerson.entries()].map(([person, bal]) => (
@@ -157,7 +157,7 @@ export default async function PeoplePage() {
       ) : null}
 
       {open.length ? (
-        <section className="glass mt-5 rounded-[1.75rem] px-5 py-2">
+        <section className="glass mt-5 rounded-3xl px-5 py-2">
           <ul className="divide-y divide-white/[0.06]">
             {open.map((d) => (
               <DebtRow key={d.id} d={d} />
@@ -177,7 +177,7 @@ export default async function PeoplePage() {
       {settled.length ? (
         <details className="mt-4">
           <summary className="cursor-pointer text-sm text-ink-soft">Já acertados ({settled.length})</summary>
-          <section className="glass mt-2 rounded-[1.75rem] px-5 py-2">
+          <section className="glass mt-2 rounded-3xl px-5 py-2">
             <ul className="divide-y divide-white/[0.06]">
               {settled.map((d) => (
                 <DebtRow key={d.id} d={d} />

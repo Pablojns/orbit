@@ -77,7 +77,7 @@ export function PushToggle({ vapidPublicKey }: { vapidPublicKey: string }) {
 
   const on = status === "on";
   return (
-    <section className="glass mt-5 rounded-[1.75rem] p-5">
+    <section className="glass mt-5 rounded-3xl p-5">
       <div className="flex items-start gap-3">
         <span
           className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${on ? "bg-gain/15 text-gain" : "bg-white/[0.06]"}`}

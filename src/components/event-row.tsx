@@ -40,7 +40,7 @@ function TypeIcon({ e }: { e: AgendaEvent }) {
   return (
     <span
       className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-2xl"
-      style={{ backgroundColor: `${e.done ? "#3ee0a8" : e.color}26`, color: e.done ? "#3ee0a8" : e.color }}
+      style={{ backgroundColor: `${e.done ? "#b9c6ff" : e.color}26`, color: e.done ? "#b9c6ff" : e.color }}
     >
       <Icon size={18} aria-hidden />
     </span>
@@ -133,7 +133,7 @@ export function EventRow({
             aria-label={e.done ? `Reabrir ${e.title}` : `Concluir ${e.title}`}
             title={e.done ? "Reabrir" : "Marcar como feito"}
             className={`ml-1 grid h-9 w-9 place-items-center rounded-full border ${
-              e.done ? "border-gain bg-gain text-[#05201a]" : "border-white/20 text-transparent hover:text-ink-soft"
+              e.done ? "border-gain bg-gain text-[#0b1440]" : "border-white/20 text-transparent hover:text-ink-soft"
             }`}
           >
             <Check size={16} strokeWidth={3} aria-hidden />

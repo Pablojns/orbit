@@ -68,7 +68,7 @@ export function AgendaBoard({
 
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,25rem)]">
-      <section className="glass flex min-w-0 flex-col rounded-[1.75rem] p-5">
+      <section className="glass flex min-w-0 flex-col rounded-3xl p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-lg font-semibold">{selected ? weekdayLong(selected) : "Esta semana"}</h2>
@@ -107,7 +107,7 @@ export function AgendaBoard({
         </div>
       </section>
 
-      <section className="glass rounded-[1.75rem] p-4 sm:p-5">
+      <section className="glass rounded-3xl p-4 sm:p-5">
         <div className="flex items-center justify-between gap-3">
           <Link
             href={prevHref}

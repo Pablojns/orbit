@@ -26,7 +26,7 @@ export function ChecklistPanel({
                   type="submit"
                   aria-label={it.done ? `Desmarcar ${it.text}` : `Marcar ${it.text}`}
                   className={`grid h-5 w-5 place-items-center rounded-md border ${
-                    it.done ? "border-gain bg-gain text-[#05201a]" : "border-white/25 text-transparent"
+                    it.done ? "border-gain bg-gain text-[#0b1440]" : "border-white/25 text-transparent"
                   }`}
                 >
                   <Check size={12} strokeWidth={3} aria-hidden />

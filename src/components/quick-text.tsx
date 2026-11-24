@@ -2,6 +2,7 @@
 
 import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import { Mic, Sparkles } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { type QuickState, quickText } from "@/app/app/actions";
 import { useAutoOpen } from "./use-auto-open";
 
@@ -85,7 +86,7 @@ export function QuickText({ floating = false }: { floating?: boolean }) {
     <form
       ref={formRef}
       action={action}
-      className={`glass rounded-[1.5rem] p-2.5 ${floating ? "bg-[#0b0f24]/85 shadow-lg shadow-black/30 backdrop-blur-xl" : ""}`}
+      className={`glass rounded-[18px] p-2 ${floating ? "shadow-lg shadow-black/30" : ""}`}
     >
       <div className="flex items-center gap-2">
         {canSpeak ? (
@@ -95,11 +96,11 @@ export function QuickText({ floating = false }: { floating?: boolean }) {
             aria-label={listening ? "Parar de ouvir" : "Falar em vez de escrever"}
             title={listening ? "Parar de ouvir" : "Falar"}
             aria-pressed={listening}
-            className={`grid h-12 w-12 shrink-0 place-items-center rounded-full transition-colors ${
-              listening ? "bg-loss text-white" : "grad-primary text-white hover:brightness-110"
+            className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl transition-colors ${
+              listening ? "bg-loss text-white" : "mic-btn text-white hover:brightness-110"
             }`}
           >
-            <Mic size={24} strokeWidth={2.2} className={listening ? "animate-pulse" : ""} aria-hidden />
+            <Mic size={20} strokeWidth={2.2} className={listening ? "animate-pulse" : ""} aria-hidden />
           </button>
         ) : (
           <Sparkles size={18} className="ml-1 shrink-0 text-cobalt" aria-hidden />
@@ -113,12 +114,12 @@ export function QuickText({ floating = false }: { floating?: boolean }) {
           enterKeyHint="send"
           aria-label="Lançar escrevendo"
           placeholder={listening ? "Pode falar…" : "Escreva ou fale: mercado 45 pix · prova sexta 19h"}
-          className="min-w-0 flex-1 bg-transparent py-2 text-[15px] outline-none placeholder:text-white/30"
+          className="min-w-0 flex-1 bg-transparent py-2 text-[15px] font-semibold outline-none placeholder:font-medium placeholder:text-white/35"
         />
         <button
           type="submit"
           disabled={pending}
-          className="shrink-0 rounded-xl bg-white/[0.08] px-4 py-2.5 text-sm font-semibold text-ink hover:bg-white/[0.12] disabled:opacity-60"
+          className="grad-primary h-11 shrink-0 rounded-2xl px-5 text-[15px] font-bold text-white hover:brightness-110 disabled:opacity-60"
         >
           {pending ? "…" : "Lançar"}
         </button>
@@ -147,8 +148,10 @@ export function QuickText({ floating = false }: { floating?: boolean }) {
   );
 }
 
-// Barra fixa no topo de todas as telas do app (decisão 1, 21/11).
+// Barra fixa no topo das telas do app. No Início ela fica logo abaixo do Saldo (Rodada 3).
 export function QuickTextBar() {
+  const pathname = usePathname();
+  if (pathname === "/app") return null;
   return (
     <div className="sticky top-0 z-30 pt-3 pb-2 lg:pt-5">
       <QuickText floating />

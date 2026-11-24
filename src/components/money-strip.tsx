@@ -36,7 +36,7 @@ export function MoneyStrip({
       : []),
   ];
   return (
-    <div className={`glass grid divide-x divide-white/[0.08] rounded-[1.5rem] ${hasCards ? "grid-cols-3" : "grid-cols-2"}`}>
+    <div className={`glass grid divide-x divide-white/[0.08] rounded-3xl ${hasCards ? "grid-cols-3" : "grid-cols-2"}`}>
       {items.map((it) => (
         <Link key={it.label} href={it.href} className="min-w-0 px-4 py-3 hover:bg-white/[0.03]">
           <p className="truncate text-[12px] text-ink-soft">{it.label}</p>
