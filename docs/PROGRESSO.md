@@ -3,16 +3,16 @@
 Leia docs/PLANO-RODADAS.md primeiro. Este arquivo diz onde a sessão parou. Ele é atualizado a cada commit.
 
 ## Estado atual
-- Rodada atual: **4**
-- Último item concluído: R3 fechada (relatório em docs/RELATORIO-RODADA-3.md)
-- Próximo passo: R4 — novos pop-ups (extrato rápido, conta explicada etc.) e depois sem rolagem
+- Rodada atual: **5**
+- Último item concluído: R4 fechada
+- Próximo passo: R5 — Dinheiro (Extrato, Cartões com fatura em pop-up, Contas fixas, Metas, Empréstimos), Agenda (itens do dia em pop-up) e Perfil no visual novo
 
 ## Rodadas
 | Rodada | Situação |
 |---|---|
 | R3 visual, Início, Estudos, Hábitos, tutorial, voz | feita |
-| R4 sem rolagem e pop-ups | em andamento |
-| R5 Dinheiro, Agenda e Perfil no visual | a fazer |
+| R4 sem rolagem e pop-ups | feita |
+| R5 Dinheiro, Agenda e Perfil no visual | em andamento |
 | R6 Hábitos e Perfil completos | a fazer |
 | R7 voz completa | a fazer |
 | R8 completude | a fazer |
@@ -30,3 +30,4 @@ Leia docs/PLANO-RODADAS.md primeiro. Este arquivo diz onde a sessão parou. Ele 
 ## Registro por commit
 - R3: 05bc17a visual · 48536e1 Início · 9d97565 Estudos · a86a5db Hábitos · bbc9bda tutorial · 136e35e Dinheiro · f3d7c38 voz · (fechamento) conta nova a partir de hoje + docs
 - R4: janela única (Modal: Esc, voltar, foco preso)
+- R4: 1543330 janela única · a67c914 pop-ups e sem rolagem · fechamento

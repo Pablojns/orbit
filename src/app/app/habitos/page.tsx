@@ -26,7 +26,7 @@ export default async function HabitsPage() {
   const total = (
     <section className="hero-card rounded-3xl px-5 py-[18px] lg:p-6">
       <p className="text-[13px] font-bold text-[#b9c2f5] lg:text-sm">Últimos 7 dias</p>
-      <p className="mt-0.5 text-[34px] leading-[1.05] font-extrabold tracking-[-0.02em] lg:text-5xl">
+      <p className="mt-0.5 text-[34px] leading-[1.05] font-extrabold tracking-[-0.02em] lg:text-[40px]">
         {weekDone} {weekDone === 1 ? "marcação" : "marcações"}
       </p>
       <p className="mt-1 text-sm font-semibold text-[#c7cff7]">somando todos os hábitos</p>
