@@ -121,6 +121,10 @@ const s = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const HM = /^\d{2}:\d{2}$/;
 
+// A IA está ocupada (limite do plano grátis do Groq) ou a pessoa passou do limite do dia.
+export class AiBusyError extends Error {}
+export const AI_DAILY_LIMIT = 150;
+
 export async function interpretWithAI(
   text: string,
   today: CalendarDate,
@@ -129,6 +133,11 @@ export async function interpretWithAI(
 ): Promise<AiIntent | null> {
   const key = process.env.GROQ_API_KEY;
   if (!key) return null;
+  const { createClient } = await import("@/lib/supabase/server");
+  const supabase = await createClient();
+  const { data: allowed } = await supabase.rpc("bump_ai_usage", { max_per_day: AI_DAILY_LIMIT });
+  if (allowed === false) throw new AiBusyError("limite do dia");
+  let busy = false;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const res = await fetch(
@@ -156,8 +165,9 @@ export async function interpretWithAI(
           signal: AbortSignal.timeout(7000),
         },
       );
-      if (res.status === 429 && attempt === 0) {
-        await new Promise((ok) => setTimeout(ok, 1500));
+      if (res.status === 429) {
+        busy = true;
+        if (attempt === 0) await new Promise((ok) => setTimeout(ok, 1500));
         continue;
       }
       if (!res.ok) return null;
@@ -172,6 +182,7 @@ export async function interpretWithAI(
       return null;
     }
   }
+  if (busy) throw new AiBusyError("Groq ocupado");
   return null;
 }
 

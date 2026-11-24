@@ -29,3 +29,6 @@ $$;
 
 -- Conferência: deve voltar zero linhas.
 select tablename, policyname from pg_policies where schemaname = 'public' and policyname ilike '%modo teste%';
+
+-- Com login ligado, só quem entrou pode usar a IA.
+revoke execute on function public.bump_ai_usage(int) from anon;

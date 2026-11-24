@@ -1717,13 +1717,20 @@ export async function quickText(_prev: QuickState, fd: FormData): Promise<QuickS
   if (md.kind === "vague") return info("Em que dia foi? Escreva junto, como “dia 12” ou “ontem”.");
 
   // 1) IA entende a intenção (gasto, entrada, compromisso, pergunta ou dúvida).
-  const { interpretWithAI } = await import("@/lib/ai-intent");
-  const ai = await interpretWithAI(
-    text,
-    today,
-    (cats ?? []).map((c) => c.name),
-    (cards ?? []).map((c) => c.name),
-  );
+  const { interpretWithAI, AiBusyError } = await import("@/lib/ai-intent");
+  let ai: Awaited<ReturnType<typeof interpretWithAI>> = null;
+  let aiBusy = false;
+  try {
+    ai = await interpretWithAI(
+      text,
+      today,
+      (cats ?? []).map((c) => c.name),
+      (cards ?? []).map((c) => c.name),
+    );
+  } catch (e) {
+    if (!(e instanceof AiBusyError)) throw e;
+    aiBusy = true; // segue pelas regras fixas; se elas não entenderem, avisa abaixo
+  }
   const aiMissedValue = ai?.intent === "unclear" && ai.ask === "Qual foi o valor?";
   const todayIso = toISODate(today);
   // Data passada + valor nunca é compromisso: é dinheiro ("gasolina 120 no inter dia 2/11").
@@ -1789,7 +1796,13 @@ export async function quickText(_prev: QuickState, fd: FormData): Promise<QuickS
   const { parseAgendaText } = await import("@/lib/agenda-parse");
   const agenda = pastMoney ? null : parseAgendaText(text, today);
   if (agenda) return saveAgendaFromText(agenda.title, agenda.kind, agenda.date, agenda.time);
-  return moneyFromRules(text, null, md, cats ?? [], cards ?? []);
+  const r = await moneyFromRules(text, null, md, cats ?? [], cards ?? []);
+  if (aiBusy && r.status === "error") {
+    return info(
+      "O assistente está muito ocupado agora e não entendeu esta frase. Escreva no formato “mercado 45 pix” ou tente em alguns minutos.",
+    );
+  }
+  return r;
 }
 
 type MoneyDateResult = import("@/lib/money-date").MoneyDate;
