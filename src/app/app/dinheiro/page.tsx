@@ -40,9 +40,6 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
         <div className="mb-3">
           <MoneyStrip
             balanceCents={s.balanceCents}
-            upcomingCents={s.upcomingCents}
-            perDayCents={s.perDayCents}
-            freeCents={s.freeCents}
             openStatementCents={s.openStatementCents}
             hasCards={f.cards.length > 0}
           />
