@@ -8,7 +8,7 @@ export function ClassMini({ o, today }: { o: { date: string; slot: ClassSlot }; 
   const days = diffInDays(today, fromISODate(o.date));
   return (
     <li className="flex items-start gap-3 py-3">
-      <span className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#A3E635]/15 text-[#A3E635]">
+      <span className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[#7DD3FC]/15 text-[#7DD3FC]">
         <GraduationCap size={18} aria-hidden />
       </span>
       <div className="min-w-0 flex-1">

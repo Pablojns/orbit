@@ -23,7 +23,7 @@ export const metadata = { title: "Agenda" };
 export const dynamic = "force-dynamic";
 
 const MONEY_COLOR = { fixed_bill: "#B49BFF", statement: "#B49BFF" } as const;
-const CLASS_COLOR = "#A3E635";
+const CLASS_COLOR = "#7DD3FC";
 // Legenda enxuta: tipos da pessoa + Aula + Dinheiro (conta e fatura juntos). "Feito" vira um risco, não uma cor.
 
 const pad = (n: number) => String(n).padStart(2, "0");
