@@ -100,9 +100,14 @@ h2,
   font-family: var(--font-app);
   font-variant-numeric: tabular-nums;
 }
+.app-vars {
+  font-family: var(--font-app);
+  font-variant-numeric: tabular-nums;
+}
 .app-theme h1,
 .app-theme h2,
-.app-theme .font-display {
+.app-theme .font-display,
+.app-vars h2 {
   font-family: var(--font-app);
   font-variation-settings: normal;
   font-weight: 800;

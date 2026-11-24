@@ -19,6 +19,7 @@ export function FormSheet({
   hidden,
   variant = "primary",
   autoOpen,
+  triggerClassName,
 }: {
   title: string;
   trigger: string;
@@ -28,6 +29,7 @@ export function FormSheet({
   hidden?: Record<string, string>;
   variant?: "primary" | "glass" | "link" | "edit";
   autoOpen?: string;
+  triggerClassName?: string; // botão com estilo próprio (sem o ícone de +)
 }) {
   const [open, setOpen] = useState(false);
   useAutoOpen(autoOpen, () => setOpen(true));
@@ -60,8 +62,8 @@ export function FormSheet({
           <Pencil size={15} aria-hidden />
         </button>
       ) : (
-        <button type="button" onClick={() => setOpen(true)} className={triggerClass}>
-          {variant !== "link" ? <Plus size={18} strokeWidth={2.4} aria-hidden /> : null}
+        <button type="button" onClick={() => setOpen(true)} className={triggerClassName ?? triggerClass}>
+          {variant !== "link" && !triggerClassName ? <Plus size={18} strokeWidth={2.4} aria-hidden /> : null}
           {trigger}
         </button>
       )}

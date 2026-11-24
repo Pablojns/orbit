@@ -443,6 +443,73 @@ const priorityOf = (fd: FormData) => {
   return [1, 2, 3].includes(p) ? p : null;
 };
 
+// A matéria cujo nome aparece no título, se for só uma.
+async function subjectFromTitle(title: string): Promise<string | null> {
+  const { getSubjects } = await import("@/lib/studies");
+  const { subjectInTitle } = await import("@/lib/studies-math");
+  return subjectInTitle(title, await getSubjects())?.id ?? null;
+}
+
+// Liga uma prova ou trabalho (e as sessões de estudo da mesma série) a uma matéria.
+export async function linkEventSubject(_prev: FormState, fd: FormData): Promise<FormState> {
+  const id = optUuid(str(fd, "id"));
+  const subjectId = optUuid(str(fd, "subject_id"));
+  if (!id || !subjectId) return fail("Escolha a matéria.");
+  const supabase = await db();
+  const { data: ev } = await supabase
+    .from("events")
+    .select("series_id")
+    .eq("id", id)
+    .eq("user_id", OWNER_ID)
+    .maybeSingle();
+  if (!ev) return fail("Item não encontrado.");
+  const q = supabase.from("events").update({ subject_id: subjectId }).eq("user_id", OWNER_ID);
+  const { error } = ev.series_id ? await q.eq("series_id", ev.series_id) : await q.eq("id", id);
+  if (error) return fail("Não foi possível ligar.");
+  revalidatePath("/app", "layout");
+  return { status: "saved", message: "Ligado à matéria." };
+}
+
+// Plano de estudo para uma prova já marcada: espalha N sessões até a véspera.
+export async function createStudyPlan(_prev: FormState, fd: FormData): Promise<FormState> {
+  const id = optUuid(str(fd, "id"));
+  const sessions = Math.min(8, Math.max(1, Number(str(fd, "sessions")) || 0));
+  if (!id) return fail("Prova não encontrada.");
+  const supabase = await db();
+  const { data: ev } = await supabase
+    .from("events")
+    .select("title, starts_at, subject_id, series_id")
+    .eq("id", id)
+    .eq("user_id", OWNER_ID)
+    .maybeSingle();
+  if (!ev) return fail("Prova não encontrada.");
+  const examDate = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(ev.starts_at));
+  const days = await pickStudyDays(supabase, examDate, sessions);
+  if (!days.length) return fail("Não há dias livres antes da prova.");
+  const seriesId = (ev.series_id as string | null) ?? crypto.randomUUID();
+  if (!ev.series_id) await supabase.from("events").update({ series_id: seriesId }).eq("id", id).eq("user_id", OWNER_ID);
+  const study = new FormData();
+  study.set("kind", "study");
+  const { typeId: studyType } = await resolveType(supabase, study);
+  const { error } = await supabase.from("events").insert(
+    days.map((d) => ({
+      user_id: OWNER_ID,
+      title: `Estudar: ${ev.title}`.slice(0, 80),
+      kind: "study",
+      type_id: studyType,
+      subject_id: ev.subject_id,
+      starts_at: `${d}T12:00:00-03:00`,
+      all_day: true,
+      notes: null,
+      remind_days: 0,
+      series_id: seriesId,
+    })),
+  );
+  if (error) return fail("Não foi possível criar o plano.");
+  revalidatePath("/app", "layout");
+  return { status: "saved", message: `${days.length} ${days.length === 1 ? "sessão marcada" : "sessões marcadas"} na Agenda.` };
+}
+
 export async function saveEvent(_prev: FormState, fd: FormData): Promise<FormState> {
   const title = str(fd, "title").slice(0, 80);
   const date = str(fd, "date");
@@ -466,7 +533,9 @@ export async function saveEvent(_prev: FormState, fd: FormData): Promise<FormSta
 
   const seriesId = dates.length > 1 || sessions > 0 ? crypto.randomUUID() : null;
   const priority = priorityOf(fd);
-  const subjectId = optUuid(str(fd, "subject_id"));
+  // Prova ou trabalho sem matéria escolhida: liga pela matéria citada no título ("Prova de Estatística").
+  let subjectId = optUuid(str(fd, "subject_id"));
+  if (!subjectId && (kind === "exam" || kind === "deadline")) subjectId = await subjectFromTitle(title);
   const rows: Record<string, unknown>[] = dates.map((d) => ({
     user_id: OWNER_ID,
     title,
@@ -492,6 +561,7 @@ export async function saveEvent(_prev: FormState, fd: FormData): Promise<FormSta
         title: `Estudar: ${title}`.slice(0, 80),
         kind: "study",
         type_id: studyType,
+        subject_id: subjectId,
         starts_at: `${d}T12:00:00-03:00`,
         all_day: true,
         notes: null,

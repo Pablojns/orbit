@@ -71,6 +71,18 @@ export function matchSubject<T extends { name: string }>(said: string, subjects:
   return byWord.length === 1 ? byWord[0] : (contains[0] ?? null);
 }
 
+// A matéria citada dentro de um título ("Prova de Estatística"): só se for uma.
+export function subjectInTitle<T extends { name: string }>(title: string, subjects: T[]): T | null {
+  const words = new Set(fold(title).split(" "));
+  const hits = subjects.filter((s) => {
+    const key = fold(s.name)
+      .split(" ")
+      .filter((w) => w.length >= 3 && !["de", "da", "do", "das", "dos"].includes(w));
+    return key.length > 0 && key.every((w) => words.has(w));
+  });
+  return hits.length === 1 ? hits[0] : null;
+}
+
 // Até quando repete quando a frase não diz: fim do semestre (se houver e for depois)
 // ou 12 semanas depois da primeira data.
 export function defaultRepeatUntil(firstISO: string, term: Term): string {

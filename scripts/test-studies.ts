@@ -68,3 +68,11 @@ assert.deepEqual(parseStudyText("quero estudar duas vezes pra prova de inglês")
 assert.equal(parseStudyText("mercado 45 pix"), null);
 assert.equal(parseStudyText("prova de cálculo sexta 19h"), null);
 console.log("test-studies (frases de Estudos): ok");
+
+import { subjectInTitle } from "../src/lib/studies-math";
+assert.equal(subjectInTitle("Prova de Estatística", [{ name: "Estatística" }])?.name, "Estatística");
+assert.equal(subjectInTitle("prova de calculo", subs)?.name, "Cálculo I");
+assert.equal(subjectInTitle("Trabalho de Algoritmos e Lógica", subs)?.name, "Algoritmos e Lógica");
+assert.equal(subjectInTitle("prova", [{ name: "Estatística" }]), null);
+assert.equal(subjectInTitle("dentista", subs), null);
+console.log("test-studies (matéria no título): ok");
