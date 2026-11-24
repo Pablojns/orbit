@@ -217,6 +217,25 @@ export default async function MoneyPage({
 
       {!past ? (
         <section className="glass mt-5 rounded-3xl p-5">
+          <h2 className="text-lg">Resumo da semana</h2>
+          <p className="mt-1 text-[15px]">
+            Nos últimos 7 dias você gastou <strong>{formatCents(s.week.thisWeekCents)}</strong>
+            {s.week.lastWeekCents > 0 ? (
+              <>
+                {" "}
+                ({s.week.thisWeekCents >= s.week.lastWeekCents ? "+" : "−"}
+                {Math.abs(Math.round(((s.week.thisWeekCents - s.week.lastWeekCents) / s.week.lastWeekCents) * 100))}% em
+                relação aos 7 dias antes, que foram {formatCents(s.week.lastWeekCents)}).
+              </>
+            ) : (
+              "."
+            )}
+          </p>
+        </section>
+      ) : null}
+
+      {!past ? (
+        <section className="glass mt-5 rounded-3xl p-5">
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="text-lg">Orçamento do ciclo</h2>
