@@ -15,3 +15,27 @@ assert.deepEqual(
 // Espaços extras
 assert.equal(mergeVoice([{ transcript: "  prova  sexta ", isFinal: true }]).text, "prova sexta");
 console.log("test-voice (texto parcial): ok");
+
+import { hasWakeWord, isDoubleClap } from "../src/lib/voice-text";
+assert.equal(hasWakeWord("Dimeta"), true);
+assert.equal(hasWakeWord("ok di meta"), true);
+assert.equal(hasWakeWord("de meta, quanto posso gastar"), true);
+assert.equal(hasWakeWord("minha meta de viagem"), false);
+assert.equal(hasWakeWord("mercado 45 pix"), false);
+assert.equal(isDoubleClap([1000, 1300], 1400), true);
+assert.equal(isDoubleClap([1000, 1050], 1100), false); // eco do mesmo estalo
+assert.equal(isDoubleClap([1000, 1900], 2000), false); // longe demais
+assert.equal(isDoubleClap([0, 300], 2000), false); // antigo
+console.log("test-voice (palavra Dimeta e palmas): ok");
+
+// Transcrições de exemplo (números e nomes) passam pela mesma leitura da barra.
+import { parseQuickText } from "../src/lib/quick-parse";
+const cats = [{ id: "m", name: "Mercado", kind: "expense" }, { id: "t", name: "Transporte", kind: "expense" }];
+const cards = [{ id: "n", name: "Nubank" }];
+// O reconhecimento de voz entrega números como dígitos e nomes com maiúscula.
+const ditos: [string, number][] = [["Mercado 45 pix", 4500], ["Uber 18 reais no Nubank", 1800], ["mercado 32,50", 3250]];
+for (const [said, cents] of ditos) {
+  const r = parseQuickText(said, cats, cards) as { amountCents?: number };
+  assert.equal(r.amountCents, cents, `não leu: ${said}`);
+}
+console.log("test-voice (transcrições de exemplo): ok");

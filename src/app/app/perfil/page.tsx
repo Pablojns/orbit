@@ -7,6 +7,7 @@ import { getCategories } from "@/lib/finance";
 import { requireProfile } from "@/lib/profile";
 import { CategoriesSection } from "./categories";
 import { PushToggle } from "./push-toggle";
+import { VoiceSettings } from "./voice-settings";
 import { ProfileForm } from "./profile-form";
 
 export const metadata = { title: "Perfil" };
@@ -56,6 +57,7 @@ export default async function ProfilePage() {
           </FormSheet>
         </div>
       </section>
+      <VoiceSettings />
       <section className="glass mt-5 rounded-3xl p-5">
         <h2 className="text-lg font-semibold">Abas do menu</h2>
         <p className="mt-1 text-sm text-ink-soft">Mostre ou esconda Estudos e Hábitos. Nada do que você cadastrou é apagado.</p>

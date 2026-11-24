@@ -7,6 +7,8 @@ import { type QuickState, quickText } from "@/app/app/actions";
 import { useAutoOpen } from "./use-auto-open";
 import { mergeVoice } from "@/lib/voice-text";
 
+export const VOICE_REPLY_KEY = "dimeta.voz.resposta";
+
 type Recognition = {
   lang: string;
   interimResults: boolean;
@@ -47,6 +49,41 @@ export function QuickText({ floating = false }: { floating?: boolean }) {
   }, []);
   useAutoOpen("frase", () => inputRef.current?.focus());
 
+  // Resposta falada (liga no Perfil, guardado neste aparelho): só depois de um comando de voz.
+  const viaVoice = useRef(false);
+  useEffect(() => {
+    if (!viaVoice.current || state.status === "idle" || !state.message) return;
+    viaVoice.current = false;
+    try {
+      if (window.localStorage.getItem(VOICE_REPLY_KEY) !== "on" || !("speechSynthesis" in window)) return;
+      const u = new SpeechSynthesisUtterance(state.message);
+      u.lang = "pt-BR";
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    } catch {
+      /* sem voz neste navegador */
+    }
+  }, [state]);
+
+  // Atalho de teclado (Alt+V) e chamada pela palavra "Dimeta" ou por palmas.
+  // Só existe uma barra por tela (no Início ela fica abaixo do Saldo), então só uma responde.
+  const toggleRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.altKey && (e.key === "v" || e.key === "V")) {
+        e.preventDefault();
+        toggleRef.current();
+      }
+    };
+    const onCall = () => toggleRef.current();
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("dimeta:falar", onCall);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("dimeta:falar", onCall);
+    };
+  }, []);
+
   function toggleVoice() {
     if (listening) {
       recRef.current?.stop();
@@ -81,10 +118,12 @@ export function QuickText({ floating = false }: { floating?: boolean }) {
     };
     rec.onend = () => {
       setListening(false);
+      window.dispatchEvent(new Event("dimeta:voz-fim"));
       // Envio automático ao terminar de falar (com o texto confirmado ou o último parcial).
       const text = inputRef.current?.value.trim() || finalText;
       if (!failed && text && inputRef.current) {
         inputRef.current.value = text;
+        viaVoice.current = true;
         formRef.current?.requestSubmit();
       }
     };
@@ -94,6 +133,9 @@ export function QuickText({ floating = false }: { floating?: boolean }) {
     rec.start();
   }
 
+  useEffect(() => {
+    toggleRef.current = toggleVoice;
+  });
   const message = voiceError || state.message;
   // Resposta a um botão da dúvida: reenvia a mesma frase dizendo o que ela é.
   function answer(force: string) {
@@ -115,7 +157,7 @@ export function QuickText({ floating = false }: { floating?: boolean }) {
             type="button"
             onClick={toggleVoice}
             aria-label={listening ? "Parar de ouvir" : "Falar em vez de escrever"}
-            title={listening ? "Parar de ouvir" : "Falar"}
+            title={listening ? "Parar de ouvir" : "Falar (Alt+V)"}
             aria-pressed={listening}
             className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl transition-colors ${
               listening ? "bg-loss text-white" : "mic-btn text-white hover:brightness-110"

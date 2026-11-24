@@ -4,6 +4,7 @@ import { QuickTextBar } from "@/components/quick-text";
 import { UndoProvider } from "@/components/undo";
 import { Welcome } from "@/components/welcome";
 import { Tutorial } from "@/components/tutorial";
+import { VoiceListener } from "@/components/voice-listener";
 import { getCards, getCategories } from "@/lib/finance";
 import { requireProfile } from "@/lib/profile";
 
@@ -23,6 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </main>
         <QuickAdd categories={categories} cards={cards} variant="fab" />
         <BottomNav hidden={hidden} />
+        <VoiceListener />
         {profile.tutorialDone ? (
           <Welcome vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""} />
         ) : (

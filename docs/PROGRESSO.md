@@ -3,9 +3,9 @@
 Leia docs/PLANO-RODADAS.md primeiro. Este arquivo diz onde a sessão parou. Ele é atualizado a cada commit.
 
 ## Estado atual
-- Rodada atual: **7**
-- Último item concluído: R6 fechada
-- Próximo passo: R7 voz — atalho de teclado, respostas faladas (liga no Perfil), comandos "quanto posso gastar hoje", palavra "Dimeta" experimental
+- Rodada atual: **8**
+- Último item concluído: R7 fechada
+- Próximo passo: R8 completude — auditoria (docs/AUDITORIA-R8.md) e itens pequenos/médios
 
 ## Rodadas
 | Rodada | Situação |
@@ -14,8 +14,8 @@ Leia docs/PLANO-RODADAS.md primeiro. Este arquivo diz onde a sessão parou. Ele 
 | R4 sem rolagem e pop-ups | feita |
 | R5 Dinheiro, Agenda e Perfil no visual | feita |
 | R6 Hábitos e Perfil completos | feita |
-| R7 voz completa | em andamento |
-| R8 completude | a fazer |
+| R7 voz completa | feita |
+| R8 completude | em andamento |
 | R9 contas, teste grátis, cobrança (desligados) | a fazer |
 | R10 qualidade, segurança, desempenho | a fazer |
 | R11 pronto para lançar | a fazer |
