@@ -3,102 +3,110 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-type Status = "idle" | "sending" | "sent" | "error";
+// Login por e-mail e senha (Rodada 9). Só é usado com AUTH_ENABLED ligado.
+type Mode = "entrar" | "criar";
+
+const ERRORS: Record<string, string> = {
+  "Invalid login credentials": "E-mail ou senha não conferem.",
+  "User already registered": "Este e-mail já tem conta. Use Entrar.",
+  "Email not confirmed": "Confirme o e-mail pelo link que enviamos antes de entrar.",
+};
 
 export function LoginForm() {
+  const [mode, setMode] = useState<Mode>("entrar");
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<Status>("idle");
-  const [error, setError] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ tone: "error" | "info"; text: string } | null>(null);
 
-  const redirectTo = () => `${window.location.origin}/auth/callback`;
-
-  async function sendLink(event: React.FormEvent) {
+  async function submit(event: React.FormEvent) {
     event.preventDefault();
-    setStatus("sending");
-    const { error } = await createClient().auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: redirectTo() },
-    });
-    if (error) {
-      setError(
-        error.status === 429
-          ? "Limite de e-mails de acesso atingido por agora. Tente de novo em até 1 hora e use o último link que chegar."
-          : "Não foi possível enviar o link. Confira o e-mail e tente de novo.",
-      );
-      setStatus("error");
+    setBusy(true);
+    setMsg(null);
+    const supabase = createClient();
+    if (mode === "entrar") {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      setBusy(false);
+      if (error) return setMsg({ tone: "error", text: ERRORS[error.message] ?? "Não foi possível entrar agora." });
+      window.location.assign("/app");
       return;
     }
-    setStatus("sent");
-  }
-
-  async function signInWithGoogle() {
-    const { error } = await createClient().auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: redirectTo() },
-    });
-    if (error) {
-      setError("O login com Google ainda não está ativado. Use o link por e-mail.");
-      setStatus("error");
+    if (password.length < 8) {
+      setBusy(false);
+      return setMsg({ tone: "error", text: "A senha precisa ter pelo menos 8 caracteres." });
     }
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    });
+    setBusy(false);
+    if (error) return setMsg({ tone: "error", text: ERRORS[error.message] ?? "Não foi possível criar a conta agora." });
+    if (data.session) {
+      window.location.assign("/app");
+      return;
+    }
+    setMsg({ tone: "info", text: `Enviamos um link de confirmação para ${email}. Abra e depois entre com sua senha.` });
   }
 
-  if (status === "sent") {
-    return (
-      <div role="status" className="rounded-3xl bg-card p-5">
-        <p className="text-lg font-semibold">Confira seu e-mail</p>
-        <p className="mt-1 text-[15px] leading-relaxed text-ink-soft">
-          Mandamos um link de acesso para <strong className="text-ink">{email}</strong>. Abra no mesmo aparelho para
-          entrar.
-        </p>
-        <button type="button" onClick={() => setStatus("idle")} className="mt-4 text-sm font-medium text-cobalt">
-          Usar outro e-mail
-        </button>
-      </div>
-    );
-  }
+  const input =
+    "mt-1.5 h-12 w-full rounded-2xl border border-white/[0.1] bg-[#0f1634] px-4 text-base text-[#eef1ff] outline-none placeholder:text-white/30 focus:border-[#a78bfa]";
 
   return (
-    <div className="space-y-3">
-      <form onSubmit={sendLink} className="space-y-3">
-        <label className="block">
-          <span className="sr-only">E-mail</span>
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="seu@email.com"
-            autoComplete="email"
-            inputMode="email"
-            className="w-full rounded-2xl border border-line bg-card px-4 py-3.5 text-base outline-none focus:border-cobalt"
-          />
-        </label>
-        <button
-          type="submit"
-          disabled={status === "sending"}
-          className="w-full rounded-2xl bg-cobalt px-5 py-3.5 text-base font-semibold text-white transition-opacity disabled:opacity-60"
-        >
-          {status === "sending" ? "Enviando…" : "Receber link de acesso"}
-        </button>
-      </form>
-
-      <button
-        type="button"
-        onClick={signInWithGoogle}
-        className="w-full rounded-2xl border border-line bg-card px-5 py-3.5 text-base font-medium"
-      >
-        Entrar com Google
-      </button>
-
-      {status === "error" ? (
-        <p role="alert" className="text-sm text-loss">
-          {error}
+    <form onSubmit={submit} className="space-y-4">
+      <div className="grid grid-cols-2 gap-1 rounded-2xl border border-white/[0.07] bg-[#0f1634] p-1">
+        {(["entrar", "criar"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            aria-pressed={mode === m}
+            onClick={() => {
+              setMode(m);
+              setMsg(null);
+            }}
+            className={`h-11 rounded-xl text-sm font-bold ${mode === m ? "grad-primary text-white" : "text-[#98a2cc]"}`}
+          >
+            {m === "entrar" ? "Entrar" : "Criar conta"}
+          </button>
+        ))}
+      </div>
+      <label className="block text-sm text-[#98a2cc]">
+        E-mail
+        <input
+          type="email"
+          required
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className={input}
+        />
+      </label>
+      <label className="block text-sm text-[#98a2cc]">
+        Senha
+        <input
+          type="password"
+          required
+          minLength={mode === "criar" ? 8 : undefined}
+          autoComplete={mode === "entrar" ? "current-password" : "new-password"}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className={input}
+        />
+      </label>
+      {msg ? (
+        <p role={msg.tone === "error" ? "alert" : "status"} className={`text-sm ${msg.tone === "error" ? "text-[#ff7a93]" : "text-[#b9c6ff]"}`}>
+          {msg.text}
         </p>
       ) : null}
-
-      <p className="pt-2 text-center text-xs text-ink-soft">
-        Primeira vez? A conta é criada quando você abre o link do e-mail.
-      </p>
-    </div>
+      <button type="submit" disabled={busy} className="grad-primary h-12 w-full rounded-2xl text-base font-bold text-white disabled:opacity-60">
+        {busy ? "Um momento…" : mode === "entrar" ? "Entrar" : "Criar conta e começar 7 dias grátis"}
+      </button>
+      {mode === "criar" ? (
+        <p className="text-center text-xs text-[#98a2cc]">
+          Ao criar a conta você aceita os <a href="/termos" className="underline">Termos de uso</a> e a{" "}
+          <a href="/privacidade" className="underline">Política de privacidade</a>.
+        </p>
+      ) : null}
+    </form>
   );
 }

@@ -2,9 +2,10 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseEnv } from "./env";
 
-// MODO TESTE SEM LOGIN: nada exige login por enquanto. Para voltar a exigir
-// login no app, troque LOGIN_REQUIRED para true.
-const LOGIN_REQUIRED = false;
+import { AUTH_ENABLED } from "@/lib/flags";
+
+// Login exigido só com AUTH_ENABLED ligado (variável de ambiente na Vercel).
+const LOGIN_REQUIRED = AUTH_ENABLED;
 
 function isProtected(pathname: string) {
   return LOGIN_REQUIRED && (pathname === "/app" || pathname.startsWith("/app/"));
