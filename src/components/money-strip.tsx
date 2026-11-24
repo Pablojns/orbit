@@ -5,12 +5,14 @@ import { formatCents } from "@/lib/money";
 // O cartão não entra no "por dia": o que foi no crédito aparece na fatura aberta.
 export function MoneyStrip({
   balanceCents,
+  upcomingCents = 0,
   perDayCents,
   freeCents,
   openStatementCents,
   hasCards,
 }: {
   balanceCents: number;
+  upcomingCents?: number;
   perDayCents: number;
   freeCents: number;
   openStatementCents: number;
@@ -39,6 +41,9 @@ export function MoneyStrip({
         <Link key={it.label} href={it.href} className="min-w-0 px-4 py-3 hover:bg-white/[0.03]">
           <p className="truncate text-[12px] text-ink-soft">{it.label}</p>
           <p className={`font-display truncate text-lg font-bold ${it.tone}`}>{it.value}</p>
+          {it.label === "Saldo" && upcomingCents > 0 ? (
+            <p className="truncate text-[11px] text-ink-soft">contas a vencer {formatCents(upcomingCents)}</p>
+          ) : null}
         </Link>
       ))}
     </div>

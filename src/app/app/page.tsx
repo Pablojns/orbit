@@ -136,6 +136,7 @@ export default async function HomePage() {
       {/* 1. A barra de escrever e falar fica fixa no topo (layout do app) */}
       <MoneyStrip
         balanceCents={s.balanceCents}
+            upcomingCents={s.upcomingCents}
         perDayCents={s.perDayCents}
         freeCents={s.freeCents}
         openStatementCents={s.openStatementCents}

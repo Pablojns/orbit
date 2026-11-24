@@ -127,6 +127,7 @@ export type Finance = {
     perDayCents: number;
     toReceiveCents: number;
     balanceCents: number; // Saldo: tudo que entrou − saiu fora do cartão − faturas pagas − guardado em metas, desde o começo
+    upcomingCents: number; // contas fixas e faturas que ainda vencem neste ciclo
     hasAnyIncome: boolean; // já lançou alguma entrada desde o começo (primeiro acesso)
     openStatementCents: number; // soma das faturas abertas (ainda não fechadas) de todos os cartões
     byCategory: { name: string; icon: string | null; cents: number }[];
@@ -552,7 +553,9 @@ export async function getFinance(cycleStartDay: number, offset = 0): Promise<Fin
       freeCents,
       perDayCents,
       toReceiveCents,
-      balanceCents: balance.balance,
+      // Saldo já desconta o que ainda vai vencer neste ciclo (contas fixas e faturas não pagas).
+      balanceCents: balance.balance - committedCents,
+      upcomingCents: committedCents,
       hasAnyIncome: balance.hasIncome,
       openStatementCents: allStatements.filter((st) => st.status === "open").reduce((a, st) => a + st.remainingCents, 0),
       byCategory: [...catTotals.values()].sort((a, b) => b.cents - a.cents),

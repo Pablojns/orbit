@@ -1731,7 +1731,11 @@ async function moneyIntentFromText(it: import("@/lib/money-intents").MoneyIntent
           : `Pode gastar ${formatCents(s.perDayCents)} por dia. ${paydayText(f.cycle)}.`,
       );
     }
-    if (it.topic === "balance") return info(`Seu saldo é ${formatCents(s.balanceCents)}, pelo que foi lançado.`);
+    if (it.topic === "balance") {
+      return info(
+        `Seu saldo é ${formatCents(s.balanceCents)}${s.upcomingCents > 0 ? `, já descontando ${formatCents(s.upcomingCents)} de contas a vencer` : ""}.`,
+      );
+    }
     return info(
       f.cards.length
         ? `Fatura aberta: ${formatCents(s.openStatementCents)}.`
