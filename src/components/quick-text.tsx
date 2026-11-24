@@ -5,6 +5,7 @@ import { Mic, Sparkles } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { type QuickState, quickText } from "@/app/app/actions";
 import { useAutoOpen } from "./use-auto-open";
+import { mergeVoice } from "@/lib/voice-text";
 
 type Recognition = {
   lang: string;
@@ -12,7 +13,10 @@ type Recognition = {
   maxAlternatives: number;
   start: () => void;
   stop: () => void;
-  onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  continuous: boolean;
+  onresult:
+    | ((e: { resultIndex: number; results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> }) => void)
+    | null;
   onerror: ((e: { error: string }) => void) | null;
   onend: (() => void) | null;
 };
@@ -52,21 +56,38 @@ export function QuickText({ floating = false }: { floating?: boolean }) {
     if (!Rec) return;
     const rec = new Rec();
     rec.lang = "pt-BR";
-    rec.interimResults = false;
+    rec.continuous = false;
+    rec.interimResults = true; // o texto aparece no campo enquanto a pessoa fala
     rec.maxAlternatives = 1;
+    let finalText = "";
+    let failed = false;
     rec.onresult = (e) => {
-      const said = e.results[0]?.[0]?.transcript?.trim();
-      if (said && inputRef.current) {
-        inputRef.current.value = said;
+      // Junta tudo o que já foi ouvido: trechos confirmados + o trecho ainda em andamento.
+      const list = Array.from(e.results, (r) => ({ transcript: r[0]?.transcript ?? "", isFinal: r.isFinal }));
+      const { text, confirmed } = mergeVoice(list);
+      finalText = confirmed;
+      if (inputRef.current) inputRef.current.value = text;
+    };
+    rec.onerror = (e) => {
+      failed = true;
+      if (e.error === "aborted") return;
+      setVoiceError(
+        e.error === "not-allowed"
+          ? "Libere o microfone para o Dimeta nas configurações do navegador."
+          : e.error === "no-speech"
+            ? "Não ouvi nada. Tente de novo."
+            : "Não entendi. Tente de novo.",
+      );
+    };
+    rec.onend = () => {
+      setListening(false);
+      // Envio automático ao terminar de falar (com o texto confirmado ou o último parcial).
+      const text = inputRef.current?.value.trim() || finalText;
+      if (!failed && text && inputRef.current) {
+        inputRef.current.value = text;
         formRef.current?.requestSubmit();
       }
     };
-    rec.onerror = (e) => {
-      setVoiceError(
-        e.error === "not-allowed" ? "Libere o microfone para o Dimeta nas configurações do navegador." : "Não entendi. Tente de novo.",
-      );
-    };
-    rec.onend = () => setListening(false);
     recRef.current = rec;
     setVoiceError("");
     setListening(true);
