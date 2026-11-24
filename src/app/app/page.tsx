@@ -13,6 +13,7 @@ import { getClassSlots, getTerm } from "@/lib/class-slots";
 import { classOccurrences } from "@/lib/studies-math";
 import { getFinance, type Movement } from "@/lib/finance";
 import { SheetButton } from "@/components/sheet-button";
+import { BUDGET_LABEL, budgetLevel } from "@/lib/budget";
 import { formatCents } from "@/lib/money";
 import { requireProfile } from "@/lib/profile";
 import { getAgenda, getHabits } from "@/lib/routine";
@@ -204,6 +205,9 @@ export default async function HomePage() {
 
   // ---------- Para onde foi: só as maiores categorias
   const topCategories = s.byCategory.slice(0, 4);
+  const budgetOf = (name: string) =>
+    budgetLevel(c2(name), f.categories.find((x) => x.kind === "expense" && x.name === name)?.budgetCents);
+  const c2 = (name: string) => s.byCategory.find((x) => x.name === name)?.cents ?? 0;
   const topTotal = topCategories.reduce((a, c) => a + c.cents, 0) || 1;
 
   const cycleDone = Math.min(
@@ -669,7 +673,18 @@ export default async function HomePage() {
                               style={{ background: CAT_COLORS[i] }}
                               aria-hidden
                             />
-                            <span className="flex-1">{c.name}</span>
+                            <span className="flex-1">
+                              {c.name}
+                              {budgetOf(c.name) !== "ok" ? (
+                                <span
+                                  className={`ml-2 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                                    budgetOf(c.name) === "100" ? "bg-loss/20 text-loss" : "bg-[#2a2158] text-[#d9ccff]"
+                                  }`}
+                                >
+                                  {BUDGET_LABEL[budgetOf(c.name)]}
+                                </span>
+                              ) : null}
+                            </span>
                             <span className="font-extrabold">
                               {formatCents(c.cents)}
                             </span>

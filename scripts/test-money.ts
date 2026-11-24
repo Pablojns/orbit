@@ -23,3 +23,11 @@ import { centsToCsv, toCsv } from "../src/lib/csv";
 assert.equal(centsToCsv(123456), "1234,56");
 assert.equal(toCsv([["a;b", 'x"y'], [1, null]]), '﻿"a;b";"x""y"\r\n1;');
 console.log("test-money (CSV): ok");
+
+import { budgetLevel } from "../src/lib/budget";
+assert.equal(budgetLevel(7000, 10000), "ok");
+assert.equal(budgetLevel(7500, 10000), "75");
+assert.equal(budgetLevel(9000, 10000), "90");
+assert.equal(budgetLevel(10000, 10000), "100");
+assert.equal(budgetLevel(15000, null), "ok");
+console.log("test-money (orçamento): ok");

@@ -9,6 +9,10 @@ import { formatCents } from "@/lib/money";
 import { requireProfile } from "@/lib/profile";
 import { paydayText } from "@/lib/cycle";
 import { MoneyStrip } from "@/components/money-strip";
+import { FormSheet } from "@/components/form-sheet";
+import { MoneyInput } from "@/components/fields";
+import { saveBudgets } from "@/app/app/actions";
+import { BUDGET_LABEL, budgetLevel } from "@/lib/budget";
 
 export const metadata = { title: "Dinheiro" };
 export const dynamic = "force-dynamic";
@@ -39,6 +43,15 @@ export default async function MoneyPage({
   const filtering = Boolean(query || tipo || cat);
   const filteredTotal = filtered.reduce((a, m) => a + (m.type === "income" ? m.amountCents : -m.amountCents), 0);
   const catNames = [...new Set(f.movements.map((m) => m.category?.name ?? "Sem categoria"))].sort();
+
+  const expenseCats = f.categories.filter((c) => c.kind === "expense");
+  const spentBy = new Map(s.byCategory.map((c) => [c.name, c.cents]));
+  const budgeted = expenseCats
+    .filter((c) => c.budgetCents)
+    .map((c) => {
+      const spent = spentBy.get(c.name) ?? 0;
+      return { id: c.id, name: c.name, spent, budget: c.budgetCents!, level: budgetLevel(spent, c.budgetCents) };
+    });
 
   const byDay = new Map<string, Movement[]>();
   for (const m of filtered) byDay.set(m.occurredOn, [...(byDay.get(m.occurredOn) ?? []), m]);
@@ -201,6 +214,60 @@ export default async function MoneyPage({
           </p>
         ) : null}
       </section>
+
+      {!past ? (
+        <section className="glass mt-5 rounded-3xl p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg">Orçamento do ciclo</h2>
+              <p className="text-sm text-ink-soft">Aviso em 75%, 90% e 100% do que você definiu para cada categoria.</p>
+            </div>
+            <FormSheet
+              title="Orçamento por categoria"
+              trigger={budgeted.length ? "Mudar" : "Definir"}
+              submitLabel="Salvar orçamentos"
+              action={saveBudgets}
+              triggerClassName="h-11 shrink-0 rounded-xl border border-white/[0.14] px-4 text-sm font-bold hover:bg-white/[0.05]"
+            >
+              <p className="text-sm text-ink-soft">Quanto quer gastar em cada categoria até o salário. Deixe vazio para não ter limite.</p>
+              {expenseCats.map((c) => (
+                <div key={c.id} className="grid grid-cols-[1fr_9rem] items-center gap-3">
+                  <input type="hidden" name="cat_id" value={c.id} />
+                  <span className="text-[15px] font-semibold">{c.name}</span>
+                  <MoneyInput
+                    name={`budget_${c.id}`}
+                    aria-label={`Orçamento de ${c.name}`}
+                    defaultValue={c.budgetCents ? (c.budgetCents / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : ""}
+                  />
+                </div>
+              ))}
+            </FormSheet>
+          </div>
+          {budgeted.length ? (
+            <ul className="mt-3 space-y-3">
+              {budgeted.map((b) => (
+                <li key={b.id}>
+                  <div className="flex items-center justify-between gap-3 text-[15px]">
+                    <span className="font-semibold">{b.name}</span>
+                    <span className={b.level === "100" ? "font-bold text-loss" : b.level !== "ok" ? "font-bold text-[#c4b5fd]" : "text-ink-soft"}>
+                      {formatCents(b.spent)} de {formatCents(b.budget)}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 h-2 rounded-full bg-white/10" aria-hidden>
+                    <div
+                      className={`h-2 rounded-full ${b.level === "100" ? "bg-loss" : b.level === "ok" ? "bg-[#4361f5]" : "bg-[#a78bfa]"}`}
+                      style={{ width: `${Math.min(100, (b.spent / b.budget) * 100)}%` }}
+                    />
+                  </div>
+                  {b.level !== "ok" ? <p className="mt-1 text-[13px] font-semibold text-[#c4b5fd]">{BUDGET_LABEL[b.level]}</p> : null}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-[15px] text-ink-soft">Nenhum orçamento definido ainda.</p>
+          )}
+        </section>
+      ) : null}
     </>
   );
 }

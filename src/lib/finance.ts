@@ -15,7 +15,13 @@ import {
 
 // ---------- tipos ----------------------------------------------------
 
-export type Category = { id: string; name: string; kind: "expense" | "income"; icon: string | null };
+export type Category = {
+  id: string;
+  name: string;
+  kind: "expense" | "income";
+  icon: string | null;
+  budgetCents: number | null;
+};
 export type Card = {
   id: string;
   name: string;
@@ -161,11 +167,17 @@ export async function getCategories(): Promise<Category[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("categories")
-    .select("id, name, kind, icon")
+    .select("id, name, kind, icon, budget_cents")
     .eq("user_id", OWNER_ID)
     .eq("is_archived", false)
     .order("name");
-  return (data ?? []) as Category[];
+  return (data ?? []).map((c) => ({
+    id: c.id as string,
+    name: c.name as string,
+    kind: c.kind as Category["kind"],
+    icon: (c.icon as string | null) ?? null,
+    budgetCents: c.budget_cents === null || c.budget_cents === undefined ? null : Number(c.budget_cents),
+  }));
 }
 
 export async function getCards(): Promise<Card[]> {

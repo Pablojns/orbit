@@ -1108,6 +1108,20 @@ export async function saveCategory(_prev: FormState, fd: FormData): Promise<Form
   return ok("Categoria criada.");
 }
 
+// Orçamento do ciclo por categoria de gasto. Campo vazio = sem orçamento.
+export async function saveBudgets(_prev: FormState, fd: FormData): Promise<FormState> {
+  const supabase = await db();
+  const ids = fd.getAll("cat_id").map(String).filter((v) => UUID.test(v));
+  for (const id of ids) {
+    const raw = str(fd, `budget_${id}`);
+    const cents = raw ? parseToCents(raw) : null;
+    if (raw && (!cents || cents <= 0)) return fail(`Valor inválido: ${raw}`);
+    const { error } = await supabase.from("categories").update({ budget_cents: cents }).eq("id", id).eq("user_id", OWNER_ID);
+    if (error) return fail("Não foi possível salvar agora.");
+  }
+  return ok("Orçamentos salvos.");
+}
+
 export async function archiveCategory(fd: FormData): Promise<UndoResult | void> {
   return archiveWithUndo(fd, "categories", "is_archived", true, "Categoria removida.");
 }
