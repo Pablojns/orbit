@@ -29,14 +29,20 @@ export default function TermsPage() {
           Você é responsável pelas informações que lança e pelo acesso ao seu e-mail, que é como você entra no app.
         </li>
         <li>Não use o serviço para atividades ilegais ou para tentar acessar dados de outras pessoas.</li>
-        <li>Você pode excluir sua conta quando quiser, escrevendo para {SITE.contactEmail}.</li>
+        <li>Você pode excluir sua conta e seus dados quando quiser, em Perfil, ou escrevendo para {SITE.contactEmail}.</li>
       </ul>
 
-      <h2>Planos pagos</h2>
-      <p>
-        Quando houver planos pagos, preço, forma de pagamento e regras de cancelamento serão informados antes da
-        contratação.
-      </p>
+      <h2>Assinatura</h2>
+      <ul>
+        <li>Toda conta nova tem 7 dias grátis, sem pedir cartão. Depois, o {SITE.name} custa R$ 29,90 por mês.</li>
+        <li>Não há plano grátis depois do teste. O pagamento é por Pix, cartão ou boleto, processado pelo Asaas.</li>
+        <li>Sem fidelidade: cancele quando quiser, em Assinatura. O acesso vale até o fim do mês já pago e não há cobrança seguinte.</li>
+        <li>
+          Se o teste acabar ou o pagamento não entrar (com 3 dias de tolerância), o acesso fica pausado. Seus dados continuam
+          guardados e voltam assim que o pagamento entra. Exportar e excluir os dados continuam disponíveis.
+        </li>
+        <li>O recibo de cada pagamento fica em Assinatura.</li>
+      </ul>
 
       <h2>Contato</h2>
       <p>Dúvidas sobre estes termos: {SITE.contactEmail}.</p>
