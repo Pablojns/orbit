@@ -693,12 +693,14 @@ export async function saveHabit(_prev: FormState, fd: FormData): Promise<FormSta
 export async function toggleHabit(fd: FormData) {
   const id = optUuid(str(fd, "habit_id"));
   const date = str(fd, "date") || todayISO();
-  if (!id || !ISO_DATE.test(date)) return;
+  if (!id || !ISO_DATE.test(date) || date > todayISO()) return; // dia futuro não se marca
   const supabase = await db();
   if (str(fd, "checked") === "true") {
     await supabase.from("habit_checks").delete().eq("habit_id", id).eq("checked_on", date).eq("user_id", OWNER_ID);
   } else {
-    await supabase.from("habit_checks").insert({ user_id: OWNER_ID, habit_id: id, checked_on: date });
+    await supabase
+      .from("habit_checks")
+      .upsert({ user_id: OWNER_ID, habit_id: id, checked_on: date }, { onConflict: "habit_id,checked_on", ignoreDuplicates: true });
   }
   revalidatePath("/app", "layout");
 }

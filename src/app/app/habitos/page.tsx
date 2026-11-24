@@ -1,31 +1,54 @@
-import { Flame } from "lucide-react";
+import { Check, CircleCheck } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
+import { EditHabit } from "@/components/edit-forms";
 import { Field, Select, TextInput } from "@/components/fields";
 import { FormSheet } from "@/components/form-sheet";
-import { HabitCard } from "@/components/habit-card";
-import { PageHeader } from "@/components/page-header";
-import { saveHabit } from "@/app/app/actions";
+import { DeleteButton } from "@/components/undo";
+import { archiveHabit, saveHabit, toggleHabit } from "@/app/app/actions";
+import { todayInSaoPaulo, toISODate } from "@/lib/dates";
 import { getHabits } from "@/lib/routine";
 
 export const metadata = { title: "Hábitos" };
 export const dynamic = "force-dynamic";
 
+const LETTER = ["D", "S", "T", "Q", "Q", "S", "S"];
+
+function parts(iso: string) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return { day: d, wd: new Date(Date.UTC(y, m - 1, d)).getUTCDay() };
+}
+
 export default async function HabitsPage() {
   const habits = await getHabits();
-  const doneToday = habits.filter((h) => h.checkedToday).length;
+  const todayISO = toISODate(todayInSaoPaulo());
+  const weekDone = habits.reduce((a, h) => a + h.last7.filter((d) => d.checked).length, 0);
+
+  const total = (
+    <section className="hero-card rounded-3xl px-5 py-[18px] lg:p-6">
+      <p className="text-[13px] font-bold text-[#b9c2f5] lg:text-sm">Últimos 7 dias</p>
+      <p className="mt-0.5 text-[34px] leading-[1.05] font-extrabold tracking-[-0.02em] lg:text-5xl">
+        {weekDone} {weekDone === 1 ? "marcação" : "marcações"}
+      </p>
+      <p className="mt-1 text-sm font-semibold text-[#c7cff7]">somando todos os hábitos</p>
+    </section>
+  );
 
   return (
-    <>
-      <PageHeader
-        title="Hábitos"
-        subtitle={
-          habits.length
-            ? `${doneToday} de ${habits.length} feitos hoje.`
-            : "Pequenas coisas que você quer fazer com frequência."
-        }
-      />
-      <div className="mb-5 flex justify-end">
-        <FormSheet title="Novo hábito" trigger="Hábito" submitLabel="Criar hábito" action={saveHabit}>
+    <div className="pt-5 lg:pt-7">
+      <header className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl leading-tight lg:text-[28px]">Hábitos</h1>
+          <p className="mt-0.5 text-[13px] font-semibold text-ink-soft lg:text-sm">
+            Toque em um dia para marcar ou desmarcar, inclusive nos dias que já passaram.
+          </p>
+        </div>
+        <FormSheet
+          title="Novo hábito"
+          trigger="Novo hábito"
+          submitLabel="Criar hábito"
+          action={saveHabit}
+          triggerClassName="grad-primary flex h-11 shrink-0 items-center justify-center rounded-2xl px-5 text-sm font-bold text-white"
+        >
           <Field label="Hábito">
             <TextInput name="name" required maxLength={60} placeholder="Ex.: Estudar 30 minutos" />
           </Field>
@@ -41,20 +64,87 @@ export default async function HabitsPage() {
           </Field>
           <p className="text-xs text-ink-soft">Perder um dia só zera a sequência. Sem punição.</p>
         </FormSheet>
-      </div>
+      </header>
+
       {habits.length ? (
-        <ul className="grid gap-4 lg:grid-cols-2">
-          {habits.map((h) => (
-            <HabitCard key={h.id} h={h} />
-          ))}
-        </ul>
+        <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start lg:gap-5">
+          <div className="lg:hidden">{total}</div>
+          <ul className="space-y-4">
+            {habits.map((h) => (
+              <li key={h.id} className="glass flex flex-col gap-4 rounded-3xl p-[18px] lg:px-6 lg:py-[22px]">
+                <div className="flex items-center justify-between gap-2.5">
+                  <div className="min-w-0">
+                    <p className="truncate text-[17px] font-extrabold lg:text-lg">{h.name}</p>
+                    <p className="mt-0.5 text-xs font-semibold text-ink-soft lg:text-[13px]">
+                      {h.targetPerWeek === 7
+                        ? "todos os dias"
+                        : `${h.targetPerWeek} ${h.targetPerWeek === 1 ? "vez" : "vezes"} por semana`}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <span className="rounded-full bg-[#2a2158] px-3 py-1.5 text-xs font-bold text-[#d9ccff] lg:text-[13px]">
+                      {h.streak === 1 ? "1 dia seguido" : `${h.streak} dias seguidos`}
+                    </span>
+                    <EditHabit habit={h} />
+                    <DeleteButton action={archiveHabit} fields={{ id: h.id }} label={`Arquivar ${h.name}`} />
+                  </div>
+                </div>
+                <ol className="grid grid-cols-7 gap-1 lg:grid-cols-14 lg:gap-1.5" aria-label={`${h.name}: últimos dias`}>
+                  {h.last14.map((d, i) => {
+                    const { day, wd } = parts(d.date);
+                    const isToday = d.date === todayISO;
+                    return (
+                      <li key={d.date} className={`flex-col items-center gap-1 ${i < 7 ? "hidden lg:flex" : "flex"}`}>
+                        <span className="text-[11px] font-bold text-ink-soft">{LETTER[wd]}</span>
+                        <form action={toggleHabit} className="w-full">
+                          <input type="hidden" name="habit_id" value={h.id} />
+                          <input type="hidden" name="date" value={d.date} />
+                          <input type="hidden" name="checked" value={String(d.checked)} />
+                          <button
+                            type="submit"
+                            aria-pressed={d.checked}
+                            aria-label={`${h.name}, dia ${day}, ${d.checked ? "feito" : "não feito"}`}
+                            className={`mx-auto grid h-11 w-full max-w-11 place-items-center rounded-xl border transition-colors lg:rounded-[14px] ${
+                              d.checked
+                                ? "border-[#4361f5] bg-[#4361f5] text-white"
+                                : isToday
+                                  ? "border-[#a78bfa] hover:bg-white/[0.05]"
+                                  : "border-white/20 hover:bg-white/[0.05]"
+                            }`}
+                          >
+                            {d.checked ? <Check size={18} strokeWidth={3} aria-hidden /> : null}
+                          </button>
+                        </form>
+                        <span className={`text-[11px] font-semibold ${isToday ? "text-[#d9ccff]" : "text-ink-soft"}`}>
+                          {day}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden space-y-4 lg:block">
+            {total}
+            <section className="glass rounded-3xl px-6 py-[22px]">
+              <h2 className="text-[17px]">Como a sequência conta</h2>
+              <p className="mt-2 text-sm leading-relaxed font-medium text-[#b4bde3]">
+                A sequência é quantos dias seguidos você marcou até hoje. Se hoje ainda não foi marcado, ela conta a partir
+                de ontem. Esqueceu de marcar um dia? Toque nele e a sequência volta ao normal.
+              </p>
+            </section>
+          </div>
+        </div>
       ) : (
-        <EmptyState
-          icon={Flame}
-          title="Nenhum hábito criado"
-          description="Comece com um só. Hábitos pequenos e fáceis duram mais do que listas grandes."
-        />
+        <div className="mt-5">
+          <EmptyState
+            icon={CircleCheck}
+            title="Nenhum hábito criado"
+            description="Comece com um só. Hábitos pequenos e fáceis duram mais do que listas grandes."
+          />
+        </div>
       )}
-    </>
+    </div>
   );
 }

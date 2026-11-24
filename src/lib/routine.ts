@@ -1,4 +1,5 @@
 import "server-only";
+import { habitStreak } from "./habit-math";
 import { createClient } from "@/lib/supabase/server";
 import { OWNER_ID } from "@/lib/owner";
 import { firstOfMonthISO, monthlyOccurrences, statementDueDate } from "@/lib/schedule";
@@ -158,6 +159,7 @@ export type Habit = {
   weekCount: number;
   streak: number; // dias seguidos até hoje (ou até ontem, se hoje ainda não marcou)
   last7: { date: string; checked: boolean }[];
+  last14: { date: string; checked: boolean }[];
 };
 
 function localParts(iso: string) {
@@ -230,12 +232,11 @@ export async function getHabits(today: CalendarDate = todayInSaoPaulo()): Promis
       const date = toISODate(addDays(today, i - 6));
       return { date, checked: set.has(date) };
     });
-    let streak = 0;
-    let cursor = set.has(todayISO) ? today : addDays(today, -1);
-    while (set.has(toISODate(cursor))) {
-      streak++;
-      cursor = addDays(cursor, -1);
-    }
+    const last14 = Array.from({ length: 14 }, (_, i) => {
+      const date = toISODate(addDays(today, i - 13));
+      return { date, checked: set.has(date) };
+    });
+    const streak = habitStreak(set, today);
     return {
       id: h.id,
       name: h.name,
@@ -244,6 +245,7 @@ export async function getHabits(today: CalendarDate = todayInSaoPaulo()): Promis
       weekCount: last7.filter((d) => d.checked).length,
       streak,
       last7,
+      last14,
     };
   });
 }
