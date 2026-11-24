@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { OWNER_ID } from "@/lib/owner";
+import { uid } from "@/lib/user";
 
 export type Profile = {
   id: string;
@@ -21,11 +21,11 @@ export async function requireProfile(): Promise<Profile> {
   const { data } = await supabase
     .from("profiles")
     .select("display_name, cycle_start_day, onboarded_at, tutorial_done_at, hide_studies, hide_habits, notify_daily, notify_hour, daily_hour")
-    .eq("id", OWNER_ID)
+    .eq("id", (await uid()))
     .maybeSingle();
 
   return {
-    id: OWNER_ID,
+    id: (await uid()),
     displayName: data?.display_name ?? null,
     cycleStartDay: data?.cycle_start_day ?? 1,
     onboarded: Boolean(data?.onboarded_at),

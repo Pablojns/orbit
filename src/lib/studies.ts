@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { OWNER_ID } from "@/lib/owner";
+import { uid } from "@/lib/user";
 import { addDays, type CalendarDate, todayInSaoPaulo, toISODate } from "@/lib/dates";
 import { type AgendaEvent, getAgendaMonth } from "@/lib/routine";
 import { getClassSlots, getTerm } from "@/lib/class-slots";
@@ -22,7 +22,7 @@ export async function getSubjects(): Promise<Subject[]> {
   const { data } = await supabase
     .from("subjects")
     .select("id, name, pass_grade, max_grade, max_absences, absences")
-    .eq("user_id", OWNER_ID)
+    .eq("user_id", (await uid()))
     .eq("is_archived", false)
     .order("created_at");
   return (data ?? []).map((s) => ({
@@ -39,7 +39,7 @@ export async function getStudies(today: CalendarDate = todayInSaoPaulo()) {
   const supabase = await createClient();
   const [subjects, grades, slots, term] = await Promise.all([
     getSubjects(),
-    supabase.from("grades").select("id, subject_id, label, weight, value").eq("user_id", OWNER_ID).order("created_at"),
+    supabase.from("grades").select("id, subject_id, label, weight, value").eq("user_id", (await uid())).order("created_at"),
     getClassSlots(),
     getTerm(),
   ]);

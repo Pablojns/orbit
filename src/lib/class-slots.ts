@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { OWNER_ID } from "@/lib/owner";
+import { uid } from "@/lib/user";
 import type { ClassSlot, Term } from "@/lib/studies-math";
 
 const hhmm = (t: string | null) => (t ? t.slice(0, 5) : null);
@@ -10,7 +10,7 @@ export async function getClassSlots(): Promise<ClassSlot[]> {
   const { data } = await supabase
     .from("class_slots")
     .select("id, subject_id, weekday, starts_at, ends_at, room, subject:subjects(name, is_archived)")
-    .eq("user_id", OWNER_ID)
+    .eq("user_id", (await uid()))
     .order("weekday")
     .order("starts_at");
   return (data ?? [])
@@ -36,7 +36,7 @@ export async function getTerm(): Promise<Term> {
   const { data } = await supabase
     .from("study_terms")
     .select("starts_on, ends_on")
-    .eq("user_id", OWNER_ID)
+    .eq("user_id", (await uid()))
     .maybeSingle();
   return data ? { startsOn: data.starts_on as string, endsOn: data.ends_on as string } : null;
 }

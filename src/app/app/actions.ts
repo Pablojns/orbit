@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { OWNER_ID } from "@/lib/owner";
+import { uid } from "@/lib/user";
 import { formatCents, parseToCents } from "@/lib/money";
 import { fromISODate, todayInSaoPaulo, toISODate } from "@/lib/dates";
 import { installmentPlan } from "@/lib/schedule";
@@ -47,6 +47,7 @@ async function db() {
 // ---------- movimentações e compras no cartão -----------------------
 
 export async function addMovement(_prev: FormState, fd: FormData): Promise<FormState> {
+  const me = await uid();
   const type = str(fd, "type");
   const amount = parseToCents(str(fd, "amount"));
   const categoryId = optUuid(str(fd, "category_id"));
@@ -68,14 +69,14 @@ export async function addMovement(_prev: FormState, fd: FormData): Promise<FormS
       .from("credit_cards")
       .select("closing_day, due_day")
       .eq("id", cardId)
-      .eq("user_id", OWNER_ID)
+      .eq("user_id", (await uid()))
       .maybeSingle();
     if (!card) return fail("Cartão não encontrado.");
 
     const { data: purchase, error } = await supabase
       .from("card_purchases")
       .insert({
-        user_id: OWNER_ID,
+        user_id: (await uid()),
         card_id: cardId,
         description: description || "Compra no cartão",
         total_cents: amount,
@@ -90,7 +91,7 @@ export async function addMovement(_prev: FormState, fd: FormData): Promise<FormS
     const plan = installmentPlan(fromISODate(occurredOn), amount, count, card.closing_day, card.due_day);
     const { error: instError } = await supabase.from("installments").insert(
       plan.map((p) => ({
-        user_id: OWNER_ID,
+        user_id: me,
         purchase_id: purchase.id,
         card_id: cardId,
         number: p.number,
@@ -106,7 +107,7 @@ export async function addMovement(_prev: FormState, fd: FormData): Promise<FormS
   }
 
   const { error } = await supabase.from("transactions").insert({
-    user_id: OWNER_ID,
+    user_id: (await uid()),
     type,
     amount_cents: amount,
     occurred_on: occurredOn,
@@ -119,6 +120,7 @@ export async function addMovement(_prev: FormState, fd: FormData): Promise<FormS
 }
 
 export async function deleteMovement(fd: FormData): Promise<UndoResult | void> {
+  const me = await uid();
   if (str(fd, "source") === "bill_payment") {
     // Conta paga no Extrato: apagar = desfazer o "Paguei" (com Desfazer por 6 segundos).
     const [billId, month] = str(fd, "id").split("|");
@@ -129,11 +131,11 @@ export async function deleteMovement(fd: FormData): Promise<UndoResult | void> {
       .select("*")
       .eq("bill_id", billId)
       .eq("reference_month", month)
-      .eq("user_id", OWNER_ID);
+      .eq("user_id", (await uid()));
     if (!rows?.length) return;
     return deleteWithUndo(
       [{ table: "bill_payments", rows }],
-      () => supabase.from("bill_payments").delete().eq("bill_id", billId).eq("reference_month", month).eq("user_id", OWNER_ID),
+      () => supabase.from("bill_payments").delete().eq("bill_id", billId).eq("reference_month", month).eq("user_id", me),
       "Pagamento desfeito.",
     );
   }
@@ -142,8 +144,8 @@ export async function deleteMovement(fd: FormData): Promise<UndoResult | void> {
   const supabase = await db();
   if (str(fd, "source") === "card_purchase") {
     const [{ data: purchase }, { data: inst }] = await Promise.all([
-      supabase.from("card_purchases").select("*").eq("id", id).eq("user_id", OWNER_ID),
-      supabase.from("installments").select("*").eq("purchase_id", id).eq("user_id", OWNER_ID),
+      supabase.from("card_purchases").select("*").eq("id", id).eq("user_id", (await uid())),
+      supabase.from("installments").select("*").eq("purchase_id", id).eq("user_id", (await uid())),
     ]);
     if (!purchase?.length) return;
     return deleteWithUndo(
@@ -151,15 +153,15 @@ export async function deleteMovement(fd: FormData): Promise<UndoResult | void> {
         { table: "card_purchases", rows: purchase },
         { table: "installments", rows: inst ?? [] },
       ],
-      () => supabase.from("card_purchases").delete().eq("id", id).eq("user_id", OWNER_ID),
+      () => supabase.from("card_purchases").delete().eq("id", id).eq("user_id", me),
       "Compra apagada.",
     );
   }
-  const { data: rows } = await supabase.from("transactions").select("*").eq("id", id).eq("user_id", OWNER_ID);
+  const { data: rows } = await supabase.from("transactions").select("*").eq("id", id).eq("user_id", (await uid()));
   if (!rows?.length) return;
   return deleteWithUndo(
     [{ table: "transactions", rows }],
-    () => supabase.from("transactions").delete().eq("id", id).eq("user_id", OWNER_ID),
+    () => supabase.from("transactions").delete().eq("id", id).eq("user_id", me),
     "Lançamento apagado.",
   );
 }
@@ -178,7 +180,7 @@ export async function saveCard(_prev: FormState, fd: FormData): Promise<FormStat
   const supabase = await db();
   const { error } = await supabase
     .from("credit_cards")
-    .insert({ user_id: OWNER_ID, name, closing_day: closing, due_day: due, limit_cents: limit });
+    .insert({ user_id: (await uid()), name, closing_day: closing, due_day: due, limit_cents: limit });
   if (error) return fail("Não foi possível salvar o cartão.");
   return ok("Cartão salvo.");
 }
@@ -195,7 +197,7 @@ export async function payStatement(fd: FormData) {
   const supabase = await db();
   await supabase
     .from("card_statement_payments")
-    .insert({ user_id: OWNER_ID, card_id: cardId, statement_month: month, amount_cents: amount, paid_on: todayISO() });
+    .insert({ user_id: (await uid()), card_id: cardId, statement_month: month, amount_cents: amount, paid_on: todayISO() });
   revalidatePath("/app", "layout");
 }
 
@@ -207,7 +209,7 @@ export async function unpayStatement(fd: FormData) {
   await supabase
     .from("card_statement_payments")
     .delete()
-    .eq("user_id", OWNER_ID)
+    .eq("user_id", (await uid()))
     .eq("card_id", cardId)
     .eq("statement_month", month);
   revalidatePath("/app", "layout");
@@ -239,7 +241,7 @@ export async function saveBill(_prev: FormState, fd: FormData): Promise<FormStat
   const extra = billExtras(fd);
   const supabase = await db();
   const { error } = await supabase.from("bills").insert({
-    user_id: OWNER_ID,
+    user_id: (await uid()),
     name,
     amount_cents: amount,
     due_day: due,
@@ -270,11 +272,11 @@ export async function toggleBillPaid(fd: FormData) {
       .delete()
       .eq("bill_id", id)
       .eq("reference_month", month)
-      .eq("user_id", OWNER_ID);
+      .eq("user_id", (await uid()));
   } else if (Number.isInteger(amount) && amount > 0) {
     await supabase
       .from("bill_payments")
-      .insert({ user_id: OWNER_ID, bill_id: id, reference_month: month, amount_cents: amount, paid_on: todayISO() });
+      .insert({ user_id: (await uid()), bill_id: id, reference_month: month, amount_cents: amount, paid_on: todayISO() });
   }
   revalidatePath("/app", "layout");
 }
@@ -291,7 +293,7 @@ export async function saveIncome(_prev: FormState, fd: FormData): Promise<FormSt
   if (!dom) return fail("Informe o dia em que cai.");
   const supabase = await db();
   const { error } = await supabase.from("recurring_incomes").insert({
-    user_id: OWNER_ID,
+    user_id: (await uid()),
     name,
     amount_cents: amount,
     day_of_month: dom,
@@ -313,18 +315,18 @@ export async function saveFirstSalary(_prev: FormState, fd: FormData): Promise<F
   if (!amount || amount <= 0 || amount > 10_000_000_000) return fail("Digite quanto caiu, como 2.800.");
   const supabase = await db();
   const [{ data: cat }, { data: salary }] = await Promise.all([
-    supabase.from("categories").select("id").eq("user_id", OWNER_ID).eq("kind", "income").eq("name", "Salário").maybeSingle(),
+    supabase.from("categories").select("id").eq("user_id", (await uid())).eq("kind", "income").eq("name", "Salário").maybeSingle(),
     supabase
       .from("recurring_incomes")
       .select("id, name")
-      .eq("user_id", OWNER_ID)
+      .eq("user_id", (await uid()))
       .eq("is_active", true)
       .ilike("name", "sal%rio%")
       .limit(1)
       .maybeSingle(),
   ]);
   const { error } = await supabase.from("transactions").insert({
-    user_id: OWNER_ID,
+    user_id: (await uid()),
     type: "income",
     amount_cents: amount,
     occurred_on: await currentCycleStartISO(),
@@ -345,18 +347,18 @@ export async function receiveIncome(fd: FormData) {
     .from("recurring_incomes")
     .select("name, amount_cents")
     .eq("id", id)
-    .eq("user_id", OWNER_ID)
+    .eq("user_id", (await uid()))
     .maybeSingle();
   if (!income) return;
   const { data: cat } = await supabase
     .from("categories")
     .select("id")
-    .eq("user_id", OWNER_ID)
+    .eq("user_id", (await uid()))
     .eq("kind", "income")
     .eq("name", /sal[aá]rio|\bvale\b|adiantamento/i.test(income.name) ? "Salário" : "Outros")
     .maybeSingle();
   await supabase.from("transactions").insert({
-    user_id: OWNER_ID,
+    user_id: (await uid()),
     type: "income",
     amount_cents: income.amount_cents,
     occurred_on: todayISO(),
@@ -378,7 +380,7 @@ export async function saveGoal(_prev: FormState, fd: FormData): Promise<FormStat
   if (!target || target <= 0) return fail("Digite quanto quer juntar.");
   const supabase = await db();
   const { error } = await supabase.from("goals").insert({
-    user_id: OWNER_ID,
+    user_id: (await uid()),
     name,
     kind,
     target_cents: target,
@@ -400,7 +402,7 @@ export async function contributeGoal(_prev: FormState, fd: FormData): Promise<Fo
   if (!amount || amount <= 0) return fail("Digite um valor.");
   const supabase = await db();
   const { error } = await supabase.from("goal_contributions").insert({
-    user_id: OWNER_ID,
+    user_id: (await uid()),
     goal_id: id,
     amount_cents: withdraw ? -amount : amount,
     contributed_on: on || todayISO(),
@@ -424,14 +426,14 @@ async function resolveType(supabase: Awaited<ReturnType<typeof db>>, fd: FormDat
       .from("event_types")
       .select("id, base_kind")
       .eq("id", typeId)
-      .eq("user_id", OWNER_ID)
+      .eq("user_id", (await uid()))
       .maybeSingle();
     if (data) return { typeId: data.id as string, kind: data.base_kind as string };
   }
   const { data } = await supabase
     .from("event_types")
     .select("id")
-    .eq("user_id", OWNER_ID)
+    .eq("user_id", (await uid()))
     .eq("base_kind", askedKind)
     .eq("is_archived", false)
     .order("position")
@@ -462,10 +464,10 @@ export async function linkEventSubject(_prev: FormState, fd: FormData): Promise<
     .from("events")
     .select("series_id")
     .eq("id", id)
-    .eq("user_id", OWNER_ID)
+    .eq("user_id", (await uid()))
     .maybeSingle();
   if (!ev) return fail("Item não encontrado.");
-  const q = supabase.from("events").update({ subject_id: subjectId }).eq("user_id", OWNER_ID);
+  const q = supabase.from("events").update({ subject_id: subjectId }).eq("user_id", (await uid()));
   const { error } = ev.series_id ? await q.eq("series_id", ev.series_id) : await q.eq("id", id);
   if (error) return fail("Não foi possível ligar.");
   revalidatePath("/app", "layout");
@@ -474,6 +476,7 @@ export async function linkEventSubject(_prev: FormState, fd: FormData): Promise<
 
 // Plano de estudo para uma prova já marcada: espalha N sessões até a véspera.
 export async function createStudyPlan(_prev: FormState, fd: FormData): Promise<FormState> {
+  const me = await uid();
   const id = optUuid(str(fd, "id"));
   const sessions = Math.min(8, Math.max(1, Number(str(fd, "sessions")) || 0));
   if (!id) return fail("Prova não encontrada.");
@@ -482,20 +485,20 @@ export async function createStudyPlan(_prev: FormState, fd: FormData): Promise<F
     .from("events")
     .select("title, starts_at, subject_id, series_id")
     .eq("id", id)
-    .eq("user_id", OWNER_ID)
+    .eq("user_id", (await uid()))
     .maybeSingle();
   if (!ev) return fail("Prova não encontrada.");
   const examDate = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(ev.starts_at));
   const days = await pickStudyDays(supabase, examDate, sessions);
   if (!days.length) return fail("Não há dias livres antes da prova.");
   const seriesId = (ev.series_id as string | null) ?? crypto.randomUUID();
-  if (!ev.series_id) await supabase.from("events").update({ series_id: seriesId }).eq("id", id).eq("user_id", OWNER_ID);
+  if (!ev.series_id) await supabase.from("events").update({ series_id: seriesId }).eq("id", id).eq("user_id", (await uid()));
   const study = new FormData();
   study.set("kind", "study");
   const { typeId: studyType } = await resolveType(supabase, study);
   const { error } = await supabase.from("events").insert(
     days.map((d) => ({
-      user_id: OWNER_ID,
+      user_id: me,
       title: `Estudar: ${ev.title}`.slice(0, 80),
       kind: "study",
       type_id: studyType,
@@ -513,6 +516,7 @@ export async function createStudyPlan(_prev: FormState, fd: FormData): Promise<F
 }
 
 export async function saveEvent(_prev: FormState, fd: FormData): Promise<FormState> {
+  const me = await uid();
   const title = str(fd, "title").slice(0, 80);
   const date = str(fd, "date");
   const time = str(fd, "time");
@@ -539,7 +543,7 @@ export async function saveEvent(_prev: FormState, fd: FormData): Promise<FormSta
   let subjectId = optUuid(str(fd, "subject_id"));
   if (!subjectId && (kind === "exam" || kind === "deadline")) subjectId = await subjectFromTitle(title);
   const rows: Record<string, unknown>[] = dates.map((d) => ({
-    user_id: OWNER_ID,
+    user_id: me,
     title,
     kind,
     type_id: typeId,
@@ -559,7 +563,7 @@ export async function saveEvent(_prev: FormState, fd: FormData): Promise<FormSta
     const { typeId: studyType } = await resolveType(supabase, study);
     for (const d of studyDays) {
       rows.push({
-        user_id: OWNER_ID,
+        user_id: (await uid()),
         title: `Estudar: ${title}`.slice(0, 80),
         kind: "study",
         type_id: studyType,
@@ -588,7 +592,7 @@ export async function toggleEventDone(fd: FormData) {
     .from("events")
     .update({ done_at: str(fd, "done") === "true" ? null : new Date().toISOString() })
     .eq("id", id)
-    .eq("user_id", OWNER_ID);
+    .eq("user_id", (await uid()));
   revalidatePath("/app", "layout");
 }
 
@@ -597,11 +601,11 @@ export async function deleteEvent(fd: FormData): Promise<UndoResult | void> {
   if (!id) return;
   const supabase = await db();
   const whole = str(fd, "series") === "all";
-  const { data: ev } = await supabase.from("events").select("*").eq("id", id).eq("user_id", OWNER_ID).maybeSingle();
+  const { data: ev } = await supabase.from("events").select("*").eq("id", id).eq("user_id", (await uid())).maybeSingle();
   if (!ev) return;
   const { data: rows } =
     whole && ev.series_id
-      ? await supabase.from("events").select("*").eq("series_id", ev.series_id).eq("user_id", OWNER_ID)
+      ? await supabase.from("events").select("*").eq("series_id", ev.series_id).eq("user_id", (await uid()))
       : { data: [ev] };
   const ids = (rows ?? []).map((r) => r.id);
   const { data: checks } = await supabase
@@ -609,7 +613,7 @@ export async function deleteEvent(fd: FormData): Promise<UndoResult | void> {
     .select("*")
     .eq("parent_type", "event")
     .in("parent_id", ids)
-    .eq("user_id", OWNER_ID);
+    .eq("user_id", (await uid()));
   return deleteWithUndo(
     [
       { table: "events", rows: rows ?? [] },
@@ -621,8 +625,8 @@ export async function deleteEvent(fd: FormData): Promise<UndoResult | void> {
         .delete()
         .eq("parent_type", "event")
         .in("parent_id", ids)
-        .eq("user_id", OWNER_ID);
-      return supabase.from("events").delete().in("id", ids).eq("user_id", OWNER_ID);
+        .eq("user_id", (await uid()));
+      return supabase.from("events").delete().in("id", ids).eq("user_id", (await uid()));
     },
     ids.length > 1 ? `${ids.length} itens apagados.` : "Item apagado.",
   );
@@ -636,7 +640,7 @@ export async function saveTask(_prev: FormState, fd: FormData): Promise<FormStat
   const supabase = await db();
   const { error } = await supabase
     .from("tasks")
-    .insert({ user_id: OWNER_ID, title, priority, due_on: ISO_DATE.test(due) ? due : null });
+    .insert({ user_id: (await uid()), title, priority, due_on: ISO_DATE.test(due) ? due : null });
   if (error) return fail("Não foi possível salvar.");
   return ok("Tarefa salva.");
 }
@@ -649,7 +653,7 @@ export async function toggleTask(fd: FormData) {
     .from("tasks")
     .update({ done_at: str(fd, "done") === "true" ? null : new Date().toISOString() })
     .eq("id", id)
-    .eq("user_id", OWNER_ID);
+    .eq("user_id", (await uid()));
   revalidatePath("/app", "layout");
 }
 
@@ -658,8 +662,8 @@ export async function deleteTask(fd: FormData): Promise<UndoResult | void> {
   if (!id) return;
   const supabase = await db();
   const [{ data: rows }, { data: checks }] = await Promise.all([
-    supabase.from("tasks").select("*").eq("id", id).eq("user_id", OWNER_ID),
-    supabase.from("checklist_items").select("*").eq("parent_type", "task").eq("parent_id", id).eq("user_id", OWNER_ID),
+    supabase.from("tasks").select("*").eq("id", id).eq("user_id", (await uid())),
+    supabase.from("checklist_items").select("*").eq("parent_type", "task").eq("parent_id", id).eq("user_id", (await uid())),
   ]);
   if (!rows?.length) return;
   return deleteWithUndo(
@@ -673,8 +677,8 @@ export async function deleteTask(fd: FormData): Promise<UndoResult | void> {
         .delete()
         .eq("parent_type", "task")
         .eq("parent_id", id)
-        .eq("user_id", OWNER_ID);
-      return supabase.from("tasks").delete().eq("id", id).eq("user_id", OWNER_ID);
+        .eq("user_id", (await uid()));
+      return supabase.from("tasks").delete().eq("id", id).eq("user_id", (await uid()));
     },
     "Tarefa apagada.",
   );
@@ -687,7 +691,7 @@ export async function saveHabit(_prev: FormState, fd: FormData): Promise<FormSta
   const target = Math.min(7, Math.max(1, Number(str(fd, "target_per_week")) || 7));
   if (!name) return fail("Escreva o hábito, como Beber 2 L de água.");
   const supabase = await db();
-  const { error } = await supabase.from("habits").insert({ user_id: OWNER_ID, name, target_per_week: target });
+  const { error } = await supabase.from("habits").insert({ user_id: (await uid()), name, target_per_week: target });
   if (error) return fail("Não foi possível salvar.");
   return ok("Hábito criado.");
 }
@@ -698,11 +702,11 @@ export async function toggleHabit(fd: FormData) {
   if (!id || !ISO_DATE.test(date) || date > todayISO()) return; // dia futuro não se marca
   const supabase = await db();
   if (str(fd, "checked") === "true") {
-    await supabase.from("habit_checks").delete().eq("habit_id", id).eq("checked_on", date).eq("user_id", OWNER_ID);
+    await supabase.from("habit_checks").delete().eq("habit_id", id).eq("checked_on", date).eq("user_id", (await uid()));
   } else {
     await supabase
       .from("habit_checks")
-      .upsert({ user_id: OWNER_ID, habit_id: id, checked_on: date }, { onConflict: "habit_id,checked_on", ignoreDuplicates: true });
+      .upsert({ user_id: (await uid()), habit_id: id, checked_on: date }, { onConflict: "habit_id,checked_on", ignoreDuplicates: true });
   }
   revalidatePath("/app", "layout");
 }
@@ -720,7 +724,7 @@ export async function tutorialSalary(_prev: FormState, fd: FormData): Promise<Fo
   if (!dom) return fail("Escolha o dia em que o salário cai.");
   if (!amount || amount <= 0) return fail("Digite quanto é o salário, como 2.800.");
   const supabase = await db();
-  const { error } = await supabase.from("profiles").update({ cycle_start_day: dom }).eq("id", OWNER_ID);
+  const { error } = await supabase.from("profiles").update({ cycle_start_day: dom }).eq("id", (await uid()));
   if (error) return fail("Não foi possível salvar agora. Tente de novo.");
   const income = new FormData();
   income.set("name", "Salário");
@@ -760,7 +764,7 @@ export async function setNavPrefs(fd: FormData) {
   if (fd.has("hide_habits")) patch.hide_habits = str(fd, "hide_habits") === "true";
   if (!Object.keys(patch).length) return;
   const supabase = await db();
-  await supabase.from("profiles").update(patch).eq("id", OWNER_ID);
+  await supabase.from("profiles").update(patch).eq("id", (await uid()));
   revalidatePath("/app", "layout");
 }
 
@@ -772,20 +776,20 @@ export async function saveNotifyPrefs(_prev: FormState, fd: FormData): Promise<F
   const { error } = await supabase
     .from("profiles")
     .update({ notify_daily: fd.get("notify_daily") === "on", notify_hour: fd.get("notify_hour") === "on", daily_hour: hour })
-    .eq("id", OWNER_ID);
+    .eq("id", (await uid()));
   if (error) return fail("Não foi possível salvar agora.");
   return ok("Lembretes salvos.");
 }
 
 export async function finishTutorial() {
   const supabase = await db();
-  await supabase.from("profiles").update({ tutorial_done_at: new Date().toISOString() }).eq("id", OWNER_ID);
+  await supabase.from("profiles").update({ tutorial_done_at: new Date().toISOString() }).eq("id", (await uid()));
   revalidatePath("/app", "layout");
 }
 
 export async function finishOnboarding() {
   const supabase = await db();
-  await supabase.from("profiles").update({ onboarded_at: new Date().toISOString() }).eq("id", OWNER_ID);
+  await supabase.from("profiles").update({ onboarded_at: new Date().toISOString() }).eq("id", (await uid()));
   revalidatePath("/app", "layout");
 }
 
@@ -798,7 +802,8 @@ async function rebuildInstallments(
   purchase: { id: string; card_id: string; total_cents: number; installments_count: number; purchased_on: string },
   card: { closing_day: number; due_day: number },
 ) {
-  await supabase.from("installments").delete().eq("purchase_id", purchase.id).eq("user_id", OWNER_ID);
+  const me = await uid();
+  await supabase.from("installments").delete().eq("purchase_id", purchase.id).eq("user_id", (await uid()));
   const plan = installmentPlan(
     fromISODate(purchase.purchased_on),
     Number(purchase.total_cents),
@@ -808,7 +813,7 @@ async function rebuildInstallments(
   );
   return supabase.from("installments").insert(
     plan.map((p) => ({
-      user_id: OWNER_ID,
+      user_id: me,
       purchase_id: purchase.id,
       card_id: purchase.card_id,
       number: p.number,
@@ -838,7 +843,7 @@ export async function updateMovement(_prev: FormState, fd: FormData): Promise<Fo
       .from("credit_cards")
       .select("closing_day, due_day")
       .eq("id", cardId)
-      .eq("user_id", OWNER_ID)
+      .eq("user_id", (await uid()))
       .maybeSingle();
     if (!card) return fail("Cartão não encontrado.");
     const { data: purchase, error } = await supabase
@@ -852,7 +857,7 @@ export async function updateMovement(_prev: FormState, fd: FormData): Promise<Fo
         category_id: categoryId,
       })
       .eq("id", id)
-      .eq("user_id", OWNER_ID)
+      .eq("user_id", (await uid()))
       .select("id, card_id, total_cents, installments_count, purchased_on")
       .single();
     if (error || !purchase) return fail("Não foi possível salvar.");
@@ -866,7 +871,7 @@ export async function updateMovement(_prev: FormState, fd: FormData): Promise<Fo
     .from("transactions")
     .select("type")
     .eq("id", id)
-    .eq("user_id", OWNER_ID)
+    .eq("user_id", (await uid()))
     .maybeSingle();
   const { error } = await supabase
     .from("transactions")
@@ -878,7 +883,7 @@ export async function updateMovement(_prev: FormState, fd: FormData): Promise<Fo
       payment_method: current?.type === "expense" && PAYMENT_METHODS.has(method) ? method : null,
     })
     .eq("id", id)
-    .eq("user_id", OWNER_ID);
+    .eq("user_id", (await uid()));
   if (error) return fail("Não foi possível salvar.");
   return ok("Lançamento atualizado.");
 }
@@ -899,13 +904,13 @@ export async function updateCard(_prev: FormState, fd: FormData): Promise<FormSt
     .from("credit_cards")
     .select("closing_day, due_day")
     .eq("id", id)
-    .eq("user_id", OWNER_ID)
+    .eq("user_id", (await uid()))
     .maybeSingle();
   const { error } = await supabase
     .from("credit_cards")
     .update({ name, closing_day: closing, due_day: due, limit_cents: limit })
     .eq("id", id)
-    .eq("user_id", OWNER_ID);
+    .eq("user_id", (await uid()));
   if (error) return fail("Não foi possível salvar.");
 
   // Mudou fechamento ou vencimento: recalcula em que fatura cada parcela cai.
@@ -914,7 +919,7 @@ export async function updateCard(_prev: FormState, fd: FormData): Promise<FormSt
       .from("card_purchases")
       .select("id, card_id, total_cents, installments_count, purchased_on")
       .eq("card_id", id)
-      .eq("user_id", OWNER_ID);
+      .eq("user_id", (await uid()));
     for (const p of purchases ?? []) {
       await rebuildInstallments(supabase, p, { closing_day: closing, due_day: due });
     }
@@ -945,7 +950,7 @@ export async function updateBill(_prev: FormState, fd: FormData): Promise<FormSt
       ...extra.values,
     })
     .eq("id", id)
-    .eq("user_id", OWNER_ID);
+    .eq("user_id", (await uid()));
   if (error) return fail("Não foi possível salvar.");
   return ok("Conta atualizada.");
 }
@@ -965,7 +970,7 @@ export async function updateIncome(_prev: FormState, fd: FormData): Promise<Form
     .from("recurring_incomes")
     .update({ name, amount_cents: amount, day_of_month: dom, ends_on: ISO_DATE.test(endsOn) ? endsOn : null })
     .eq("id", id)
-    .eq("user_id", OWNER_ID);
+    .eq("user_id", (await uid()));
   if (error) return fail("Não foi possível salvar.");
   return ok("Entrada atualizada.");
 }
@@ -983,7 +988,7 @@ export async function updateGoal(_prev: FormState, fd: FormData): Promise<FormSt
     .from("goals")
     .update({ name, target_cents: target, target_date: ISO_DATE.test(targetDate) ? targetDate : null })
     .eq("id", id)
-    .eq("user_id", OWNER_ID);
+    .eq("user_id", (await uid()));
   if (error) return fail("Não foi possível salvar.");
   return ok("Meta atualizada.");
 }
@@ -999,7 +1004,7 @@ export async function updateHabit(_prev: FormState, fd: FormData): Promise<FormS
     .from("habits")
     .update({ name, target_per_week: target })
     .eq("id", id)
-    .eq("user_id", OWNER_ID);
+    .eq("user_id", (await uid()));
   if (error) return fail("Não foi possível salvar.");
   return ok("Hábito atualizado.");
 }
@@ -1030,7 +1035,7 @@ export async function updateEvent(_prev: FormState, fd: FormData): Promise<FormS
       remind_days: remind,
     })
     .eq("id", id)
-    .eq("user_id", OWNER_ID);
+    .eq("user_id", (await uid()));
   if (error) return fail("Não foi possível salvar.");
   return ok("Atualizado.");
 }
@@ -1047,7 +1052,7 @@ export async function updateTask(_prev: FormState, fd: FormData): Promise<FormSt
     .from("tasks")
     .update({ title, priority, due_on: ISO_DATE.test(due) ? due : null })
     .eq("id", id)
-    .eq("user_id", OWNER_ID);
+    .eq("user_id", (await uid()));
   if (error) return fail("Não foi possível salvar.");
   return ok("Tarefa atualizada.");
 }
@@ -1094,7 +1099,7 @@ export async function saveCategory(_prev: FormState, fd: FormData): Promise<Form
   const { data: existing } = await supabase
     .from("categories")
     .select("id, is_archived")
-    .eq("user_id", OWNER_ID)
+    .eq("user_id", (await uid()))
     .eq("kind", kind)
     .ilike("name", name)
     .maybeSingle();
@@ -1103,7 +1108,7 @@ export async function saveCategory(_prev: FormState, fd: FormData): Promise<Form
     return ok("Categoria reativada.");
   }
   if (existing) return fail("Essa categoria já existe.");
-  const { error } = await supabase.from("categories").insert({ user_id: OWNER_ID, name, kind, icon });
+  const { error } = await supabase.from("categories").insert({ user_id: (await uid()), name, kind, icon });
   if (error) return fail("Não foi possível salvar.");
   return ok("Categoria criada.");
 }
@@ -1116,7 +1121,7 @@ export async function saveBudgets(_prev: FormState, fd: FormData): Promise<FormS
     const raw = str(fd, `budget_${id}`);
     const cents = raw ? parseToCents(raw) : null;
     if (raw && (!cents || cents <= 0)) return fail(`Valor inválido: ${raw}`);
-    const { error } = await supabase.from("categories").update({ budget_cents: cents }).eq("id", id).eq("user_id", OWNER_ID);
+    const { error } = await supabase.from("categories").update({ budget_cents: cents }).eq("id", id).eq("user_id", (await uid()));
     if (error) return fail("Não foi possível salvar agora.");
   }
   return ok("Orçamentos salvos.");
@@ -1136,7 +1141,7 @@ export async function savePushSubscription(sub: { endpoint: string; p256dh: stri
   const { error } = await supabase
     .from("push_subscriptions")
     .upsert(
-      { user_id: OWNER_ID, endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
+      { user_id: (await uid()), endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
       { onConflict: "endpoint" },
     );
   return { ok: !error };
@@ -1144,7 +1149,7 @@ export async function savePushSubscription(sub: { endpoint: string; p256dh: stri
 
 export async function deletePushSubscription(endpoint: string) {
   const supabase = await db();
-  await supabase.from("push_subscriptions").delete().eq("endpoint", endpoint).eq("user_id", OWNER_ID);
+  await supabase.from("push_subscriptions").delete().eq("endpoint", endpoint).eq("user_id", (await uid()));
   return { ok: true };
 }
 
@@ -1166,10 +1171,10 @@ export async function saveEventType(_prev: FormState, fd: FormData): Promise<For
   const { count } = await supabase
     .from("event_types")
     .select("id", { count: "exact", head: true })
-    .eq("user_id", OWNER_ID);
+    .eq("user_id", (await uid()));
   const { error } = await supabase
     .from("event_types")
-    .insert({ user_id: OWNER_ID, name, color, base_kind: "other", position: (count ?? 0) + 1 });
+    .insert({ user_id: (await uid()), name, color, base_kind: "other", position: (count ?? 0) + 1 });
   if (error) return fail("Não foi possível salvar.");
   return ok("Tipo criado.");
 }
@@ -1182,7 +1187,7 @@ export async function updateEventType(_prev: FormState, fd: FormData): Promise<F
   const patch: Record<string, unknown> = { name };
   if (HEX.test(str(fd, "color"))) patch.color = str(fd, "color");
   const supabase = await db();
-  const { error } = await supabase.from("event_types").update(patch).eq("id", id).eq("user_id", OWNER_ID);
+  const { error } = await supabase.from("event_types").update(patch).eq("id", id).eq("user_id", (await uid()));
   if (error) return fail("Não foi possível salvar.");
   return ok("Tipo atualizado.");
 }
@@ -1193,7 +1198,7 @@ export async function archiveEventType(fd: FormData) {
   const { count } = await supabase
     .from("event_types")
     .select("id", { count: "exact", head: true })
-    .eq("user_id", OWNER_ID)
+    .eq("user_id", (await uid()))
     .eq("is_archived", false);
   if ((count ?? 0) <= 1) return;
   return archiveWithUndo(fd, "event_types", "is_archived", true, "Tipo apagado.");
@@ -1211,9 +1216,9 @@ async function putInTrash(ops: TrashOp[]) {
   await supabase
     .from("trash")
     .delete()
-    .eq("user_id", OWNER_ID)
+    .eq("user_id", (await uid()))
     .lt("created_at", new Date(Date.now() - 86_400_000).toISOString());
-  const { data } = await supabase.from("trash").insert({ user_id: OWNER_ID, payload: { ops } }).select("id").single();
+  const { data } = await supabase.from("trash").insert({ user_id: (await uid()), payload: { ops } }).select("id").single();
   return data?.id as string | undefined;
 }
 
@@ -1245,7 +1250,7 @@ async function archiveWithUndo(
     .from(table)
     .update({ [column]: value })
     .eq("id", id)
-    .eq("user_id", OWNER_ID);
+    .eq("user_id", (await uid()));
   revalidatePath("/app", "layout");
   if (error) return;
   const trashId = await putInTrash([{ t: "update", table, id, patch: { [column]: !value } }]);
@@ -1274,25 +1279,26 @@ const RESTORABLE = new Set([
 ]);
 
 export async function restoreTrash(trashId: string) {
+  const me = await uid();
   if (!UUID.test(trashId)) return { ok: false };
   const supabase = await db();
   const { data } = await supabase
     .from("trash")
     .select("payload")
     .eq("id", trashId)
-    .eq("user_id", OWNER_ID)
+    .eq("user_id", (await uid()))
     .maybeSingle();
   const ops = ((data?.payload as { ops?: TrashOp[] } | null)?.ops ?? []) as TrashOp[];
   for (const op of ops) {
     if (!RESTORABLE.has(op.table)) continue;
     if (op.t === "insert") {
-      const rows = op.rows.map((r) => ({ ...r, user_id: OWNER_ID }));
+      const rows = op.rows.map((r) => ({ ...r, user_id: me }));
       if (rows.length) await supabase.from(op.table).insert(rows);
     } else if (UUID.test(op.id)) {
-      await supabase.from(op.table).update(op.patch).eq("id", op.id).eq("user_id", OWNER_ID);
+      await supabase.from(op.table).update(op.patch).eq("id", op.id).eq("user_id", (await uid()));
     }
   }
-  await supabase.from("trash").delete().eq("id", trashId).eq("user_id", OWNER_ID);
+  await supabase.from("trash").delete().eq("id", trashId).eq("user_id", (await uid()));
   revalidatePath("/app", "layout");
   return { ok: true };
 }
@@ -1335,7 +1341,7 @@ async function pickStudyDays(supabase: Awaited<ReturnType<typeof db>>, examDate:
   const { data } = await supabase
     .from("events")
     .select("starts_at")
-    .eq("user_id", OWNER_ID)
+    .eq("user_id", (await uid()))
     .gte("starts_at", `${first}T00:00:00-03:00`)
     .lte("starts_at", `${last}T23:59:59-03:00`);
   const busy = new Set(
@@ -1383,7 +1389,7 @@ export async function addChecklistItem(fd: FormData) {
   const supabase = await db();
   await supabase
     .from("checklist_items")
-    .insert({ user_id: OWNER_ID, parent_type: parentType, parent_id: parentId, text });
+    .insert({ user_id: (await uid()), parent_type: parentType, parent_id: parentId, text });
   revalidatePath("/app", "layout");
 }
 
@@ -1395,7 +1401,7 @@ export async function toggleChecklistItem(fd: FormData) {
     .from("checklist_items")
     .update({ done: str(fd, "done") !== "true" })
     .eq("id", id)
-    .eq("user_id", OWNER_ID);
+    .eq("user_id", (await uid()));
   revalidatePath("/app", "layout");
 }
 
@@ -1403,7 +1409,7 @@ export async function deleteChecklistItem(fd: FormData) {
   const id = optUuid(str(fd, "id"));
   if (!id) return;
   const supabase = await db();
-  await supabase.from("checklist_items").delete().eq("id", id).eq("user_id", OWNER_ID);
+  await supabase.from("checklist_items").delete().eq("id", id).eq("user_id", (await uid()));
   revalidatePath("/app", "layout");
 }
 
@@ -1418,7 +1424,7 @@ export async function saveDebt(_prev: FormState, fd: FormData): Promise<FormStat
   if (!amount || amount <= 0) return fail("Digite o valor.");
   const supabase = await db();
   const { error } = await supabase.from("debts").insert({
-    user_id: OWNER_ID,
+    user_id: (await uid()),
     person,
     direction,
     amount_cents: amount,
@@ -1446,7 +1452,7 @@ export async function updateDebt(_prev: FormState, fd: FormData): Promise<FormSt
       note: str(fd, "note").slice(0, 120) || null,
     })
     .eq("id", id)
-    .eq("user_id", OWNER_ID);
+    .eq("user_id", (await uid()));
   if (error) return fail("Não foi possível salvar.");
   return ok("Atualizado.");
 }
@@ -1459,19 +1465,20 @@ export async function settleDebt(fd: FormData) {
     .from("debts")
     .update({ settled_at: str(fd, "settled") === "true" ? null : new Date().toISOString() })
     .eq("id", id)
-    .eq("user_id", OWNER_ID);
+    .eq("user_id", (await uid()));
   revalidatePath("/app", "layout");
 }
 
 export async function deleteDebt(fd: FormData): Promise<UndoResult | void> {
+  const me = await uid();
   const id = optUuid(str(fd, "id"));
   if (!id) return;
   const supabase = await db();
-  const { data: rows } = await supabase.from("debts").select("*").eq("id", id).eq("user_id", OWNER_ID);
+  const { data: rows } = await supabase.from("debts").select("*").eq("id", id).eq("user_id", (await uid()));
   if (!rows?.length) return;
   return deleteWithUndo(
     [{ table: "debts", rows }],
-    () => supabase.from("debts").delete().eq("id", id).eq("user_id", OWNER_ID),
+    () => supabase.from("debts").delete().eq("id", id).eq("user_id", me),
     "Apagado.",
   );
 }
@@ -1492,7 +1499,7 @@ export async function saveSubject(_prev: FormState, fd: FormData): Promise<FormS
   const supabase = await db();
   const { error } = await supabase
     .from("subjects")
-    .insert({ user_id: OWNER_ID, name, pass_grade: pass, max_grade: max, max_absences: maxAbsencesOf(fd) });
+    .insert({ user_id: (await uid()), name, pass_grade: pass, max_grade: max, max_absences: maxAbsencesOf(fd) });
   if (error) return fail("Não foi possível salvar.");
   return ok("Matéria criada.");
 }
@@ -1510,7 +1517,7 @@ export async function updateSubject(_prev: FormState, fd: FormData): Promise<For
     .from("subjects")
     .update({ name, pass_grade: pass, max_grade: max, max_absences: maxAbsencesOf(fd) })
     .eq("id", id)
-    .eq("user_id", OWNER_ID);
+    .eq("user_id", (await uid()));
   if (error) return fail("Não foi possível salvar.");
   return ok("Matéria atualizada.");
 }
@@ -1548,7 +1555,7 @@ export async function saveClassSlot(_prev: FormState, fd: FormData): Promise<For
   if (endsAt && (!HHMM.test(endsAt) || endsAt <= startsAt)) return fail("A aula precisa terminar depois de começar.");
   const supabase = await db();
   const { error } = await supabase.from("class_slots").insert({
-    user_id: OWNER_ID,
+    user_id: (await uid()),
     subject_id: subjectId,
     weekday,
     starts_at: startsAt,
@@ -1560,13 +1567,14 @@ export async function saveClassSlot(_prev: FormState, fd: FormData): Promise<For
 }
 
 export async function deleteClassSlot(fd: FormData): Promise<UndoResult | void> {
+  const me = await uid();
   const id = optUuid(str(fd, "id"));
   if (!id) return;
   const supabase = await db();
-  const { data: rows } = await supabase.from("class_slots").select("*").eq("id", id).eq("user_id", OWNER_ID);
+  const { data: rows } = await supabase.from("class_slots").select("*").eq("id", id).eq("user_id", (await uid()));
   return deleteWithUndo(
     [{ table: "class_slots", rows: rows ?? [] }],
-    () => supabase.from("class_slots").delete().eq("id", id).eq("user_id", OWNER_ID),
+    () => supabase.from("class_slots").delete().eq("id", id).eq("user_id", me),
     "Aula tirada do horário.",
   );
 }
@@ -1579,7 +1587,7 @@ export async function saveTerm(_prev: FormState, fd: FormData): Promise<FormStat
   const supabase = await db();
   const { error } = await supabase
     .from("study_terms")
-    .upsert({ user_id: OWNER_ID, starts_on: startsOn, ends_on: endsOn }, { onConflict: "user_id" });
+    .upsert({ user_id: (await uid()), starts_on: startsOn, ends_on: endsOn }, { onConflict: "user_id" });
   if (error) return fail("Não foi possível salvar.");
   return ok("Semestre salvo.");
 }
@@ -1601,7 +1609,7 @@ export async function saveGrade(_prev: FormState, fd: FormData): Promise<FormSta
   const supabase = await db();
   const { error } = await supabase
     .from("grades")
-    .insert({ user_id: OWNER_ID, subject_id: subjectId, label, weight, value });
+    .insert({ user_id: (await uid()), subject_id: subjectId, label, weight, value });
   if (error) return fail("Não foi possível salvar.");
   return ok(value === null ? "Avaliação adicionada. Lance a nota quando sair." : "Nota lançada.");
 }
@@ -1617,20 +1625,21 @@ export async function updateGrade(_prev: FormState, fd: FormData): Promise<FormS
   if (weight <= 0) return fail("O peso precisa ser maior que zero.");
   if (raw && (value === null || value < 0)) return fail("Nota inválida.");
   const supabase = await db();
-  const { error } = await supabase.from("grades").update({ label, weight, value }).eq("id", id).eq("user_id", OWNER_ID);
+  const { error } = await supabase.from("grades").update({ label, weight, value }).eq("id", id).eq("user_id", (await uid()));
   if (error) return fail("Não foi possível salvar.");
   return ok("Atualizado.");
 }
 
 export async function deleteGrade(fd: FormData): Promise<UndoResult | void> {
+  const me = await uid();
   const id = optUuid(str(fd, "id"));
   if (!id) return;
   const supabase = await db();
-  const { data: rows } = await supabase.from("grades").select("*").eq("id", id).eq("user_id", OWNER_ID);
+  const { data: rows } = await supabase.from("grades").select("*").eq("id", id).eq("user_id", (await uid()));
   if (!rows?.length) return;
   return deleteWithUndo(
     [{ table: "grades", rows }],
-    () => supabase.from("grades").delete().eq("id", id).eq("user_id", OWNER_ID),
+    () => supabase.from("grades").delete().eq("id", id).eq("user_id", me),
     "Avaliação apagada.",
   );
 }
@@ -1676,8 +1685,8 @@ export async function quickText(_prev: QuickState, fd: FormData): Promise<QuickS
   if (!text) return fail("Escreva algo como: mercado 45 pix");
   const supabase = await db();
   const [{ data: cats }, { data: cards }] = await Promise.all([
-    supabase.from("categories").select("id, name, kind").eq("user_id", OWNER_ID).eq("is_archived", false),
-    supabase.from("credit_cards").select("id, name").eq("user_id", OWNER_ID).eq("is_archived", false),
+    supabase.from("categories").select("id, name, kind").eq("user_id", (await uid())).eq("is_archived", false),
+    supabase.from("credit_cards").select("id, name").eq("user_id", (await uid())).eq("is_archived", false),
   ]);
   const today = todayInSaoPaulo();
   const { findMoneyDate } = await import("@/lib/money-date");
@@ -1901,7 +1910,7 @@ async function moneyIntentFromText(it: import("@/lib/money-intents").MoneyIntent
     );
   }
   if (it.intent === "goal_deposit") {
-    const { data: goals } = await supabase.from("goals").select("id, name").eq("user_id", OWNER_ID).eq("is_archived", false);
+    const { data: goals } = await supabase.from("goals").select("id, name").eq("user_id", (await uid())).eq("is_archived", false);
     const { matchByName } = await import("@/lib/money-intents");
     const goal = matchByName(it.goal, goals ?? []);
     if (!goal) return fail(`Não achei a meta “${it.goal}”. Veja o nome em Dinheiro › Metas.`);
@@ -1914,7 +1923,7 @@ async function moneyIntentFromText(it: import("@/lib/money-intents").MoneyIntent
     return { status: "saved", message: `Guardado: ${formatCents(it.amountCents)} em ${goal.name}.` };
   }
   if (it.intent === "fixed_bill") {
-    const { data: cats } = await supabase.from("categories").select("id, name").eq("user_id", OWNER_ID).eq("kind", "expense");
+    const { data: cats } = await supabase.from("categories").select("id, name").eq("user_id", (await uid())).eq("kind", "expense");
     const cat = (cats ?? []).find((c) => c.name === (it.subscription ? "Assinaturas" : "Contas"));
     const fd = new FormData();
     fd.set("name", it.name);
@@ -2019,6 +2028,7 @@ async function studyFromText(
     | { intent: "class"; subject: string; weekday: number; time: string; endTime: string | null }
     | { intent: "study_plan"; subject: string; sessions: number },
 ): Promise<FormState> {
+  const me = await uid();
   const { getSubjects } = await import("@/lib/studies");
   const { matchSubject, WEEKDAYS } = await import("@/lib/studies-math");
   const subjects = await getSubjects();
@@ -2030,7 +2040,7 @@ async function studyFromText(
     const name = ai.subject.charAt(0).toUpperCase() + ai.subject.slice(1);
     const { data } = await supabase
       .from("subjects")
-      .insert({ user_id: OWNER_ID, name: name.slice(0, 60), pass_grade: 6, max_grade: 10 })
+      .insert({ user_id: (await uid()), name: name.slice(0, 60), pass_grade: 6, max_grade: 10 })
       .select("id, name")
       .single();
     if (data) sub = { id: data.id, name: data.name, pass: 6, max: 10, maxAbsences: null, absences: 0 };
@@ -2058,7 +2068,7 @@ async function studyFromText(
       .from("grades")
       .select("id, label")
       .eq("subject_id", sub.id)
-      .eq("user_id", OWNER_ID)
+      .eq("user_id", (await uid()))
       .is("value", null)
       .order("created_at");
     const fold = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -2066,10 +2076,10 @@ async function studyFromText(
       ? (pending ?? []).find((g) => fold(g.label).includes(fold(ai.label!)) || fold(ai.label!).includes(fold(g.label)))
       : (pending ?? [])[0];
     const { error } = target
-      ? await supabase.from("grades").update({ value: ai.value }).eq("id", target.id).eq("user_id", OWNER_ID)
+      ? await supabase.from("grades").update({ value: ai.value }).eq("id", target.id).eq("user_id", (await uid()))
       : await supabase
           .from("grades")
-          .insert({ user_id: OWNER_ID, subject_id: sub.id, label: (ai.label ?? "Nota").slice(0, 60), weight: 1, value: ai.value });
+          .insert({ user_id: (await uid()), subject_id: sub.id, label: (ai.label ?? "Nota").slice(0, 60), weight: 1, value: ai.value });
     if (error) return fail("Não foi possível salvar a nota.");
     revalidatePath("/app", "layout");
     const shown = ai.value.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
@@ -2078,7 +2088,7 @@ async function studyFromText(
 
   if (ai.intent === "class") {
     const { error } = await supabase.from("class_slots").insert({
-      user_id: OWNER_ID,
+      user_id: (await uid()),
       subject_id: sub.id,
       weekday: ai.weekday,
       starts_at: ai.time,
@@ -2096,7 +2106,7 @@ async function studyFromText(
   const { data: exams } = await supabase
     .from("events")
     .select("id, title, starts_at, subject_id")
-    .eq("user_id", OWNER_ID)
+    .eq("user_id", (await uid()))
     .eq("kind", "exam")
     .is("done_at", null)
     .gte("starts_at", `${todayISO()}T00:00:00-03:00`)
@@ -2114,7 +2124,7 @@ async function studyFromText(
   const { typeId } = await resolveType(supabase, study);
   const { error } = await supabase.from("events").insert(
     days.map((d) => ({
-      user_id: OWNER_ID,
+      user_id: me,
       title: `Estudar: ${exam.title}`.slice(0, 80),
       kind: "study",
       type_id: typeId,

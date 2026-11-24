@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { OWNER_ID } from "@/lib/owner";
+import { uid } from "@/lib/user";
 
 export type ProfileFormState = { status: "idle" | "saved" | "error"; message?: string };
 
@@ -20,7 +20,7 @@ export async function saveProfile(_prev: ProfileFormState, formData: FormData): 
   const { error } = await supabase
     .from("profiles")
     .update({ display_name: displayName || null, cycle_start_day: day })
-    .eq("id", OWNER_ID);
+    .eq("id", (await uid()));
 
   if (error) {
     return {

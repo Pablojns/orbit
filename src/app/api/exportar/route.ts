@@ -1,5 +1,5 @@
 import { centsToCsv, toCsv } from "@/lib/csv";
-import { OWNER_ID } from "@/lib/owner";
+import { uid } from "@/lib/user";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -9,12 +9,12 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const supabase = await createClient();
   const [tx, cp, bp, gc, ev, hc] = await Promise.all([
-    supabase.from("transactions").select("occurred_on, type, amount_cents, description, payment_method, category:categories(name)").eq("user_id", OWNER_ID).order("occurred_on"),
-    supabase.from("card_purchases").select("purchased_on, total_cents, installments_count, description, card:credit_cards(name), category:categories(name)").eq("user_id", OWNER_ID).order("purchased_on"),
-    supabase.from("bill_payments").select("paid_on, amount_cents, reference_month, bill:bills(name)").eq("user_id", OWNER_ID).order("paid_on"),
-    supabase.from("goal_contributions").select("contributed_on, amount_cents, goal:goals(name)").eq("user_id", OWNER_ID).order("contributed_on"),
-    supabase.from("events").select("starts_at, title, kind, notes, done_at").eq("user_id", OWNER_ID).order("starts_at"),
-    supabase.from("habit_checks").select("checked_on, habit:habits(name)").eq("user_id", OWNER_ID).order("checked_on"),
+    supabase.from("transactions").select("occurred_on, type, amount_cents, description, payment_method, category:categories(name)").eq("user_id", (await uid())).order("occurred_on"),
+    supabase.from("card_purchases").select("purchased_on, total_cents, installments_count, description, card:credit_cards(name), category:categories(name)").eq("user_id", (await uid())).order("purchased_on"),
+    supabase.from("bill_payments").select("paid_on, amount_cents, reference_month, bill:bills(name)").eq("user_id", (await uid())).order("paid_on"),
+    supabase.from("goal_contributions").select("contributed_on, amount_cents, goal:goals(name)").eq("user_id", (await uid())).order("contributed_on"),
+    supabase.from("events").select("starts_at, title, kind, notes, done_at").eq("user_id", (await uid())).order("starts_at"),
+    supabase.from("habit_checks").select("checked_on, habit:habits(name)").eq("user_id", (await uid())).order("checked_on"),
   ]);
   type Named = { name?: string } | { name?: string }[] | null;
   const nm = (x: unknown) => {

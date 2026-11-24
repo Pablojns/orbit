@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { OWNER_ID } from "@/lib/owner";
+import { uid } from "@/lib/user";
 import { cycleAt, type Cycle } from "@/lib/cycle";
 import { addDays, type CalendarDate, diffInDays, fromISODate, todayInSaoPaulo, toISODate } from "@/lib/dates";
 import {
@@ -149,10 +149,10 @@ const one = <T>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? nul
 // entradas − gastos fora do cartão − contas pagas − faturas pagas − guardado em metas.
 async function getBalanceParts(supabase: Awaited<ReturnType<typeof createClient>>, untilISO: string) {
   const [tx, bills, cards, goals] = await Promise.all([
-    supabase.from("transactions").select("type, amount_cents").eq("user_id", OWNER_ID).lte("occurred_on", untilISO),
-    supabase.from("bill_payments").select("amount_cents").eq("user_id", OWNER_ID).lte("paid_on", untilISO),
-    supabase.from("card_statement_payments").select("amount_cents").eq("user_id", OWNER_ID).lte("paid_on", untilISO),
-    supabase.from("goal_contributions").select("amount_cents").eq("user_id", OWNER_ID).lte("contributed_on", untilISO),
+    supabase.from("transactions").select("type, amount_cents").eq("user_id", (await uid())).lte("occurred_on", untilISO),
+    supabase.from("bill_payments").select("amount_cents").eq("user_id", (await uid())).lte("paid_on", untilISO),
+    supabase.from("card_statement_payments").select("amount_cents").eq("user_id", (await uid())).lte("paid_on", untilISO),
+    supabase.from("goal_contributions").select("amount_cents").eq("user_id", (await uid())).lte("contributed_on", untilISO),
   ]);
   const sum = (rows: { amount_cents: unknown }[] | null) => (rows ?? []).reduce((a, r) => a + Number(r.amount_cents), 0);
   const income = sum((tx.data ?? []).filter((t) => t.type === "income"));
@@ -168,7 +168,7 @@ export async function getCategories(): Promise<Category[]> {
   const { data } = await supabase
     .from("categories")
     .select("id, name, kind, icon, budget_cents")
-    .eq("user_id", OWNER_ID)
+    .eq("user_id", (await uid()))
     .eq("is_archived", false)
     .order("name");
   return (data ?? []).map((c) => ({
@@ -185,7 +185,7 @@ export async function getCards(): Promise<Card[]> {
   const { data } = await supabase
     .from("credit_cards")
     .select("id, name, closing_day, due_day, limit_cents, color")
-    .eq("user_id", OWNER_ID)
+    .eq("user_id", (await uid()))
     .eq("is_archived", false)
     .order("created_at");
   return (data ?? []).map((c) => ({
@@ -225,7 +225,7 @@ export async function getFinance(cycleStartDay: number, offset = 0): Promise<Fin
       .select(
         "id, type, amount_cents, occurred_on, description, payment_method, recurring_income_id, category_id, category:categories(name, icon)",
       )
-      .eq("user_id", OWNER_ID)
+      .eq("user_id", (await uid()))
       .gte("occurred_on", fromISO)
       .lte("occurred_on", endISO)
       .order("occurred_on", { ascending: false })
@@ -235,7 +235,7 @@ export async function getFinance(cycleStartDay: number, offset = 0): Promise<Fin
       .select(
         "id, card_id, description, total_cents, installments_count, purchased_on, category_id, category:categories(name, icon)",
       )
-      .eq("user_id", OWNER_ID)
+      .eq("user_id", (await uid()))
       .gte("purchased_on", purchasesFromISO)
       .lte("purchased_on", endISO)
       .order("purchased_on", { ascending: false }),
@@ -244,39 +244,39 @@ export async function getFinance(cycleStartDay: number, offset = 0): Promise<Fin
       .select(
         "card_id, number, amount_cents, statement_month, purchase:card_purchases(description, installments_count, purchased_on)",
       )
-      .eq("user_id", OWNER_ID)
+      .eq("user_id", (await uid()))
       .gte("statement_month", firstMonth),
     supabase
       .from("card_statement_payments")
       .select("card_id, statement_month, amount_cents, paid_on")
-      .eq("user_id", OWNER_ID)
+      .eq("user_id", (await uid()))
       .gte("statement_month", firstMonth),
     supabase
       .from("bills")
       .select(
         "id, name, amount_cents, due_day, starts_on, ends_on, is_active, category_id, is_subscription, payment_code, category:categories(name, icon)",
       )
-      .eq("user_id", OWNER_ID)
+      .eq("user_id", (await uid()))
       .eq("is_active", true)
       .order("due_day"),
     supabase
       .from("bill_payments")
       .select("bill_id, reference_month, amount_cents, paid_on")
-      .eq("user_id", OWNER_ID)
+      .eq("user_id", (await uid()))
       .gte("paid_on", toISODate(addDays(cycle.start, -40))),
     supabase
       .from("recurring_incomes")
       .select("id, name, amount_cents, day_of_month, starts_on, ends_on, is_active")
-      .eq("user_id", OWNER_ID)
+      .eq("user_id", (await uid()))
       .eq("is_active", true)
       .order("day_of_month"),
     supabase
       .from("goals")
       .select("id, name, kind, target_cents, target_date")
-      .eq("user_id", OWNER_ID)
+      .eq("user_id", (await uid()))
       .eq("is_archived", false)
       .order("created_at"),
-    supabase.from("goal_contributions").select("goal_id, amount_cents, contributed_on").eq("user_id", OWNER_ID),
+    supabase.from("goal_contributions").select("goal_id, amount_cents, contributed_on").eq("user_id", (await uid())),
   ]);
   const balance = await getBalanceParts(supabase, endISO);
 

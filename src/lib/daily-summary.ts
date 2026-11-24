@@ -3,7 +3,7 @@ import webpush from "web-push";
 import { addDays, todayInSaoPaulo, toISODate } from "@/lib/dates";
 import { addMonths } from "@/lib/schedule";
 import { formatCents } from "@/lib/money";
-import { OWNER_ID } from "@/lib/owner";
+import { uid } from "@/lib/user";
 import { type CalendarItem, getAgendaMonth } from "@/lib/routine";
 import { createClient } from "@/lib/supabase/server";
 
@@ -28,7 +28,7 @@ export async function runDailySummary(): Promise<{ sent: number; reason?: string
   const { data: prefs } = await supabase
     .from("profiles")
     .select("notify_daily, daily_hour, last_daily_sent")
-    .eq("id", OWNER_ID)
+    .eq("id", (await uid()))
     .maybeSingle();
   if (prefs && !prefs.notify_daily) return { sent: 0, reason: "resumo desligado" };
   const hour = prefs?.daily_hour ?? 8;
@@ -38,7 +38,7 @@ export async function runDailySummary(): Promise<{ sent: number; reason?: string
   const { data: claimed } = await supabase
     .from("profiles")
     .update({ last_daily_sent: todayISO })
-    .eq("id", OWNER_ID)
+    .eq("id", (await uid()))
     .or(`last_daily_sent.is.null,last_daily_sent.neq.${todayISO}`)
     .select("id");
   if (prefs && !claimed?.length) return { sent: 0, reason: "já enviado hoje" };
@@ -66,7 +66,7 @@ export async function runDailySummary(): Promise<{ sent: number; reason?: string
   const { data: subsBills } = await supabase
     .from("bills")
     .select("name")
-    .eq("user_id", OWNER_ID)
+    .eq("user_id", (await uid()))
     .eq("is_active", true)
     .eq("is_subscription", true);
   const subNames = new Set((subsBills ?? []).map((x) => x.name));
@@ -96,7 +96,7 @@ export async function runDailySummary(): Promise<{ sent: number; reason?: string
   const { data: subs } = await supabase
     .from("push_subscriptions")
     .select("endpoint, p256dh, auth")
-    .eq("user_id", OWNER_ID);
+    .eq("user_id", (await uid()));
 
   let sent = 0;
   for (const s of subs ?? []) {

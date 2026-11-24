@@ -1,7 +1,7 @@
 import "server-only";
 import { habitStreak, weeklyStreak } from "./habit-math";
 import { createClient } from "@/lib/supabase/server";
-import { OWNER_ID } from "@/lib/owner";
+import { uid } from "@/lib/user";
 import { firstOfMonthISO, monthlyOccurrences, statementDueDate } from "@/lib/schedule";
 import { classOccurrences } from "@/lib/studies-math";
 import { getClassSlots, getTerm } from "@/lib/class-slots";
@@ -62,19 +62,20 @@ const FALLBACK_TYPE: Record<AgendaEvent["kind"], { name: string; color: string }
 };
 
 export async function getEventTypes(): Promise<EventType[]> {
+  const me = await uid();
   const supabase = await createClient();
   const read = () =>
     supabase
       .from("event_types")
       .select("id, name, color, base_kind, is_archived")
-      .eq("user_id", OWNER_ID)
+      .eq("user_id", me)
       .order("position")
       .order("created_at");
   let { data } = await read();
   if (data && data.length === 0) {
     await supabase.from("event_types").insert(
       DEFAULT_EVENT_TYPES.map((t, i) => ({
-        user_id: OWNER_ID,
+        user_id: me,
         name: t.name,
         color: t.color,
         base_kind: t.baseKind,
@@ -142,7 +143,7 @@ export async function getChecklists() {
   const { data } = await supabase
     .from("checklist_items")
     .select("id, parent_id, text, done")
-    .eq("user_id", OWNER_ID)
+    .eq("user_id", (await uid()))
     .order("created_at");
   const map: Record<string, ChecklistItem[]> = {};
   for (const r of data ?? []) (map[r.parent_id] ??= []).push({ id: r.id, text: r.text, done: r.done });
@@ -178,13 +179,13 @@ export async function getAgenda(today: CalendarDate = todayInSaoPaulo()) {
     supabase
       .from("events")
       .select(EVENT_COLUMNS)
-      .eq("user_id", OWNER_ID)
+      .eq("user_id", (await uid()))
       .gte("starts_at", `${from}T00:00:00-03:00`)
       .order("starts_at"),
     supabase
       .from("tasks")
       .select("id, title, priority, due_on, done_at, created_at")
-      .eq("user_id", OWNER_ID)
+      .eq("user_id", (await uid()))
       .order("done_at", { ascending: true, nullsFirst: true })
       .order("priority")
       .order("due_on", { ascending: true, nullsFirst: false }),
@@ -215,10 +216,10 @@ export async function getHabits(today: CalendarDate = todayInSaoPaulo()): Promis
     supabase
       .from("habits")
       .select("id, name, target_per_week")
-      .eq("user_id", OWNER_ID)
+      .eq("user_id", (await uid()))
       .eq("is_archived", false)
       .order("created_at"),
-    supabase.from("habit_checks").select("habit_id, checked_on").eq("user_id", OWNER_ID).gte("checked_on", since),
+    supabase.from("habit_checks").select("habit_id, checked_on").eq("user_id", (await uid())).gte("checked_on", since),
   ]);
 
   const byHabit = new Map<string, Set<string>>();
@@ -285,26 +286,26 @@ export async function getAgendaMonth(year: number, month: number, today: Calenda
     supabase
       .from("events")
       .select(EVENT_COLUMNS)
-      .eq("user_id", OWNER_ID)
+      .eq("user_id", (await uid()))
       .gte("starts_at", `${startISO}T00:00:00-03:00`)
       .lte("starts_at", `${endISO}T23:59:59-03:00`)
       .order("starts_at"),
     supabase
       .from("bills")
       .select("id, name, amount_cents, due_day, starts_on, ends_on")
-      .eq("user_id", OWNER_ID)
+      .eq("user_id", (await uid()))
       .eq("is_active", true),
-    supabase.from("bill_payments").select("bill_id").eq("user_id", OWNER_ID).eq("reference_month", monthISO),
+    supabase.from("bill_payments").select("bill_id").eq("user_id", (await uid())).eq("reference_month", monthISO),
     supabase
       .from("installments")
       .select("card_id, amount_cents")
-      .eq("user_id", OWNER_ID)
+      .eq("user_id", (await uid()))
       .eq("statement_month", monthISO),
-    supabase.from("credit_cards").select("id, name, due_day").eq("user_id", OWNER_ID).eq("is_archived", false),
+    supabase.from("credit_cards").select("id, name, due_day").eq("user_id", (await uid())).eq("is_archived", false),
     supabase
       .from("card_statement_payments")
       .select("card_id, amount_cents")
-      .eq("user_id", OWNER_ID)
+      .eq("user_id", (await uid()))
       .eq("statement_month", monthISO),
   ]);
 
