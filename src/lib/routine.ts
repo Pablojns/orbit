@@ -1,5 +1,5 @@
 import "server-only";
-import { habitStreak } from "./habit-math";
+import { habitStreak, weeklyStreak } from "./habit-math";
 import { createClient } from "@/lib/supabase/server";
 import { OWNER_ID } from "@/lib/owner";
 import { firstOfMonthISO, monthlyOccurrences, statementDueDate } from "@/lib/schedule";
@@ -160,6 +160,8 @@ export type Habit = {
   streak: number; // dias seguidos até hoje (ou até ontem, se hoje ainda não marcou)
   last7: { date: string; checked: boolean }[];
   last14: { date: string; checked: boolean }[];
+  streakUnit: "dias" | "semanas"; // diário conta dias seguidos; meta semanal conta semanas seguidas
+  history: { date: string; checked: boolean }[]; // últimos 35 dias, para a grade mensal
 };
 
 function localParts(iso: string) {
@@ -236,7 +238,12 @@ export async function getHabits(today: CalendarDate = todayInSaoPaulo()): Promis
       const date = toISODate(addDays(today, i - 13));
       return { date, checked: set.has(date) };
     });
-    const streak = habitStreak(set, today);
+    const weekly = h.target_per_week < 7;
+    const streak = weekly ? weeklyStreak(set, today, h.target_per_week) : habitStreak(set, today);
+    const history = Array.from({ length: 35 }, (_, i) => {
+      const date = toISODate(addDays(today, i - 34));
+      return { date, checked: set.has(date) };
+    });
     return {
       id: h.id,
       name: h.name,
@@ -246,6 +253,8 @@ export async function getHabits(today: CalendarDate = todayInSaoPaulo()): Promis
       streak,
       last7,
       last14,
+      streakUnit: weekly ? ("semanas" as const) : ("dias" as const),
+      history,
     };
   });
 }

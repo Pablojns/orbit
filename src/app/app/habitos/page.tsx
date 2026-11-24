@@ -4,6 +4,7 @@ import { EditHabit } from "@/components/edit-forms";
 import { Field, Select, TextInput } from "@/components/fields";
 import { FormSheet } from "@/components/form-sheet";
 import { DeleteButton } from "@/components/undo";
+import { SheetButton } from "@/components/sheet-button";
 import { archiveHabit, saveHabit, toggleHabit } from "@/app/app/actions";
 import { todayInSaoPaulo, toISODate } from "@/lib/dates";
 import { getHabits } from "@/lib/routine";
@@ -83,7 +84,13 @@ export default async function HabitsPage() {
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
                     <span className="rounded-full bg-[#2a2158] px-3 py-1.5 text-xs font-bold text-[#d9ccff] lg:text-[13px]">
-                      {h.streak === 1 ? "1 dia seguido" : `${h.streak} dias seguidos`}
+                      {h.streakUnit === "semanas"
+                        ? h.streak === 1
+                          ? "1 semana na meta"
+                          : `${h.streak} semanas na meta`
+                        : h.streak === 1
+                          ? "1 dia seguido"
+                          : `${h.streak} dias seguidos`}
                     </span>
                     <EditHabit habit={h} />
                     <DeleteButton action={archiveHabit} fields={{ id: h.id }} label={`Arquivar ${h.name}`} />
@@ -122,6 +129,51 @@ export default async function HabitsPage() {
                     );
                   })}
                 </ol>
+                <SheetButton
+                  title={`${h.name}: últimos 35 dias`}
+                  className="self-start text-[13px] font-bold text-[#a78bfa] hover:text-white"
+                  trigger="Ver histórico do mês"
+                >
+                  <div className="grid grid-cols-7 gap-1.5 text-center text-[11px] font-bold text-ink-soft">
+                    {["S", "T", "Q", "Q", "S", "S", "D"].map((l, i) => (
+                      <span key={i}>{l}</span>
+                    ))}
+                  </div>
+                  <ol className="mt-1.5 grid grid-cols-7 gap-1.5">
+                    {Array.from({ length: (parts(h.history[0].date).wd + 6) % 7 }, (_, i) => (
+                      <li key={`v${i}`} aria-hidden />
+                    ))}
+                    {h.history.map((d) => {
+                      const { day } = parts(d.date);
+                      return (
+                        <li key={d.date}>
+                          <form action={toggleHabit}>
+                            <input type="hidden" name="habit_id" value={h.id} />
+                            <input type="hidden" name="date" value={d.date} />
+                            <input type="hidden" name="checked" value={String(d.checked)} />
+                            <button
+                              type="submit"
+                              aria-pressed={d.checked}
+                              aria-label={`${h.name}, dia ${day}, ${d.checked ? "feito" : "não feito"}`}
+                              className={`grid h-11 w-full place-items-center rounded-xl border text-[13px] font-bold ${
+                                d.checked
+                                  ? "border-[#4361f5] bg-[#4361f5] text-white"
+                                  : d.date === todayISO
+                                    ? "border-[#a78bfa]"
+                                    : "border-white/15 text-ink-soft"
+                              }`}
+                            >
+                              {day}
+                            </button>
+                          </form>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                  <p className="mt-3 text-sm text-ink-soft">
+                    {h.history.filter((d) => d.checked).length} marcações nos últimos 35 dias.
+                  </p>
+                </SheetButton>
               </li>
             ))}
           </ul>
@@ -130,8 +182,9 @@ export default async function HabitsPage() {
             <section className="glass rounded-3xl px-6 py-[22px]">
               <h2 className="text-[17px]">Como a sequência conta</h2>
               <p className="mt-2 text-sm leading-relaxed font-medium text-[#b4bde3]">
-                A sequência é quantos dias seguidos você marcou até hoje. Se hoje ainda não foi marcado, ela conta a partir
-                de ontem. Esqueceu de marcar um dia? Toque nele e a sequência volta ao normal.
+                Hábito de todo dia: quantos dias seguidos você marcou até hoje (se hoje ainda não foi marcado, conta a
+                partir de ontem). Hábito com meta semanal: quantas semanas seguidas você bateu a meta. Esqueceu de
+                marcar? Toque no dia e a sequência volta ao normal.
               </p>
             </section>
           </div>
