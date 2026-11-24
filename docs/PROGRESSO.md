@@ -3,17 +3,17 @@
 Leia docs/PLANO-RODADAS.md primeiro. Este arquivo diz onde a sessão parou. Ele é atualizado a cada commit.
 
 ## Estado atual
-- Rodada atual: **5**
-- Último item concluído: R4 fechada
-- Próximo passo: R5 — Dinheiro (Extrato, Cartões com fatura em pop-up, Contas fixas, Metas, Empréstimos), Agenda (itens do dia em pop-up) e Perfil no visual novo
+- Rodada atual: **6**
+- Último item concluído: R5 fechada
+- Próximo passo: R6 — sequência semanal, histórico mensal de hábitos, Perfil completo (lembretes, exportar CSV, sair e excluir atrás de AUTH_ENABLED)
 
 ## Rodadas
 | Rodada | Situação |
 |---|---|
 | R3 visual, Início, Estudos, Hábitos, tutorial, voz | feita |
 | R4 sem rolagem e pop-ups | feita |
-| R5 Dinheiro, Agenda e Perfil no visual | em andamento |
-| R6 Hábitos e Perfil completos | a fazer |
+| R5 Dinheiro, Agenda e Perfil no visual | feita |
+| R6 Hábitos e Perfil completos | em andamento |
 | R7 voz completa | a fazer |
 | R8 completude | a fazer |
 | R9 contas, teste grátis, cobrança (desligados) | a fazer |
