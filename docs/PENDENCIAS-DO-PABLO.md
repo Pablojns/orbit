@@ -44,5 +44,17 @@ Passos que dependem de você (conta, chave ou dinheiro). Cada um traz o passo a 
 ### E. Lembretes com várias pessoas (fazer junto com o login)
 Os avisos automáticos (resumo do dia e aviso de 3 horas) hoje só atendem o dono do modo teste. Com o login ligado, precisam percorrer todos os usuários com a chave de serviço. O código está preparado (lib/user, admin.ts), mas esse ajuste não foi feito. Peça "lembretes multiusuário" que eu faço.
 
+## Rodada 10
+1. **Proteção contra senha vazada** (2 minutos): no Supabase, abra Authentication > Policies (ou Password security) e ligue "Leaked password protection".
+2. **Backup semanal** (5 minutos): no Supabase, abra Project Settings > Database > Connection string (URI), copie e troque a senha. No GitHub, crie o segredo `SUPABASE_DB_URL` em Settings > Secrets and variables > Actions. Para testar, rode o fluxo "backup-semanal" em Actions.
+3. **Mover o banco para São Paulo** (cerca de 1 hora, com o app parado uns minutos):
+   1. Crie um projeto novo no Supabase na região South America (São Paulo).
+   2. Rode as migrações de `supabase/migrations` em ordem.
+   3. Copie os dados com pg_dump e pg_restore, usando a URL do passo 2.
+   4. Troque na Vercel `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (e `SUPABASE_SERVICE_ROLE_KEY`, se já existir).
+   5. Recrie os dois agendamentos (avisos de 15 em 15 minutos).
+   Faça isso antes de ligar o login.
+4. **pg_net no schema public:** alerta de baixo risco. Mover a extensão quebraria o agendamento de avisos, então deixe como está.
+
 ## Próximas rodadas
-Os itens abaixo vão sendo acrescentados ao longo das rodadas 10 a 12.
+Os itens abaixo vão sendo acrescentados ao longo das rodadas 11 e 12.

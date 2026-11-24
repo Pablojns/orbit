@@ -4,8 +4,8 @@ Leia docs/PLANO-RODADAS.md primeiro. Este arquivo diz onde a sessão parou. Ele 
 
 ## Estado atual
 - Rodada atual: **10**
-- Último item concluído: R9 fechada
-- Próximo passo: R10 — testes automáticos, alertas do Supabase, limite da IA, acessibilidade, desempenho, backup, registro de erros
+- Último item concluído: R10 quase toda (falta medir desempenho)
+- Próximo passo: medir desempenho do Início no celular (meta 90 ou mais) e corrigir; depois R11 (página de vendas com R$ 29,90, e-mails, domínio, site.ts, checklist) e R12 (teste de 30 dias)
 
 ## Rodadas
 | Rodada | Situação |
@@ -33,3 +33,4 @@ Leia docs/PLANO-RODADAS.md primeiro. Este arquivo diz onde a sessão parou. Ele 
 - R4: 1543330 janela única · a67c914 pop-ups e sem rolagem · fechamento
 - R5: cabeçalho, abas, Saldo em destaque no Dinheiro, fatura em pop-up, Agenda leva aos itens do dia
 - R6: 0014 aplicada (preferências de aviso); resumo do dia na hora escolhida; exportar CSV; Conta atrás de AUTH_ENABLED
+- R10: de65e91 (parcial). Sessão parou no limite de uso; retomar pela medição de desempenho.
