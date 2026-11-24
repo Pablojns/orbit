@@ -32,3 +32,4 @@ Leia docs/PLANO-RODADAS.md primeiro. Este arquivo diz onde a sessão parou. Ele 
 - R4: janela única (Modal: Esc, voltar, foco preso)
 - R4: 1543330 janela única · a67c914 pop-ups e sem rolagem · fechamento
 - R5: cabeçalho, abas, Saldo em destaque no Dinheiro, fatura em pop-up, Agenda leva aos itens do dia
+- R6: 0014 aplicada (preferências de aviso); resumo do dia na hora escolhida; exportar CSV; Conta atrás de AUTH_ENABLED

@@ -18,3 +18,8 @@ assert.equal(formatCents(-68870), "− R$ 688,70");
 assert.equal(formatCents(68870), "R$ 688,70");
 assert.equal(formatCents(0), "R$ 0,00");
 console.log("test-money: ok");
+
+import { centsToCsv, toCsv } from "../src/lib/csv";
+assert.equal(centsToCsv(123456), "1234,56");
+assert.equal(toCsv([["a;b", 'x"y'], [1, null]]), '﻿"a;b";"x""y"\r\n1;');
+console.log("test-money (CSV): ok");

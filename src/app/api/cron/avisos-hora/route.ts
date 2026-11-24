@@ -1,6 +1,7 @@
 import webpush from "web-push";
 import { OWNER_ID } from "@/lib/owner";
 import { createClient } from "@/lib/supabase/server";
+import { runDailySummary } from "@/lib/daily-summary";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,11 @@ export async function GET(request: Request) {
   if (!pub || !priv) return Response.json({ sent: 0, reason: "sem chaves" });
   webpush.setVapidDetails("https://dimeta.vercel.app", pub, priv);
 
+  // O resumo do dia também passa por aqui, para respeitar a hora escolhida no Perfil.
+  const daily = await runDailySummary();
   const supabase = await createClient();
+  const { data: prefs } = await supabase.from("profiles").select("notify_hour").eq("id", OWNER_ID).maybeSingle();
+  if (prefs && !prefs.notify_hour) return Response.json({ sent: 0, reason: "aviso de 3 horas desligado", daily });
   const now = new Date();
   const limit = new Date(now.getTime() + HOURS_BEFORE * 3_600_000);
   const { data: events } = await supabase

@@ -10,6 +10,9 @@ export type Profile = {
   tutorialDone: boolean;
   hideStudies: boolean;
   hideHabits: boolean;
+  notifyDaily: boolean;
+  notifyHour: boolean;
+  dailyHour: number;
 };
 
 // Camada de acesso a dados. No modo teste (sem login), sempre lê o perfil do dono.
@@ -17,7 +20,7 @@ export async function requireProfile(): Promise<Profile> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("profiles")
-    .select("display_name, cycle_start_day, onboarded_at, tutorial_done_at, hide_studies, hide_habits")
+    .select("display_name, cycle_start_day, onboarded_at, tutorial_done_at, hide_studies, hide_habits, notify_daily, notify_hour, daily_hour")
     .eq("id", OWNER_ID)
     .maybeSingle();
 
@@ -29,5 +32,8 @@ export async function requireProfile(): Promise<Profile> {
     tutorialDone: Boolean(data?.tutorial_done_at),
     hideStudies: Boolean(data?.hide_studies),
     hideHabits: Boolean(data?.hide_habits),
+    notifyDaily: data?.notify_daily ?? true,
+    notifyHour: data?.notify_hour ?? true,
+    dailyHour: data?.daily_hour ?? 8,
   };
 }

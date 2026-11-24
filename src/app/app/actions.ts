@@ -764,6 +764,19 @@ export async function setNavPrefs(fd: FormData) {
   revalidatePath("/app", "layout");
 }
 
+// Lembretes: resumo do dia (liga/desliga e hora) e aviso 3 horas antes.
+export async function saveNotifyPrefs(_prev: FormState, fd: FormData): Promise<FormState> {
+  const hour = Number(str(fd, "daily_hour"));
+  if (!Number.isInteger(hour) || hour < 5 || hour > 22) return fail("Escolha uma hora entre 5h e 22h.");
+  const supabase = await db();
+  const { error } = await supabase
+    .from("profiles")
+    .update({ notify_daily: fd.get("notify_daily") === "on", notify_hour: fd.get("notify_hour") === "on", daily_hour: hour })
+    .eq("id", OWNER_ID);
+  if (error) return fail("Não foi possível salvar agora.");
+  return ok("Lembretes salvos.");
+}
+
 export async function finishTutorial() {
   const supabase = await db();
   await supabase.from("profiles").update({ tutorial_done_at: new Date().toISOString() }).eq("id", OWNER_ID);
