@@ -4,6 +4,7 @@ import { EditCard } from "@/components/edit-forms";
 import { EmptyState } from "@/components/empty-state";
 import { DaySelect, Field, MoneyInput, TextInput } from "@/components/fields";
 import { FormSheet } from "@/components/form-sheet";
+import { SheetButton } from "@/components/sheet-button";
 import { archiveCard, payStatement, saveCard, unpayStatement } from "@/app/app/actions";
 import { diffInDays, formatShort } from "@/lib/dates";
 import { getFinance, type Statement } from "@/lib/finance";
@@ -70,8 +71,7 @@ export default async function CardsPage() {
           .reduce((a, st) => a + st.remainingCents, 0);
         return (
           <section key={card.id} className="glass overflow-hidden rounded-3xl">
-            <div className="relative overflow-hidden bg-gradient-to-br from-[#2a2f6b] via-[#3b2a78] to-[#0f4a6b] p-5">
-              <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" aria-hidden />
+            <div className="hero-card relative overflow-hidden p-5">
               <div className="relative flex items-start justify-between">
                 <div>
                   <p className="font-display text-xl font-bold">{card.name}</p>
@@ -92,12 +92,12 @@ export default async function CardsPage() {
               {card.limitCents ? (
                 <div className="relative mt-5">
                   <p className="text-xs text-white/70">Limite livre aproximado</p>
-                  <p className="font-display metal-text text-3xl font-bold">
+                  <p className="text-3xl font-extrabold">
                     {formatCents(Math.max(0, card.limitCents - usedCents))}
                   </p>
                   <div className="h-1.5 overflow-hidden rounded-full bg-white/15">
                     <div
-                      className="h-full rounded-full bg-white/80"
+                      className="h-full rounded-full bg-[#a78bfa]"
                       style={{ width: `${Math.min(100, (usedCents / card.limitCents) * 100)}%` }}
                     />
                   </div>
@@ -141,22 +141,27 @@ export default async function CardsPage() {
                           </span>
                         </div>
                       </div>
-                      <details className="mt-2">
-                        <summary className="cursor-pointer text-[13px] text-cobalt">
-                          {st.items.length} {st.items.length === 1 ? "lançamento" : "lançamentos"}
-                        </summary>
-                        <ul className="mt-2 space-y-1.5 text-[13px]">
+                      <SheetButton
+                        title={`Fatura de ${new Intl.DateTimeFormat("pt-BR", { month: "long", timeZone: "UTC" }).format(new Date(`${st.month}T12:00:00Z`))} · ${card.name}`}
+                        className="mt-2 flex min-h-9 items-center text-[13px] font-bold text-[#a78bfa]"
+                        trigger={`Ver ${st.items.length} ${st.items.length === 1 ? "lançamento" : "lançamentos"}`}
+                      >
+                        <ul>
                           {st.items.map((it, i) => (
-                            <li key={i} className="flex justify-between gap-3 text-ink-soft">
+                            <li key={i} className="flex justify-between gap-3 border-t border-white/[0.07] py-2.5 text-[15px] first:border-t-0">
                               <span className="truncate">
                                 {it.description}
                                 {it.count > 1 ? ` (${it.number}/${it.count})` : ""}
                               </span>
-                              <span className="shrink-0 text-ink">{formatCents(it.amountCents)}</span>
+                              <span className="shrink-0 font-bold">{formatCents(it.amountCents)}</span>
                             </li>
                           ))}
                         </ul>
-                      </details>
+                        <p className="mt-3 flex justify-between border-t border-white/10 pt-3 text-[15px] font-extrabold">
+                          <span>Total</span>
+                          <span>{formatCents(st.totalCents)}</span>
+                        </p>
+                      </SheetButton>
                       {st.status === "closed" || (st.status === "open" && days <= 10) ? (
                         <form action={payStatement} className="mt-3">
                           <input type="hidden" name="card_id" value={st.cardId} />
@@ -164,7 +169,7 @@ export default async function CardsPage() {
                           <input type="hidden" name="amount" value={st.remainingCents} />
                           <button
                             type="submit"
-                            className="w-full rounded-2xl bg-gain/90 px-4 py-2.5 text-sm font-semibold text-[#0b1440]"
+                            className="grad-primary h-11 w-full rounded-2xl px-4 text-sm font-bold text-white"
                           >
                             Paguei {formatCents(st.remainingCents)}
                           </button>

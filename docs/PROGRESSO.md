@@ -31,3 +31,4 @@ Leia docs/PLANO-RODADAS.md primeiro. Este arquivo diz onde a sessão parou. Ele 
 - R3: 05bc17a visual · 48536e1 Início · 9d97565 Estudos · a86a5db Hábitos · bbc9bda tutorial · 136e35e Dinheiro · f3d7c38 voz · (fechamento) conta nova a partir de hoje + docs
 - R4: janela única (Modal: Esc, voltar, foco preso)
 - R4: 1543330 janela única · a67c914 pop-ups e sem rolagem · fechamento
+- R5: cabeçalho, abas, Saldo em destaque no Dinheiro, fatura em pop-up, Agenda leva aos itens do dia

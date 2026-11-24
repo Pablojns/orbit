@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { saveAgendaItem } from "@/app/app/actions";
 import { Field, inputClass, Select, TextInput } from "@/components/fields";
@@ -60,15 +60,18 @@ export function AgendaBoard({
 }) {
   const [selected, setSelected] = useState<string | null>(initialSelected);
 
+  const listRef = useRef<HTMLElement>(null);
   function pick(iso: string | null) {
     setSelected(iso);
     const url = iso ? `/app/agenda?mes=${monthKey}&dia=${iso}` : `/app/agenda?mes=${monthKey}`;
     window.history.replaceState(null, "", url);
+    // No celular a lista fica acima do calendário: leva a pessoa até os itens do dia.
+    if (iso && window.innerWidth < 1280) listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,25rem)]">
-      <section className="glass flex min-w-0 flex-col rounded-3xl p-5">
+      <section ref={listRef} className="glass flex min-w-0 scroll-mt-24 flex-col rounded-3xl p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-lg font-semibold">{selected ? weekdayLong(selected) : "Esta semana"}</h2>
@@ -112,7 +115,7 @@ export function AgendaBoard({
           <Link
             href={prevHref}
             aria-label="Mês anterior"
-            className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/[0.06]"
+            className="grid h-11 w-11 place-items-center rounded-xl hover:bg-white/[0.06]"
           >
             <ChevronLeft size={18} aria-hidden />
           </Link>
@@ -127,7 +130,7 @@ export function AgendaBoard({
           <Link
             href={nextHref}
             aria-label="Próximo mês"
-            className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/[0.06]"
+            className="grid h-11 w-11 place-items-center rounded-xl hover:bg-white/[0.06]"
           >
             <ChevronRight size={18} aria-hidden />
           </Link>

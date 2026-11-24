@@ -1,8 +1,12 @@
-export function PageHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+// Cabeçalho das telas no visual da Rodada 3: título forte e uma linha de apoio.
+export function PageHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: React.ReactNode }) {
   return (
-    <header className="pt-4 pb-5 lg:pt-6">
-      <h1 className="text-[2rem] leading-none font-bold">{title}</h1>
-      {subtitle ? <p className="mt-2 text-[15px] text-ink-soft">{subtitle}</p> : null}
+    <header className="flex flex-wrap items-center justify-between gap-3 pt-5 pb-5 lg:pt-7">
+      <div className="min-w-0">
+        <h1 className="text-2xl leading-tight lg:text-[28px]">{title}</h1>
+        {subtitle ? <p className="mt-0.5 text-[13px] font-semibold text-ink-soft lg:text-sm">{subtitle}</p> : null}
+      </div>
+      {action}
     </header>
   );
 }
