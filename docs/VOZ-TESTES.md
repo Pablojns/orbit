@@ -7,7 +7,7 @@ O navegador de testes não tem microfone. Testei por partes: áudios gravados ma
 - O áudio da fala vai para o **Whisper da Groq** (pelo servidor; a chave não sai de lá) e vira texto.
 - O texto passa pelas regras (caminho rápido) ou pela IA, registra e o Dimeta confirma falando **uma frase**.
 - **Modo conversa:** depois da resposta, continua ouvindo por ~5 s ("e mais 20 de uber"). Ficou em silêncio, fecha.
-- Na primeira vez, o aparelho baixa o detector (~19 MB). Depois fica guardado (30 dias).
+- Na primeira vez, o aparelho baixa o detector (~17 MB). Depois fica guardado (30 dias).
 
 ## O que já foi testado
 - Transcrição: "mercado 45 no pix", "uber 18 no débito" e "Dimeta" foram entendidos. Um ruído curto ("tosse") **não** abriu a conversa.
@@ -26,6 +26,6 @@ O navegador de testes não tem microfone. Testei por partes: áudios gravados ma
 
 ## Limitações conhecidas
 - **Celular:** só ouve com o app aberto e a tela ligada (limite do navegador).
-- **Primeiro uso:** a 1ª abertura do microfone demora mais (download do detector). No 4G, ~19 MB uma vez.
+- **Primeiro uso:** a 1ª abertura do microfone demora mais (download do detector). No 4G, ~17 MB uma vez.
 - **Groq grátis:** frases muito seguidas podem receber "ocupado". A escuta do "Dimeta" envia no máximo 90 trechos por hora.
 - **Fala do Dimeta:** usa a voz do sistema. Em alguns Android, a voz em português precisa estar instalada.
