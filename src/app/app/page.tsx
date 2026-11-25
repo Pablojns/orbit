@@ -2,7 +2,6 @@ import Link from "next/link";
 import { BookOpen, CalendarClock, Check, GraduationCap } from "lucide-react";
 import {
   payStatement,
-  receiveIncome,
   toggleBillPaid,
   toggleHabit,
 } from "@/app/app/actions";
@@ -60,7 +59,7 @@ function inDays(n: number) {
   return `em ${n} dias`;
 }
 
-const CAT_COLORS = ["#4361F5", "#A78BFA", "#7DD3FC", "#C4B5FD"];
+const CAT_COLORS = ["#4361F5", "#A78BFA", "#7DD3FC", "#C4B5FD", "#818CF8", "#93C5FD", "#DDD6FE", "#60A5FA"];
 
 function MiniMovements({ list }: { list: Movement[] }) {
   if (!list.length)
@@ -147,7 +146,6 @@ export default async function HomePage() {
         } as Record<string, string>,
       })),
   ].sort((a, b) => diffInDays(b.date, a.date));
-  const pendingIncomes = f.incomesInCycle.filter((i) => !i.received);
 
   // ---------- Agenda: próxima prova em destaque; depois hoje e os próximos 7 dias
   const nextExam =
@@ -203,11 +201,10 @@ export default async function HomePage() {
     .slice(0, 6);
 
   // ---------- Para onde foi: só as maiores categorias
-  const topCategories = s.byCategory.slice(0, 4);
+  const topCategories = s.byCategory; // todas, em colunas de 4
   const budgetOf = (name: string) =>
     budgetLevel(c2(name), f.categories.find((x) => x.kind === "expense" && x.name === name)?.budgetCents);
   const c2 = (name: string) => s.byCategory.find((x) => x.name === name)?.cents ?? 0;
-  const topTotal = topCategories.reduce((a, c) => a + c.cents, 0) || 1;
 
   const cycleDone = Math.min(
     100,
@@ -252,8 +249,8 @@ export default async function HomePage() {
         </div>
       </header>
 
-      <div className="grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-2 lg:grid-rows-[minmax(0,1fr)] lg:gap-5">
-        {/* Coluna da esquerda: Saldo, barra de IA e Agenda */}
+      <div className="grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[1.35fr_1fr] lg:grid-rows-[minmax(0,1fr)] lg:gap-5">
+        {/* Coluna da esquerda (maior): Saldo e Agenda */}
         <div className="space-y-4 lg:flex lg:min-h-0 lg:flex-col lg:gap-5 lg:space-y-0">
           <section className="hero-card space-y-3.5 rounded-3xl p-[22px] lg:shrink-0 lg:px-7">
             <SheetButton
@@ -458,14 +455,13 @@ export default async function HomePage() {
           </section>
         </div>
 
-        {/* Coluna da direita: Contas, Hábitos, Para onde foi */}
+        {/* Coluna da direita: A pagar, Hábitos, Gastos por categoria */}
         <div className="space-y-4 lg:flex lg:min-h-0 lg:flex-col lg:gap-5 lg:space-y-0">
           <section className="glass rounded-3xl p-[18px] lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:px-6 lg:py-[22px]">
-            {sectionHead("Contas", "/app/dinheiro/contas", "Contas fixas")}
-            <p className="mt-3 text-xs font-bold text-ink-soft">A pagar</p>
+            <h2 className="text-[17px]">A pagar</h2>
             {dues.length ? (
-              <ul className="mt-1.5">
-                {dues.slice(0, 4).map((d) => {
+              <ul className="mt-2">
+                {dues.map((d) => {
                   const days = diffInDays(today, d.date);
                   return (
                     <li
@@ -479,11 +475,7 @@ export default async function HomePage() {
                         <span
                           className={`block text-[13px] ${days < 0 ? "text-loss" : "text-ink-soft"}`}
                         >
-                          {days < 0
-                            ? `venceu dia ${d.date.day}`
-                            : days === 0
-                              ? "vence hoje"
-                              : `vence dia ${d.date.day}`}
+                          {days < 0 ? `venceu ${d.date.day}/${d.date.month}` : `${d.date.day}/${d.date.month}`}
                         </span>
                       </span>
                       <span className="text-[15px] font-extrabold">
@@ -496,11 +488,7 @@ export default async function HomePage() {
                         trigger="Pagar"
                       >
                         <p className="text-[15px]">
-                          <strong>{d.name}</strong>, {formatCents(d.cents)},
-                          vencimento dia {d.date.day}.
-                        </p>
-                        <p className="mt-1 text-sm text-ink-soft">
-                          O pagamento entra hoje no seu extrato e sai do Saldo.
+                          <strong>{d.name}</strong>, {formatCents(d.cents)}, dia {d.date.day}/{d.date.month}.
                         </p>
                         <form
                           action={d.card ? payStatement : toggleBillPaid}
@@ -513,7 +501,7 @@ export default async function HomePage() {
                             type="submit"
                             className="grad-primary h-12 w-full rounded-2xl text-base font-bold text-white"
                           >
-                            Confirmar pagamento de {formatCents(d.cents)}
+                            Paguei {formatCents(d.cents)}
                           </button>
                         </form>
                       </SheetButton>
@@ -522,57 +510,8 @@ export default async function HomePage() {
                 })}
               </ul>
             ) : (
-              <p className="mt-1.5 border-t border-white/[0.07] py-2.5 text-[15px] text-ink-soft">
-                {f.bills.length || f.cards.length
-                  ? "Nada a pagar até o salário."
-                  : "Cadastre suas contas fixas e cartões."}
-              </p>
-            )}
-            <p className="mt-2 text-xs font-bold text-ink-soft">Vai entrar</p>
-            {pendingIncomes.length ? (
-              <ul className="mt-1.5">
-                {pendingIncomes.map((i) => {
-                  const days = diffInDays(today, i.date);
-                  return (
-                    <li
-                      key={`${i.incomeId}-${i.date.month}`}
-                      className="flex items-center gap-2.5 border-t border-white/[0.07] pt-2.5 pb-1"
-                    >
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[15px] font-bold">
-                          {i.name}
-                        </span>
-                        <span className="block text-[13px] text-ink-soft">
-                          dia {i.date.day}
-                        </span>
-                      </span>
-                      <span className="text-[15px] font-extrabold text-[#b9c6ff]">
-                        + {formatCents(i.amountCents)}
-                      </span>
-                      {days <= 0 ? (
-                        <form action={receiveIncome}>
-                          <input
-                            type="hidden"
-                            name="income_id"
-                            value={i.incomeId}
-                          />
-                          <button
-                            type="submit"
-                            className="h-11 rounded-xl border border-[#4361f5] px-3.5 text-[13px] font-bold text-[#b9c6ff] hover:bg-[#4361f5]/20 lg:h-9"
-                          >
-                            Recebi
-                          </button>
-                        </form>
-                      ) : null}
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <p className="mt-1.5 border-t border-white/[0.07] pt-2.5 text-[15px] text-ink-soft">
-                {f.incomes.length
-                  ? "Tudo já entrou neste ciclo."
-                  : "Cadastre seu salário em Contas fixas."}
+              <p className="mt-2 border-t border-white/[0.07] py-2.5 text-[15px] text-ink-soft">
+                Nada a pagar até o salário.
               </p>
             )}
           </section>
@@ -633,70 +572,46 @@ export default async function HomePage() {
           )}
 
           <section className="glass rounded-3xl p-[18px] lg:shrink-0 lg:px-6 lg:py-[22px]">
-            {sectionHead(
-              "Para onde foi o dinheiro",
-              "/app/dinheiro",
-              "Extrato",
-            )}
+            {sectionHead("Gastos por categoria", "/app/dinheiro", "Extrato")}
             {topCategories.length ? (
-              <>
-                <div
-                  className="mt-3 flex h-2.5 gap-[3px] overflow-hidden rounded-full"
-                  aria-hidden
-                >
-                  {topCategories.map((c, i) => (
-                    <div
-                      key={c.name}
-                      style={{
-                        flex: c.cents / topTotal,
-                        background: CAT_COLORS[i],
-                      }}
-                    />
-                  ))}
-                </div>
-                <ul className="mt-3.5 space-y-2 text-sm font-semibold">
-                  {topCategories.map((c, i) => (
-                    <li key={c.name}>
-                      <SheetButton
-                        title={c.name}
-                        className="flex min-h-9 w-full items-center gap-2.5 rounded-lg text-left hover:bg-white/[0.04]"
-                        trigger={
-                          <>
-                            <span
-                              className="h-2.5 w-2.5 rounded-[3px]"
-                              style={{ background: CAT_COLORS[i] }}
-                              aria-hidden
-                            />
-                            <span className="flex-1">
-                              {c.name}
-                              {budgetOf(c.name) !== "ok" ? (
-                                <span
-                                  className={`ml-2 rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                                    budgetOf(c.name) === "100" ? "bg-loss/20 text-loss" : "bg-[#2a2158] text-[#d9ccff]"
-                                  }`}
-                                >
-                                  {BUDGET_LABEL[budgetOf(c.name)]}
-                                </span>
-                              ) : null}
-                            </span>
-                            <span className="font-extrabold">
-                              {formatCents(c.cents)}
-                            </span>
-                          </>
-                        }
-                      >
-                        <MiniMovements
-                          list={f.movements.filter(
-                            (m) =>
-                              m.type === "expense" &&
-                              (m.category?.name ?? "Sem categoria") === c.name,
-                          )}
-                        />
-                      </SheetButton>
-                    </li>
-                  ))}
-                </ul>
-              </>
+              <ul className="mt-3 grid auto-cols-[minmax(9.5rem,1fr)] grid-flow-col grid-rows-4 gap-x-4 gap-y-1 overflow-x-auto text-sm font-semibold">
+                {topCategories.map((c, i) => (
+                  <li key={c.name} className="min-w-0">
+                    <SheetButton
+                      title={c.name}
+                      className="flex min-h-9 w-full items-center gap-2 rounded-lg text-left hover:bg-white/[0.04]"
+                      trigger={
+                        <>
+                          <span
+                            className="h-2.5 w-2.5 shrink-0 rounded-[3px]"
+                            style={{ background: CAT_COLORS[i % CAT_COLORS.length] }}
+                            aria-hidden
+                          />
+                          <span className="min-w-0 flex-1 truncate">
+                            {c.name}
+                            {budgetOf(c.name) !== "ok" ? (
+                              <span
+                                className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                                  budgetOf(c.name) === "100" ? "bg-loss/20 text-loss" : "bg-[#2a2158] text-[#d9ccff]"
+                                }`}
+                              >
+                                {BUDGET_LABEL[budgetOf(c.name)]}
+                              </span>
+                            ) : null}
+                          </span>
+                          <span className="shrink-0 font-extrabold">{formatCents(c.cents)}</span>
+                        </>
+                      }
+                    >
+                      <MiniMovements
+                        list={f.movements.filter(
+                          (m) => m.type === "expense" && (m.category?.name ?? "Sem categoria") === c.name,
+                        )}
+                      />
+                    </SheetButton>
+                  </li>
+                ))}
+              </ul>
             ) : (
               <p className="mt-2 text-[15px] text-ink-soft">
                 Quando você lançar gastos, as maiores categorias aparecem aqui.
