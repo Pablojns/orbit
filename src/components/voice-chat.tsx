@@ -16,6 +16,7 @@ import { createVad, transcribe, voiceSupported, type VadHandle } from "@/lib/voi
 const FIRST_SILENCE_MS = 8000; // ao abrir
 const NEXT_SILENCE_MS = 5000; // modo conversa, depois de cada resposta
 const MAX_TURNS = 8;
+const END_SILENCE_MS = 550; // silêncio que o detector espera para saber que a fala acabou
 
 type Phase = "loading" | "ready" | "listening" | "thinking" | "speaking" | "idle";
 type Times = { gravar: number; transcrever: number; entender: number; salvar: number; falar: number; total: number };
@@ -130,7 +131,7 @@ export function VoiceChat({ name }: { name: string | null }) {
             entender: r.ms?.ai ?? 0,
             salvar: Math.max(0, quickMs - (r.ms?.ai ?? 0)),
             falar: Math.max(0, now - tq - quickMs),
-            total: now - t.fim,
+            total: now - t.fim + END_SILENCE_MS, // conta desde que a pessoa parou de falar
           };
           setTimes(tm);
           try {
@@ -204,6 +205,7 @@ export function VoiceChat({ name }: { name: string | null }) {
               silenceRef.current = window.setTimeout(close, NEXT_SILENCE_MS);
             },
             onSpeechEnd: (a) => onAudioRef.current(a),
+            redemptionMs: END_SILENCE_MS,
           });
           if (!openRef.current) return void stopVad();
         }

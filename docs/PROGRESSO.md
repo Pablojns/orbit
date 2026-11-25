@@ -40,3 +40,7 @@ Leia docs/PLANO-RODADAS.md primeiro. Este arquivo diz onde a sessão parou. Ele 
 
 ## Rodada 13 — Simplificar (24/11)
 Feita. Ver `docs/RELATORIO-RODADA-13.md` e `docs/NOMES-ANTES-DEPOIS.md`. Falta: testes de voz com microfone real (`docs/VOZ-TESTES.md`).
+
+
+## Rodada 14 — Voz nova e busca inteligente (25/11)
+Feita. Ver `docs/RELATORIO-RODADA-14.md`, `docs/VOZ-TEMPOS.md` e `docs/VOZ-TESTES.md`. Falta: testes com microfone real.
