@@ -101,7 +101,7 @@ export function ExtratoView({
 
   const column = (title: string, total: number, items: Movement[], tone: string, empty: string, id: string) => (
     <div id={id} className="flex min-h-0 min-w-0 flex-col">
-      <div className="flex items-baseline justify-between gap-2 border-b border-white/[0.08] pb-2.5">
+      <div className="hidden items-baseline justify-between gap-2 border-b border-white/[0.08] pb-2.5 lg:flex">
         <h2 className="text-base font-bold">{title}</h2>
         <p className={`text-lg font-extrabold ${tone}`}>{formatCents(total)}</p>
       </div>
@@ -186,7 +186,7 @@ export function ExtratoView({
             <h2 className="text-base font-bold">Resumo</h2>
             <span className="text-xs font-semibold text-[#c7cff7]">{data.label}</span>
           </div>
-          <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm lg:grid-cols-1">
+          <dl className="mt-3 grid gap-y-2 text-sm">
             <div className="flex justify-between gap-2">
               <dt className="text-[#c7cff7]">Entrou</dt>
               <dd className="font-extrabold text-[#6ee7b7]">{formatCents(inTotal)}</dd>
@@ -199,7 +199,7 @@ export function ExtratoView({
               <dt className="text-[#c7cff7]">Guardado em metas</dt>
               <dd className="font-extrabold">{formatCents(saved)}</dd>
             </div>
-            <div className="flex justify-between gap-2 border-white/[0.12] lg:border-t lg:pt-2.5">
+            <div className="flex justify-between gap-2 border-t border-white/[0.12] pt-2.5">
               <dt className="font-bold">Sobrou</dt>
               <dd className={`text-lg leading-tight font-extrabold ${left < 0 ? "text-[#ff9db0]" : ""}`}>
                 {formatCents(left)}
