@@ -3,9 +3,9 @@
 Leia docs/PLANO-RODADAS.md primeiro. Este arquivo diz onde a sessão parou. Ele é atualizado a cada commit.
 
 ## Estado atual
-- Rodada atual: **10**
-- Último item concluído: R10 quase toda (falta medir desempenho)
-- Próximo passo: medir desempenho do Início no celular (meta 90 ou mais) e corrigir; depois R11 (página de vendas com R$ 29,90, e-mails, domínio, site.ts, checklist) e R12 (teste de 30 dias)
+- Rodada atual: **12**
+- Último item concluído: R11 inteira (página de vendas, e-mails, domínio, avisos multiusuário, pendências em ordem)
+- Próximo passo: R12, teste de 30 dias no celular e no computador, com as chaves desligadas (produção); corrigir o que aparecer; relatório final com 10 passos de teste em 15 minutos
 
 ## Rodadas
 | Rodada | Situação |
@@ -17,8 +17,8 @@ Leia docs/PLANO-RODADAS.md primeiro. Este arquivo diz onde a sessão parou. Ele 
 | R7 voz completa | feita |
 | R8 completude | feita |
 | R9 contas, teste grátis, cobrança (desligados) | feita |
-| R10 qualidade, segurança, desempenho | em andamento |
-| R11 pronto para lançar | a fazer |
+| R10 qualidade, segurança, desempenho | feita (nota de desempenho medida pelo Pablo) |
+| R11 pronto para lançar | feita |
 | R12 caça-bugs final | a fazer |
 
 ## Como testar e publicar
@@ -33,4 +33,6 @@ Leia docs/PLANO-RODADAS.md primeiro. Este arquivo diz onde a sessão parou. Ele 
 - R4: 1543330 janela única · a67c914 pop-ups e sem rolagem · fechamento
 - R5: cabeçalho, abas, Saldo em destaque no Dinheiro, fatura em pop-up, Agenda leva aos itens do dia
 - R6: 0014 aplicada (preferências de aviso); resumo do dia na hora escolhida; exportar CSV; Conta atrás de AUTH_ENABLED
-- R10: de65e91 (parcial). Sessão parou no limite de uso; retomar pela medição de desempenho.
+- R10: de65e91 · ab74aa1 · fechamento (desempenho vira teste do Pablo; ver relatório)
+- R11: 366c58f página de vendas · 35aa77a e-mails · 411139b domínio e site.ts · adde9da avisos multiusuário · docs
+- Observação: em 25/11 a marca do tutorial do Pablo foi zerada (tutorial_done_at = null) para ele ver o tutorial uma vez.

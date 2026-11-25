@@ -154,7 +154,7 @@ export default function SitePage() {
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link
                 href={START}
-                className="grad-primary flex h-14 items-center justify-center rounded-2xl px-7 text-base font-extrabold text-white"
+                className="grad-primary flex h-14 items-center justify-center rounded-2xl px-7 text-base font-extrabold whitespace-nowrap text-white"
               >
                 Começar 7 dias grátis
               </Link>

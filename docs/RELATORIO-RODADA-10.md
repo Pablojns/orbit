@@ -1,4 +1,4 @@
-# Relatório da Rodada 10 (parcial)
+# Relatório da Rodada 10
 
 ## Pronto
 - **Testes automáticos** (scripts/test-*.ts): conta de dinheiro, ciclo, parcelas, leitura de frases, voz, hábitos (dias e semanas), orçamento, CSV e assinatura. Rodam antes de cada commit.
@@ -14,7 +14,12 @@
 - **Backup:** fluxo semanal no GitHub (.github/workflows/backup.yml), parado até existir o segredo SUPABASE_DB_URL.
 
 ## Não ficou e por quê
-- **Nota de desempenho:** não consegui medir. O ambiente de trabalho não acessa o site pela linha de comando e a ferramenta de medição bateu no limite de uso. Fica como primeiro item da próxima sessão.
+- **Nota de desempenho:** não consegui medir. O ambiente de trabalho não acessa o site pela linha de comando, e o pedido ao PageSpeed precisava de uma aprovação que não veio. Ficou como teste rápido seu (item 0.3 das pendências, 2 minutos).
+  - O que conferi no código:
+    - só 6 bibliotecas no app, nenhuma pesada (sem gráficos ou animação prontos);
+    - fontes carregam só o alfabeto latino;
+    - o servidor do app (Oregon) fica na mesma região do banco.
+  - O maior ganho virá de mover os dois para São Paulo (pendência 3).
 - **Mover o banco para São Paulo:** não foi feito, como o plano pede. Passo a passo em PENDENCIAS.
 
 ## Decisões que tomei
