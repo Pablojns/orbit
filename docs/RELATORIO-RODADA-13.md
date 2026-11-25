@@ -28,3 +28,11 @@
 
 ## Precisa de microfone real (Pablo)
 Ver `docs/VOZ-TESTES.md`. Resumo: falar uma frase completa; uma frase sem categoria/pagamento (deve perguntar por voz e reabrir o microfone); ficar 8 s calado (fecha sem registrar); "Dimeta" com a tela ligada no PC e no celular (responde "Oi, Pablo"); palmas no PC.
+
+## Correção do Extrato (25/11)
+- Topo volta ao estilo anterior: Saldo com gradiente e "Fatura aberta"; "Lançar gasto" (vermelho) e "Lançar entrada" (agora verde) em largura cheia.
+- Saíram: os 3 blocos clicáveis, a linha de contagem/saldo dos filtrados e o botão Filtrar.
+- Filtro em uma linha (período, busca, categoria) aplicado na hora, sem recarregar a página (período busca os dados por trás e atualiza o endereço).
+- Conteúdo: Saídas (vermelho) e Entradas (verde) lado a lado, cada uma com total e rolagem própria; Resumo à direita com gradiente (Entrou, Saiu, Guardado em metas, Sobrou). No celular: Resumo em cima e Saídas/Entradas em abas.
+- Com busca ou categoria ativa, "Guardado em metas" mostra 0 (metas não têm categoria).
+- Verde: a regra antiga "sem verde no app" foi trocada por pedido do Pablo só para entradas.
