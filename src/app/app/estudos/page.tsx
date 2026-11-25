@@ -119,7 +119,10 @@ export default async function StudiesPage() {
             (nextExam.subjectId && e.subjectId === nextExam.subjectId)),
       )
     : [];
-  const unlinked = agenda.upcoming.filter((e) => (e.kind === "exam" || e.kind === "deadline") && !e.subjectId);
+  // A próxima prova sem matéria já tem o "Ligar" no destaque: não repete na lista.
+  const unlinked = agenda.upcoming.filter(
+    (e) => (e.kind === "exam" || e.kind === "deadline") && !e.subjectId && e.id !== nextExam?.id,
+  );
 
   // Esta semana: provas, trabalhos, estudo e aulas dos próximos 7 dias, por dia.
   const weekEnd = toISODate(addDays(today, 6));

@@ -87,7 +87,7 @@ export function PushToggle({ vapidPublicKey }: { vapidPublicKey: string }) {
         <div className="min-w-0 flex-1">
           <h2 className="text-lg font-semibold">Lembretes no celular</h2>
           <p className="text-sm leading-relaxed text-ink-soft">
-            Todo dia às 8h o Dimeta avisa o que vence ou acontece hoje e amanhã: provas, compromissos, contas e faturas.
+            Ligue as notificações neste aparelho para receber os avisos de provas, compromissos, contas e faturas.
           </p>
           {status === "unsupported" ? (
             <p className="mt-2 text-sm text-sun">

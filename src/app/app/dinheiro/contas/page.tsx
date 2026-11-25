@@ -43,7 +43,7 @@ export default async function FixedPage({ searchParams }: { searchParams: Promis
             <h2 className="flex items-center gap-2 text-lg font-semibold">
               <ArrowDownLeft size={18} className="text-gain" aria-hidden /> Entradas fixas
             </h2>
-            <p className="text-sm text-ink-soft">Neste ciclo: {formatCents(incomesTotal)}</p>
+            <p className="hidden text-sm text-ink-soft lg:block">Neste ciclo: {formatCents(incomesTotal)}</p>
           </div>
           <FormSheet
             title="Nova entrada fixa"
@@ -132,7 +132,7 @@ export default async function FixedPage({ searchParams }: { searchParams: Promis
             <h2 className="flex items-center gap-2 text-lg font-semibold">
               <ArrowUpRight size={18} className="text-sun" aria-hidden /> Contas fixas
             </h2>
-            <p className="text-sm text-ink-soft">Neste ciclo: {formatCents(billsTotal)}</p>
+            <p className="hidden text-sm text-ink-soft lg:block">Neste ciclo: {formatCents(billsTotal)}</p>
           </div>
           <FormSheet title="Nova conta fixa" trigger="Nova conta" submitLabel="Salvar conta" action={saveBill} variant="glass">
             <Field label="Nome">
