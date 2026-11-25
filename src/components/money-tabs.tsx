@@ -14,7 +14,7 @@ const TABS = [
 export function MoneyTabs() {
   const pathname = usePathname();
   return (
-    <nav aria-label="Seções do dinheiro" className="-mx-5 mb-5 overflow-x-auto px-5 [scrollbar-width:none] lg:mx-0 lg:px-0">
+    <nav aria-label="Seções do dinheiro" className="-mx-5 mb-5 shrink-0 overflow-x-auto px-5 [scrollbar-width:none] lg:mx-0 lg:px-0">
       <ul className="flex w-max gap-1 rounded-2xl border border-white/[0.07] bg-[#0f1634] p-1">
         {TABS.map((t) => {
           const active = pathname === t.href;

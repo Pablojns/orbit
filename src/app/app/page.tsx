@@ -299,12 +299,9 @@ export default async function HomePage() {
                     <span className="block text-xs font-semibold text-[#c7cff7] lg:text-[13px]">
                       Pode gastar
                     </span>
-                    <span className="mt-0.5 block text-lg font-extrabold lg:text-[22px]">
+                    <span className="mt-0.5 block text-lg font-extrabold whitespace-nowrap lg:text-[22px]">
                       {formatCents(s.perDayCents)}
-                      <span className="text-[15px] font-bold lg:text-lg">
-                        {" "}
-                        por dia
-                      </span>
+                      <span className="text-[13px] font-bold text-[#c7cff7] lg:text-[15px]"> /dia</span>
                     </span>
                   </>
                 }
@@ -342,7 +339,7 @@ export default async function HomePage() {
                 <p className="text-xs font-semibold text-[#c7cff7] lg:text-[13px]">
                   Até o salário
                 </p>
-                <p className="mt-0.5 text-lg font-extrabold lg:text-[22px]">
+                <p className="mt-0.5 text-lg font-extrabold whitespace-nowrap lg:text-[22px]">
                   {daysToPay === 1 ? "falta 1 dia" : `faltam ${daysToPay} dias`}
                 </p>
               </div>
