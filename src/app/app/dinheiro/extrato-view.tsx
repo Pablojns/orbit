@@ -8,14 +8,10 @@ import type { CalendarDate } from "@/lib/dates";
 import type { Card, Category, Movement } from "@/lib/finance";
 import { formatCents } from "@/lib/money";
 import { PERIODS, type PeriodKind } from "@/lib/period";
+import { matchesSearch } from "@/lib/search-synonyms";
+import { Search } from "lucide-react";
 
 export type ExtratoData = Awaited<ReturnType<typeof loadExtrato>>;
-
-const fold = (t: string) =>
-  t
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
 
 const field =
   "h-11 min-w-0 rounded-xl border border-white/[0.1] bg-[#0f1634] px-3 text-sm font-semibold focus:border-[#a78bfa] focus:outline-none";
@@ -54,24 +50,37 @@ export function ExtratoView({
       setDe(r.de);
       setAte(r.ate);
       const p = new URLSearchParams();
-      if (r.kind !== "ciclo") p.set("periodo", r.kind);
+      if (r.kind !== "mes") p.set("periodo", r.kind);
       if (r.kind === "personalizado") {
         p.set("de", r.de);
         p.set("ate", r.ate);
       }
       const qs = p.toString();
-      window.history.replaceState(null, "", qs ? `/app/dinheiro?${qs}` : "/app/dinheiro");
+      window.history.replaceState(
+        null,
+        "",
+        qs ? `/app/dinheiro?${qs}` : "/app/dinheiro",
+      );
     });
   }
 
   const catNames = useMemo(
-    () => [...new Set(data.movements.map((m) => m.category?.name ?? "Sem categoria"))].sort(),
+    () =>
+      [
+        ...new Set(
+          data.movements.map((m) => m.category?.name ?? "Sem categoria"),
+        ),
+      ].sort(),
     [data.movements],
   );
-  const query = fold(q.trim());
+  const query = q.trim();
   const filtered = data.movements.filter(
     (m) =>
-      (!query || fold(`${m.description ?? ""} ${m.category?.name ?? ""} ${m.cardName ?? ""}`).includes(query)) &&
+      (!query ||
+        matchesSearch(
+          `${m.description ?? ""} ${m.category?.name ?? ""} ${m.cardName ?? ""}`,
+          query,
+        )) &&
       (!cat || (m.category?.name ?? "Sem categoria") === cat),
   );
   const out = filtered.filter((m) => m.type === "expense");
@@ -91,7 +100,11 @@ export function ExtratoView({
             today={today}
             deletable
             compact
-            edit={m.source === "bill_payment" ? null : <EditMovement m={m} categories={categories} cards={cards} />}
+            edit={
+              m.source === "bill_payment" ? null : (
+                <EditMovement m={m} categories={categories} cards={cards} />
+              )
+            }
           />
         ))}
       </ul>
@@ -99,21 +112,50 @@ export function ExtratoView({
       <p className="py-4 text-sm text-ink-soft">{empty}</p>
     );
 
-  const column = (title: string, total: number, items: Movement[], tone: string, empty: string, id: string) => (
+  const column = (
+    title: string,
+    total: number,
+    items: Movement[],
+    tone: string,
+    empty: string,
+    id: string,
+  ) => (
     <div id={id} className="flex min-h-0 min-w-0 flex-col">
       <div className="hidden items-baseline justify-between gap-2 border-b border-white/[0.08] pb-2.5 lg:flex">
         <h2 className="text-base font-bold">{title}</h2>
         <p className={`text-lg font-extrabold ${tone}`}>{formatCents(total)}</p>
       </div>
-      <div className="max-h-[62vh] min-h-0 overflow-y-auto pr-1">{list(items, empty)}</div>
+      <div className="max-h-[62vh] min-h-0 overflow-y-auto pr-1">
+        {list(items, empty)}
+      </div>
     </div>
   );
 
-  const nothing = query || cat ? "Nada com esse filtro." : "Nada neste período.";
+  const nothing =
+    query || cat ? "Nada com esse filtro." : "Nada neste período.";
 
   return (
-    <div className={pending ? "opacity-60 transition-opacity" : "transition-opacity"}>
+    <div
+      className={
+        pending ? "opacity-60 transition-opacity" : "transition-opacity"
+      }
+    >
       <div className="mt-4 flex flex-wrap gap-2 lg:flex-nowrap">
+        <div className="relative min-w-0 flex-1 basis-full sm:basis-0">
+          <Search
+            size={17}
+            className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-ink-soft"
+            aria-hidden
+          />
+          <input
+            type="search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Buscar (ex.: comida, uber)"
+            aria-label="Buscar no extrato"
+            className={`${field} w-full pl-9 font-normal`}
+          />
+        </div>
         <select
           value={kind}
           aria-label="Período"
@@ -122,7 +164,7 @@ export function ExtratoView({
             setKind(k);
             if (k !== "personalizado") load(k);
           }}
-          className={`${field} basis-full sm:basis-auto`}
+          className={`${field} flex-1 sm:flex-none`}
         >
           {PERIODS.map((p) => (
             <option key={p.kind} value={p.kind} className="bg-[#0d1126]">
@@ -154,14 +196,6 @@ export function ExtratoView({
             />
           </>
         ) : null}
-        <input
-          type="search"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Buscar (ex.: ifood, uber)"
-          aria-label="Buscar no extrato"
-          className={`${field} flex-1 font-normal`}
-        />
         <select
           value={cat}
           onChange={(e) => setCat(e.target.value)}
@@ -184,16 +218,22 @@ export function ExtratoView({
         <section className="hero-card self-start rounded-3xl p-5 lg:order-2">
           <div className="flex items-baseline justify-between gap-2">
             <h2 className="text-base font-bold">Resumo</h2>
-            <span className="text-xs font-semibold text-[#c7cff7]">{data.label}</span>
+            <span className="text-xs font-semibold text-[#c7cff7]">
+              {data.label}
+            </span>
           </div>
           <dl className="mt-3 grid gap-y-2 text-sm">
             <div className="flex justify-between gap-2">
               <dt className="text-[#c7cff7]">Entrou</dt>
-              <dd className="font-extrabold text-[#6ee7b7]">{formatCents(inTotal)}</dd>
+              <dd className="font-extrabold text-[#6ee7b7]">
+                {formatCents(inTotal)}
+              </dd>
             </div>
             <div className="flex justify-between gap-2">
               <dt className="text-[#c7cff7]">Saiu</dt>
-              <dd className="font-extrabold text-[#ff9db0]">{formatCents(outTotal)}</dd>
+              <dd className="font-extrabold text-[#ff9db0]">
+                {formatCents(outTotal)}
+              </dd>
             </div>
             <div className="flex justify-between gap-2">
               <dt className="text-[#c7cff7]">Guardado em metas</dt>
@@ -201,7 +241,9 @@ export function ExtratoView({
             </div>
             <div className="flex justify-between gap-2 border-t border-white/[0.12] pt-2.5">
               <dt className="font-bold">Sobrou</dt>
-              <dd className={`text-lg leading-tight font-extrabold ${left < 0 ? "text-[#ff9db0]" : ""}`}>
+              <dd
+                className={`text-lg leading-tight font-extrabold ${left < 0 ? "text-[#ff9db0]" : ""}`}
+              >
                 {formatCents(left)}
               </dd>
             </div>
@@ -209,7 +251,10 @@ export function ExtratoView({
         </section>
 
         <section className="glass min-w-0 rounded-3xl p-4 lg:order-1 lg:p-5">
-          <div className="mb-3 grid grid-cols-2 gap-1 rounded-2xl bg-white/[0.04] p-1 lg:hidden" role="tablist">
+          <div
+            className="mb-3 grid grid-cols-2 gap-1 rounded-2xl bg-white/[0.04] p-1 lg:hidden"
+            role="tablist"
+          >
             {(
               [
                 ["saidas", `Saídas · ${formatCents(outTotal)}`],
@@ -223,7 +268,11 @@ export function ExtratoView({
                 aria-selected={tab === k}
                 onClick={() => setTab(k)}
                 className={`rounded-xl px-2 py-2.5 text-sm font-bold ${
-                  tab === k ? (k === "saidas" ? "bg-loss/90 text-[#2a0710]" : "bg-[#34d399] text-[#062b1d]") : "text-ink-soft"
+                  tab === k
+                    ? k === "saidas"
+                      ? "bg-loss/90 text-[#2a0710]"
+                      : "bg-[#34d399] text-[#062b1d]"
+                    : "text-ink-soft"
                 }`}
               >
                 {label}
@@ -232,10 +281,24 @@ export function ExtratoView({
           </div>
           <div className="grid gap-6 lg:grid-cols-2">
             <div className={tab === "saidas" ? "" : "hidden lg:block"}>
-              {column("Saídas", outTotal, out, "text-[#ff9db0]", nothing, "saidas")}
+              {column(
+                "Saídas",
+                outTotal,
+                out,
+                "text-[#ff9db0]",
+                nothing,
+                "saidas",
+              )}
             </div>
             <div className={tab === "entradas" ? "" : "hidden lg:block"}>
-              {column("Entradas", inTotal, inc, "text-[#6ee7b7]", nothing, "entradas")}
+              {column(
+                "Entradas",
+                inTotal,
+                inc,
+                "text-[#6ee7b7]",
+                nothing,
+                "entradas",
+              )}
             </div>
           </div>
         </section>

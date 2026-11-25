@@ -11,6 +11,7 @@
   "dependencies": {
     "@fontsource-variable/bricolage-grotesque": "^5.3.0",
     "@fontsource-variable/manrope": "^5.3.0",
+    "@ricky0123/vad-web": "^0.0.31",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.119.2",
     "@vercel/analytics": "^2.0.1",

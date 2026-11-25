@@ -1,10 +1,8 @@
-// Seletor de período do Extrato (Rodada 13).
+// Seletor de período do Extrato (Rodada 13; "Este ciclo" saiu na Rodada 14, padrão é "Este mês").
 import { type CalendarDate, daysInMonth, diffInDays, fromISODate, toISODate } from "./dates";
-import { currentCycle } from "./cycle";
 
-export type PeriodKind = "ciclo" | "mes" | "mes-passado" | "ano" | "personalizado";
+export type PeriodKind = "mes" | "mes-passado" | "ano" | "personalizado";
 export const PERIODS: { kind: PeriodKind; label: string }[] = [
-  { kind: "ciclo", label: "Este ciclo" },
   { kind: "mes", label: "Este mês" },
   { kind: "mes-passado", label: "Mês passado" },
   { kind: "ano", label: "Este ano" },
@@ -20,7 +18,8 @@ export function periodRange(
   de?: string,
   ate?: string,
 ): { kind: PeriodKind; start: CalendarDate; end: CalendarDate } {
-  const k = (PERIODS.find((p) => p.kind === kind)?.kind ?? "ciclo") as PeriodKind;
+  const k = (PERIODS.find((p) => p.kind === kind)?.kind ?? "mes") as PeriodKind;
+  const thisMonth = { start: { ...today, day: 1 }, end: { ...today, day: daysInMonth(today.year, today.month) } };
   if (k === "mes") {
     return { kind: k, start: { ...today, day: 1 }, end: { ...today, day: daysInMonth(today.year, today.month) } };
   }
@@ -40,8 +39,9 @@ export function periodRange(
     if (diffInDays(a, b) > 731) a = fromISODate(`${b.year - 2}-${String(b.month).padStart(2, "0")}-${String(b.day).padStart(2, "0")}`);
     return { kind: k, start: a, end: b };
   }
-  const c = currentCycle(today, cycleStartDay);
-  return { kind: k === "personalizado" ? "personalizado" : "ciclo", start: c.start, end: c.end };
+  // Personalizado sem datas: começa no mês atual.
+  void cycleStartDay;
+  return { kind: k, ...thisMonth };
 }
 
 export function periodLabel(start: CalendarDate, end: CalendarDate) {

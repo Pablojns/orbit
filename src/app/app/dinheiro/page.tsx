@@ -14,7 +14,7 @@ export default async function MoneyPage({
 }: {
   searchParams: Promise<{ periodo?: string; de?: string; ate?: string }>;
 }) {
-  const { periodo = "ciclo", de, ate } = await searchParams;
+  const { periodo = "mes", de, ate } = await searchParams;
   const profile = await requireProfile();
   const [f, initial] = await Promise.all([getFinance(profile.cycleStartDay), loadExtrato(periodo, de, ate)]);
   const s = f.summary;
