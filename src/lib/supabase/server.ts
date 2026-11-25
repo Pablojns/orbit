@@ -2,10 +2,15 @@ import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getSupabaseEnv } from "./env";
+import { runAsUser } from "@/lib/run-as";
+import { createAdminClient } from "./admin";
 
 // Cliente para Server Components, Route Handlers e Server Actions.
 // Crie um novo a cada requisição (nunca reaproveite entre usuários).
 export async function createClient() {
+  // Tarefa agendada rodando "como" uma pessoa (só com o login ligado): chave de serviço.
+  // O cast mantém o tipo do cliente normal; as consultas são as mesmas e filtram por user_id.
+  if (runAsUser()) return createAdminClient() as never;
   const env = getSupabaseEnv();
   if (!env) throw new Error("Supabase não configurado: veja o README.");
 

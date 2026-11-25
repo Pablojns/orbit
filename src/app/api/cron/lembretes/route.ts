@@ -1,6 +1,7 @@
 import webpush from "web-push";
 import { SITE } from "@/lib/site";
 import { runDailySummary } from "@/lib/daily-summary";
+import { forEachUser } from "@/lib/cron-users";
 import { AUTH_ENABLED, BILLING_ENABLED } from "@/lib/flags";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendSystemEmail } from "@/lib/email";
@@ -49,5 +50,9 @@ export async function GET(request: Request) {
     return Response.json({ sent: 0, reason: "sem chaves", ...trial });
   webpush.setVapidDetails(SITE.url, pub, priv);
 
-  return Response.json({ ...(await runDailySummary()), ...trial });
+  const daily = await forEachUser(runDailySummary);
+  return Response.json({
+    daily: daily.length === 1 ? daily[0] : daily,
+    ...trial,
+  });
 }

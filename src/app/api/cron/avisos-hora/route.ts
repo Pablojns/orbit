@@ -1,6 +1,7 @@
 import webpush from "web-push";
 import { SITE } from "@/lib/site";
-import { OWNER_ID } from "@/lib/owner";
+import { uid } from "@/lib/user";
+import { forEachUser } from "@/lib/cron-users";
 import { createClient } from "@/lib/supabase/server";
 import { runDailySummary } from "@/lib/daily-summary";
 
@@ -20,32 +21,44 @@ export async function GET(request: Request) {
   if (!pub || !priv) return Response.json({ sent: 0, reason: "sem chaves" });
   webpush.setVapidDetails(SITE.url, pub, priv);
 
-  // O resumo do dia também passa por aqui, para respeitar a hora escolhida no Perfil.
-  const daily = await runDailySummary();
+  // Para cada pessoa: o resumo do dia (na hora escolhida no Perfil) e o aviso de 3 horas.
+  const results = await forEachUser(async () => ({
+    daily: await runDailySummary(),
+    ...(await threeHours()),
+  }));
+  return Response.json(
+    results.length === 1 ? results[0] : { users: results.length, results },
+  );
+}
+
+async function threeHours(): Promise<{
+  sent: number;
+  reason?: string;
+  due?: number;
+}> {
+  const me = await uid();
   const supabase = await createClient();
   const { data: prefs } = await supabase
     .from("profiles")
     .select("notify_hour")
-    .eq("id", OWNER_ID)
+    .eq("id", me)
     .maybeSingle();
   if (prefs && !prefs.notify_hour)
-    return Response.json({
+    return {
       sent: 0,
       reason: "aviso de 3 horas desligado",
-      daily,
-    });
+    };
   const now = new Date();
   const limit = new Date(now.getTime() + HOURS_BEFORE * 3_600_000);
   const { data: events } = await supabase
     .from("events")
     .select("id, title, starts_at")
-    .eq("user_id", OWNER_ID)
+    .eq("user_id", me)
     .eq("all_day", false)
     .is("done_at", null)
     .gt("starts_at", now.toISOString())
     .lte("starts_at", limit.toISOString());
-  if (!events?.length)
-    return Response.json({ sent: 0, reason: "nada nas próximas horas" });
+  if (!events?.length) return { sent: 0, reason: "nada nas próximas horas" };
 
   const { data: logged } = await supabase
     .from("reminder_log")
@@ -57,12 +70,12 @@ export async function GET(request: Request) {
     );
   const done = new Set((logged ?? []).map((l) => l.event_id));
   const due = events.filter((e) => !done.has(e.id));
-  if (!due.length) return Response.json({ sent: 0, reason: "já avisado" });
+  if (!due.length) return { sent: 0, reason: "já avisado" };
 
   const { data: subs } = await supabase
     .from("push_subscriptions")
     .select("endpoint, p256dh, auth")
-    .eq("user_id", OWNER_ID);
+    .eq("user_id", me);
 
   let sent = 0;
   for (const ev of due) {
@@ -107,5 +120,5 @@ export async function GET(request: Request) {
       }
     }
   }
-  return Response.json({ sent, due: due.length });
+  return { sent, due: due.length };
 }
