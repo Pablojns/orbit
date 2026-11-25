@@ -1,0 +1,59 @@
+# Página de vendas antiga (guardada na Rodada 13)
+
+O texto que estava em / antes de virar só uma porta de entrada. A página de vendas oficial agora é a do Gaia One.
+
+- **title**: O salário entra e some
+- **text**: No dia 10 você já não sabe para onde foi metade do dinheiro.
+- **title**: A fatura chega de surpresa
+- **text**: As parcelas de três meses atrás caem todas juntas, e o mês que parecia folgado aperta.
+- **title**: A prova passa batido
+- **text**: Prova, boleto, renovação: estava anotado em algum lugar que você não abriu.
+- **title**: Responda 5 perguntas
+- **text**: Dia do salário, cartão, contas fixas, se estuda e se quer acompanhar hábitos. Leva menos de 2 minutos.
+- **title**: Lance falando ou escrevendo
+- **text**: “Mercado 45 no pix”, “prova de Estatística sexta 19h”. O Dimeta entende e coloca no lugar certo.
+- **title**: Veja quanto pode gastar por dia
+- **text**: O que entrou, menos o que saiu, menos as contas e faturas que ainda vencem até o próximo salário.
+- **title**: Cartões e parcelas
+- **text**: Cada parcela aparece na fatura em que vai cair.
+- **title**: Contas fixas
+- **text**: Aluguel, luz, internet: avisa antes de vencer e já desconta do Saldo.
+- **title**: Metas e reserva
+- **text**: Quanto guardar por ciclo para chegar na data que você quer.
+- **title**: Agenda com avisos
+- **text**: Provas, compromissos e boletos numa lista só, com lembrete.
+- **title**: Estudos
+- **text**: Notas, média, faltas, horário de aulas e plano de estudo para a prova.
+- **title**: Voz
+- **text**: Aperte o microfone e fale. O texto aparece enquanto você fala.
+- **q**: Como funcionam os 7 dias grátis?
+- **q**: Posso cancelar quando quiser?
+- **a**: Sim, em Assinatura, sem multa. O acesso continua até o fim do mês já pago e seus dados ficam guardados se você voltar.
+- **q**: O Dimeta se conecta com meu banco?
+- **a**: Não. Você lança os gastos, falando ou escrevendo, o que leva poucos segundos. O Dimeta nunca pede senha de banco ou de cartão.
+- **q**: Funciona no computador?
+- **a**: Sim. Abre em qualquer navegador e pode ser instalado no celular como um app. O que você lança no celular aparece no computador.
+- **q**: Meus dados ficam seguros?
+- **a**: Cada conta só enxerga os próprios dados, e essa regra é aplicada direto no banco de dados. Você pode exportar ou excluir tudo pelo Perfil.
+- Entrar
+- Começar grátis
+- Saiba quanto você pode gastar até o próximo salário.
+- O Dimeta junta dinheiro, cartões, contas, provas e hábitos, e organiza tudo pelo dia em que o seu dinheiro entra.
+- Começar 7 dias grátis
+- Planilha você abandona em duas semanas. O problema continua.
+- (
+- Como funciona
+- (
+- O dinheiro no centro, a rotina em volta.
+- (
+- Celular sem bateria? Abre no computador.
+- O Dimeta funciona no navegador de qualquer aparelho. No celular, dá para instalar com ícone na tela inicial, sem loja de apps.
+- Android e iPhone, instalado como app
+- Computador, direto no navegador
+- Um plano, tudo incluído
+- (
+- Pix, cartão ou boleto. Cancele quando quiser.
+- Perguntas frequentes
+- (
+- +
+- Descubra hoje quanto você pode gastar até o próximo salário.
