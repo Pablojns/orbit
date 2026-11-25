@@ -22,27 +22,29 @@ function parts(iso: string) {
 export default async function HabitsPage() {
   const habits = await getHabits();
   const todayISO = toISODate(todayInSaoPaulo());
-  const weekDone = habits.reduce((a, h) => a + h.last7.filter((d) => d.checked).length, 0);
+  const weekDone = habits.reduce(
+    (a, h) => a + h.last7.filter((d) => d.checked).length,
+    0,
+  );
 
   const total = (
     <section className="hero-card rounded-3xl px-5 py-[18px] lg:p-6">
-      <p className="text-[13px] font-bold text-[#b9c2f5] lg:text-sm">Últimos 7 dias</p>
+      <p className="text-[13px] font-bold text-[#b9c2f5] lg:text-sm">
+        Últimos 7 dias
+      </p>
       <p className="mt-0.5 text-[34px] leading-[1.05] font-extrabold tracking-[-0.02em] lg:text-[40px]">
         {weekDone} {weekDone === 1 ? "marcação" : "marcações"}
       </p>
-      <p className="mt-1 text-sm font-semibold text-[#c7cff7]">somando todos os hábitos</p>
+      <p className="mt-1 text-sm font-semibold text-[#c7cff7]">
+        somando todos os hábitos
+      </p>
     </section>
   );
 
   return (
     <div className="pt-5 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:pt-7">
       <header className="flex items-center justify-between gap-3 lg:pr-14">
-        <div>
-          <h1 className="text-2xl leading-tight lg:text-[28px]">Hábitos</h1>
-          <p className="mt-0.5 text-[13px] font-semibold text-ink-soft lg:text-sm">
-            Toque em um dia para marcar ou desmarcar, inclusive nos dias que já passaram.
-          </p>
-        </div>
+        <h1 className="text-2xl leading-tight lg:text-[28px]">Hábitos</h1>
         <FormSheet
           title="Novo hábito"
           trigger="Novo hábito"
@@ -51,7 +53,12 @@ export default async function HabitsPage() {
           triggerClassName="grad-primary flex h-11 shrink-0 items-center justify-center rounded-2xl px-5 text-sm font-bold text-white"
         >
           <Field label="Hábito">
-            <TextInput name="name" required maxLength={60} placeholder="Ex.: Estudar 30 minutos" />
+            <TextInput
+              name="name"
+              required
+              maxLength={60}
+              placeholder="Ex.: Estudar 30 minutos"
+            />
           </Field>
           <Field label="Quantas vezes por semana">
             <Select
@@ -63,7 +70,9 @@ export default async function HabitsPage() {
               }))}
             />
           </Field>
-          <p className="text-xs text-ink-soft">Perder um dia só zera a sequência. Sem punição.</p>
+          <p className="text-xs text-ink-soft">
+            Perder um dia só zera a sequência. Sem punição.
+          </p>
         </FormSheet>
       </header>
 
@@ -72,10 +81,15 @@ export default async function HabitsPage() {
           <div className="lg:hidden">{total}</div>
           <ul className="space-y-4 lg:max-h-full lg:min-h-0 lg:overflow-y-auto lg:pr-1">
             {habits.map((h) => (
-              <li key={h.id} className="glass flex flex-col gap-4 rounded-3xl p-[18px] lg:px-6 lg:py-[22px]">
+              <li
+                key={h.id}
+                className="glass flex flex-col gap-4 rounded-3xl p-[18px] lg:px-6 lg:py-[22px]"
+              >
                 <div className="flex items-center justify-between gap-2.5">
                   <div className="min-w-0">
-                    <p className="truncate text-[17px] font-extrabold lg:text-lg">{h.name}</p>
+                    <p className="truncate text-[17px] font-extrabold lg:text-lg">
+                      {h.name}
+                    </p>
                     <p className="mt-0.5 text-xs font-semibold text-ink-soft lg:text-[13px]">
                       {h.targetPerWeek === 7
                         ? "todos os dias"
@@ -93,20 +107,36 @@ export default async function HabitsPage() {
                           : `${h.streak} dias seguidos`}
                     </span>
                     <EditHabit habit={h} />
-                    <DeleteButton action={archiveHabit} fields={{ id: h.id }} label={`Arquivar ${h.name}`} />
+                    <DeleteButton
+                      action={archiveHabit}
+                      fields={{ id: h.id }}
+                      label={`Arquivar ${h.name}`}
+                    />
                   </div>
                 </div>
-                <ol className="grid grid-cols-7 gap-1 lg:grid-cols-14 lg:gap-1.5" aria-label={`${h.name}: últimos dias`}>
+                <ol
+                  className="grid grid-cols-7 gap-1 lg:grid-cols-14 lg:gap-1.5"
+                  aria-label={`${h.name}: últimos dias`}
+                >
                   {h.last14.map((d, i) => {
                     const { day, wd } = parts(d.date);
                     const isToday = d.date === todayISO;
                     return (
-                      <li key={d.date} className={`flex-col items-center gap-1 ${i < 7 ? "hidden lg:flex" : "flex"}`}>
-                        <span className="text-[11px] font-bold text-ink-soft">{LETTER[wd]}</span>
+                      <li
+                        key={d.date}
+                        className={`flex-col items-center gap-1 ${i < 7 ? "hidden lg:flex" : "flex"}`}
+                      >
+                        <span className="text-[11px] font-bold text-ink-soft">
+                          {LETTER[wd]}
+                        </span>
                         <form action={toggleHabit} className="w-full">
                           <input type="hidden" name="habit_id" value={h.id} />
                           <input type="hidden" name="date" value={d.date} />
-                          <input type="hidden" name="checked" value={String(d.checked)} />
+                          <input
+                            type="hidden"
+                            name="checked"
+                            value={String(d.checked)}
+                          />
                           <button
                             type="submit"
                             aria-pressed={d.checked}
@@ -119,10 +149,14 @@ export default async function HabitsPage() {
                                   : "border-white/20 hover:bg-white/[0.05]"
                             }`}
                           >
-                            {d.checked ? <Check size={18} strokeWidth={3} aria-hidden /> : null}
+                            {d.checked ? (
+                              <Check size={18} strokeWidth={3} aria-hidden />
+                            ) : null}
                           </button>
                         </form>
-                        <span className={`text-[11px] font-semibold ${isToday ? "text-[#d9ccff]" : "text-ink-soft"}`}>
+                        <span
+                          className={`text-[11px] font-semibold ${isToday ? "text-[#d9ccff]" : "text-ink-soft"}`}
+                        >
                           {day}
                         </span>
                       </li>
@@ -140,9 +174,12 @@ export default async function HabitsPage() {
                     ))}
                   </div>
                   <ol className="mt-1.5 grid grid-cols-7 gap-1.5">
-                    {Array.from({ length: (parts(h.history[0].date).wd + 6) % 7 }, (_, i) => (
-                      <li key={`v${i}`} aria-hidden />
-                    ))}
+                    {Array.from(
+                      { length: (parts(h.history[0].date).wd + 6) % 7 },
+                      (_, i) => (
+                        <li key={`v${i}`} aria-hidden />
+                      ),
+                    )}
                     {h.history.map((d) => {
                       const { day } = parts(d.date);
                       return (
@@ -150,7 +187,11 @@ export default async function HabitsPage() {
                           <form action={toggleHabit}>
                             <input type="hidden" name="habit_id" value={h.id} />
                             <input type="hidden" name="date" value={d.date} />
-                            <input type="hidden" name="checked" value={String(d.checked)} />
+                            <input
+                              type="hidden"
+                              name="checked"
+                              value={String(d.checked)}
+                            />
                             <button
                               type="submit"
                               aria-pressed={d.checked}
@@ -171,30 +212,21 @@ export default async function HabitsPage() {
                     })}
                   </ol>
                   <p className="mt-3 text-sm text-ink-soft">
-                    {h.history.filter((d) => d.checked).length} marcações nos últimos 35 dias.
+                    {h.history.filter((d) => d.checked).length} marcações nos
+                    últimos 35 dias.
                   </p>
                 </SheetButton>
               </li>
             ))}
           </ul>
-          <div className="hidden space-y-4 lg:block">
-            {total}
-            <section className="glass rounded-3xl px-6 py-[22px]">
-              <h2 className="text-[17px]">Como a sequência conta</h2>
-              <p className="mt-2 text-sm leading-relaxed font-medium text-[#b4bde3]">
-                Hábito de todo dia: quantos dias seguidos você marcou até hoje (se hoje ainda não foi marcado, conta a
-                partir de ontem). Hábito com meta semanal: quantas semanas seguidas você bateu a meta. Esqueceu de
-                marcar? Toque no dia e a sequência volta ao normal.
-              </p>
-            </section>
-          </div>
+          <div className="hidden space-y-4 lg:block">{total}</div>
         </div>
       ) : (
         <div className="mt-5">
           <EmptyState
             icon={CircleCheck}
-            title="Nenhum hábito criado"
-            description="Comece com um só. Hábitos pequenos e fáceis duram mais do que listas grandes."
+            title="Nenhum hábito"
+            description="Comece com um só."
           />
         </div>
       )}

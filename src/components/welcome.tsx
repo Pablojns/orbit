@@ -186,7 +186,7 @@ export function Welcome({ vapidPublicKey }: { vapidPublicKey: string }) {
               <li>
                 <strong>Atalhos no ícone:</strong>{" "}
                 <span className="text-ink-soft">
-                  com o app instalado, segure o ícone do Dimeta para abrir direto Gasto, Escrever ou Agenda.
+                  com o app instalado, segure o ícone do Dimeta para abrir Gasto, Falar ou Agenda.
                 </span>
               </li>
             </ul>

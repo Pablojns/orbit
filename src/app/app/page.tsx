@@ -1,10 +1,6 @@
 import Link from "next/link";
 import { BookOpen, CalendarClock, Check, GraduationCap } from "lucide-react";
-import {
-  payStatement,
-  toggleBillPaid,
-  toggleHabit,
-} from "@/app/app/actions";
+import { payStatement, toggleBillPaid, toggleHabit } from "@/app/app/actions";
 import { ProfileButton } from "@/components/app-nav";
 import { addDays, diffInDays, fromISODate, toISODate } from "@/lib/dates";
 import { getClassSlots, getTerm } from "@/lib/class-slots";
@@ -59,7 +55,16 @@ function inDays(n: number) {
   return `em ${n} dias`;
 }
 
-const CAT_COLORS = ["#4361F5", "#A78BFA", "#7DD3FC", "#C4B5FD", "#818CF8", "#93C5FD", "#DDD6FE", "#60A5FA"];
+const CAT_COLORS = [
+  "#4361F5",
+  "#A78BFA",
+  "#7DD3FC",
+  "#C4B5FD",
+  "#818CF8",
+  "#93C5FD",
+  "#DDD6FE",
+  "#60A5FA",
+];
 
 function MiniMovements({ list }: { list: Movement[] }) {
   if (!list.length)
@@ -203,8 +208,13 @@ export default async function HomePage() {
   // ---------- Para onde foi: só as maiores categorias
   const topCategories = s.byCategory; // todas, em colunas de 4
   const budgetOf = (name: string) =>
-    budgetLevel(c2(name), f.categories.find((x) => x.kind === "expense" && x.name === name)?.budgetCents);
-  const c2 = (name: string) => s.byCategory.find((x) => x.name === name)?.cents ?? 0;
+    budgetLevel(
+      c2(name),
+      f.categories.find((x) => x.kind === "expense" && x.name === name)
+        ?.budgetCents,
+    );
+  const c2 = (name: string) =>
+    s.byCategory.find((x) => x.name === name)?.cents ?? 0;
 
   const cycleDone = Math.min(
     100,
@@ -288,7 +298,7 @@ export default async function HomePage() {
             </SheetButton>
             <div className="flex gap-2.5 lg:gap-3">
               <SheetButton
-                title="Como chegamos no “pode gastar”"
+                title="Pode gastar"
                 className="flex-1 rounded-2xl bg-white/[0.08] px-3.5 py-3 text-left hover:bg-white/[0.12] lg:px-4 lg:py-3.5"
                 trigger={
                   <>
@@ -297,7 +307,10 @@ export default async function HomePage() {
                     </span>
                     <span className="mt-0.5 block text-lg font-extrabold whitespace-nowrap lg:text-[22px]">
                       {formatCents(s.perDayCents)}
-                      <span className="text-[13px] font-bold text-[#c7cff7] lg:text-[15px]"> /dia</span>
+                      <span className="text-[13px] font-bold text-[#c7cff7] lg:text-[15px]">
+                        {" "}
+                        /dia
+                      </span>
                     </span>
                   </>
                 }
@@ -305,10 +318,10 @@ export default async function HomePage() {
                 <dl className="space-y-2.5 text-[15px]">
                   {(
                     [
-                      ["Entrou neste ciclo", s.receivedCents],
+                      ["Entrou", s.receivedCents],
                       ["Saiu", -s.spentCents],
-                      ["Guardado em metas", -s.savedCents],
-                      ["Contas e faturas que ainda vencem", -s.committedCents],
+                      ["Metas", -s.savedCents],
+                      ["A pagar", -s.committedCents],
                     ] as const
                   ).map(([label, v]) => (
                     <div key={label} className="flex justify-between gap-3">
@@ -475,7 +488,9 @@ export default async function HomePage() {
                         <span
                           className={`block text-[13px] ${days < 0 ? "text-loss" : "text-ink-soft"}`}
                         >
-                          {days < 0 ? `venceu ${d.date.day}/${d.date.month}` : `${d.date.day}/${d.date.month}`}
+                          {days < 0
+                            ? `venceu ${d.date.day}/${d.date.month}`
+                            : `${d.date.day}/${d.date.month}`}
                         </span>
                       </span>
                       <span className="text-[15px] font-extrabold">
@@ -488,7 +503,8 @@ export default async function HomePage() {
                         trigger="Pagar"
                       >
                         <p className="text-[15px]">
-                          <strong>{d.name}</strong>, {formatCents(d.cents)}, dia {d.date.day}/{d.date.month}.
+                          <strong>{d.name}</strong>, {formatCents(d.cents)}, dia{" "}
+                          {d.date.day}/{d.date.month}.
                         </p>
                         <form
                           action={d.card ? payStatement : toggleBillPaid}
@@ -584,7 +600,9 @@ export default async function HomePage() {
                         <>
                           <span
                             className="h-2.5 w-2.5 shrink-0 rounded-[3px]"
-                            style={{ background: CAT_COLORS[i % CAT_COLORS.length] }}
+                            style={{
+                              background: CAT_COLORS[i % CAT_COLORS.length],
+                            }}
                             aria-hidden
                           />
                           <span className="min-w-0 flex-1 truncate">
@@ -592,20 +610,26 @@ export default async function HomePage() {
                             {budgetOf(c.name) !== "ok" ? (
                               <span
                                 className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                                  budgetOf(c.name) === "100" ? "bg-loss/20 text-loss" : "bg-[#2a2158] text-[#d9ccff]"
+                                  budgetOf(c.name) === "100"
+                                    ? "bg-loss/20 text-loss"
+                                    : "bg-[#2a2158] text-[#d9ccff]"
                                 }`}
                               >
                                 {BUDGET_LABEL[budgetOf(c.name)]}
                               </span>
                             ) : null}
                           </span>
-                          <span className="shrink-0 font-extrabold">{formatCents(c.cents)}</span>
+                          <span className="shrink-0 font-extrabold">
+                            {formatCents(c.cents)}
+                          </span>
                         </>
                       }
                     >
                       <MiniMovements
                         list={f.movements.filter(
-                          (m) => m.type === "expense" && (m.category?.name ?? "Sem categoria") === c.name,
+                          (m) =>
+                            m.type === "expense" &&
+                            (m.category?.name ?? "Sem categoria") === c.name,
                         )}
                       />
                     </SheetButton>
@@ -614,7 +638,7 @@ export default async function HomePage() {
               </ul>
             ) : (
               <p className="mt-2 text-[15px] text-ink-soft">
-                Quando você lançar gastos, as maiores categorias aparecem aqui.
+                Nenhum gasto ainda.
               </p>
             )}
           </section>

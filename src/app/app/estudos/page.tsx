@@ -252,8 +252,7 @@ export default async function StudiesPage() {
                         </ul>
                       ) : (
                         <p className="text-sm text-ink-soft">
-                          Ainda não há sessões de estudo para esta prova. O Dimeta espalha as sessões até a véspera, nos dias
-                          mais livres da Agenda.
+                          Sem sessões de estudo.
                         </p>
                       )}
                       <Field label="Quantas sessões">
@@ -286,8 +285,7 @@ export default async function StudiesPage() {
                 </>
               ) : (
                 <p className="text-[15px] text-[#c7cff7]">
-                  Nenhuma prova marcada. Escreva na barra, como “prova de Estatística sexta 19h”, ou use “Prova ou
-                  trabalho” na matéria.
+                  Nenhuma prova marcada.
                 </p>
               )}
             </section>
@@ -667,7 +665,7 @@ export default async function StudiesPage() {
               </div>
               {!slots.length ? (
                 <p className="mt-2.5 text-[13px] font-semibold text-ink-soft">
-                  Sem aulas cadastradas. Quando você adicionar, elas aparecem na grade e na Agenda.
+                  Sem aulas cadastradas.
                 </p>
               ) : null}
             </section>

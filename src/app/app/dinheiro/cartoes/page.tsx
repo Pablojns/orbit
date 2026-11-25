@@ -46,10 +46,6 @@ export default async function CardsPage() {
           <Field label="Limite (opcional)">
             <MoneyInput name="limit" />
           </Field>
-          <p className="text-xs leading-relaxed text-ink-soft">
-            Compras feitas antes do dia de fechamento entram na fatura do mês; no dia do fechamento ou depois, vão para
-            a próxima.
-          </p>
         </FormSheet>
       </div>
 
@@ -189,7 +185,7 @@ export default async function CardsPage() {
                 })
               ) : (
                 <li className="py-4 text-[15px] text-ink-soft">
-                  Nenhuma compra neste cartão. Use “Lançar gasto” e escolha “Cartão de crédito”, ou escreva na barra: “tênis 200 no {card.name}”.
+                  Nenhuma compra neste cartão.
                 </li>
               )}
             </ul>

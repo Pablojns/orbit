@@ -32,10 +32,6 @@ export function BudgetSection({ f }: { f: Finance }) {
           action={saveBudgets}
           triggerClassName="h-11 shrink-0 rounded-xl border border-white/[0.14] px-4 text-sm font-bold hover:bg-white/[0.05]"
         >
-          <p className="text-sm text-ink-soft">
-            Quanto quer gastar em cada categoria até o salário. Deixe vazio para
-            não ter limite.
-          </p>
           {expenseCats.map((c) => (
             <div
               key={c.id}
@@ -94,7 +90,7 @@ export function BudgetSection({ f }: { f: Finance }) {
         </ul>
       ) : (
         <p className="mt-2 text-[15px] text-ink-soft">
-          Nenhum limite definido. Você recebe um aviso em 75%, 90% e 100%.
+          Nenhum limite.
         </p>
       )}
     </section>

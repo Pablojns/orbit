@@ -64,7 +64,7 @@ export default async function FixedPage({ searchParams }: { searchParams: Promis
                 <DaySelect name="day_of_month" defaultValue={5} />
               </Field>
             </div>
-            <Field label="Termina em (opcional)" hint="Para algo que acaba, como uma pensão ou um contrato.">
+            <Field label="Termina em (opcional)">
               <TextInput name="ends_on" type="date" />
             </Field>
           </FormSheet>
@@ -118,7 +118,7 @@ export default async function FixedPage({ searchParams }: { searchParams: Promis
           </ul>
         ) : (
           <p className="px-5 py-5 text-[15px] leading-relaxed text-ink-soft">
-            Cadastre seu salário e outras entradas que se repetem. Quando o dinheiro cair, toque em “Recebi”.
+            Nenhuma entrada fixa.
           </p>
         )}
       </div>
@@ -154,7 +154,7 @@ export default async function FixedPage({ searchParams }: { searchParams: Promis
                 options={expenseCats.map((c) => ({ value: c.id, label: c.name }))}
               />
             </Field>
-            <Field label="Parcelado em (opcional)" hint="Ex.: 10 para um crediário em 10x. Some depois da última.">
+            <Field label="Parcelado em (opcional)" hint="Some depois da última.">
               <TextInput name="installments" type="number" inputMode="numeric" min={2} max={72} placeholder="vezes" />
             </Field>
             <BillExtraFields />
@@ -250,8 +250,7 @@ export default async function FixedPage({ searchParams }: { searchParams: Promis
           </ul>
         ) : (
           <p className="px-5 py-5 text-[15px] leading-relaxed text-ink-soft">
-            Luz, água, internet, aluguel: cadastre uma vez e marque como paga todo mês. O que falta pagar já sai do seu
-            livre.
+            Nenhuma conta fixa.
           </p>
         )}
       </div>
