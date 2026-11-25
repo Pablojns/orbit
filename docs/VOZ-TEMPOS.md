@@ -40,3 +40,26 @@ Com muitas frases em sequência (o teste mandou 10 em poucos segundos), a Groq r
 ## Próximos ganhos possíveis (não feitos)
 - Diminuir o silêncio do fim da fala de 0,55 s para 0,45 s (pode cortar quem fala pausado).
 - Pedir à IA uma resposta menor (menos texto) para cortar ~0,2 s.
+
+## Rodada 15 (25/11, 12h) — mais rápido
+Mudanças:
+- **Confirma na hora:** frase simples e completa é entendida no próprio aparelho e o Dimeta já fala "Registrei…" enquanto o servidor salva. Se salvar falhar, ele avisa em seguida.
+- **Palavras da pessoa vão junto com o áudio** (carregadas uma vez ao abrir o pop-up): o servidor não consulta mais o banco a cada fala.
+- **Servidor acordado ao abrir o pop-up**, para a 1ª fala não pagar o "aquecimento".
+- **Fim da fala:** 0,55 s → 0,45 s.
+
+Medido de novo (mesmos áudios):
+
+| Etapa | Antes | Agora |
+|---|---|---|
+| Transcrever, ida e volta | 0,45–1,3 s | **0,44–0,65 s** |
+| Consultar palavras no servidor | 0,07–0,39 s | 0 |
+| Entender + salvar antes de falar (frase simples) | ~0,4 s | **~0 s** (salva em paralelo) |
+
+**Total estimado:**
+- frase simples: 0,45 + 0,6 + 0,2 (começar a falar) ≈ **1,3 s** (antes 1,8 s)
+- frase com IA: 0,45 + 0,6 + 1,2 + 0,2 ≈ **2,4 s** (antes 2,7 s)
+
+Bônus: com as palavras da pessoa, "no pix" passou a sair certo (antes saía "Nupix").
+
+Outros modelos de IA (llama-3.3-70b, llama-4-scout, qwen3-32b) não estão liberados nesta conta da Groq; o gpt-oss-20b erra mais. Fica o gpt-oss-120b.
