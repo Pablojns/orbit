@@ -1663,6 +1663,27 @@ async function quickTextInner(_prev: QuickState, fd: FormData, timing: { ai: num
       ? info("Em que dia foi?", { ask: true, text })
       : info("Em que dia foi? Escreva junto, como “dia 12” ou “ontem”.");
 
+  // 0c) Caminho rápido: gasto simples e completo ("mercado 45 no pix") sem esperar a IA.
+  if (md.kind === "none") {
+    const { fastExpense } = await import("@/lib/quick-fast");
+    const fast = fastExpense(text, cats ?? [], cards ?? []);
+    if (fast) {
+      return saveMoneyFromText({
+        type: "expense",
+        amountCents: fast.amountCents,
+        date: toISODate(today),
+        categoryId: fast.category.id,
+        categoryName: fast.category.name,
+        method: fast.method,
+        card: fast.card,
+        installments: 1,
+        description: fast.description,
+        text,
+        cats: cats ?? [],
+      });
+    }
+  }
+
   // 1) IA entende a intenção (gasto, entrada, compromisso, pergunta ou dúvida).
   const { interpretWithAI, AiBusyError } = await import("@/lib/ai-intent");
   let ai: Awaited<ReturnType<typeof interpretWithAI>> = null;

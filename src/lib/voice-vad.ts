@@ -38,7 +38,7 @@ export async function createVad(o: VadOptions): Promise<VadHandle> {
     startOnLoad: false,
     positiveSpeechThreshold: o.positiveSpeechThreshold ?? 0.5,
     negativeSpeechThreshold: (o.positiveSpeechThreshold ?? 0.5) - 0.15,
-    redemptionMs: o.redemptionMs ?? 600,
+    redemptionMs: o.redemptionMs ?? 550,
     minSpeechMs: o.minSpeechMs ?? 250,
     preSpeechPadMs: 300,
     submitUserSpeechOnPause: false,

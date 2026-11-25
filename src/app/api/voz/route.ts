@@ -8,7 +8,7 @@ export const maxDuration = 30;
 // A transcrição é feita pela Groq (Whisper) no servidor; a chave nunca vai para o navegador.
 const MODEL = "whisper-large-v3-turbo";
 const MAX_BYTES = 1_500_000; // ~45 s de áudio 16 kHz; comandos têm poucos segundos
-const BASE_WORDS = ["Dimeta", "pix", "débito", "crédito", "iFood", "Uber", "99", "Inter", "Nubank", "Estatística"];
+const BASE_WORDS = ["Dimeta", "pix", "débito", "crédito", "iFood", "Uber", "99", "Inter", "Estatística"];
 
 export async function POST(request: Request) {
   const t0 = Date.now();

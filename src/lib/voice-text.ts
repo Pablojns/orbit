@@ -96,7 +96,7 @@ export function cleanTranscript(text: string): string {
   const t = text.replace(/\s+/g, " ").trim();
   if (!t || /^[\W\d]*$/.test(t) && !/\d/.test(t)) return "";
   if (HALLUCINATIONS.some((r) => r.test(t))) return "";
-  return t;
+  return t.replace(/\bnu ?pix\b/gi, "no pix"); // "no pix" às vezes sai grudado
 }
 
 // Resposta falada: no máximo 1 frase.

@@ -29,6 +29,7 @@ assert.equal(cleanTranscript("Obrigado por assistir!"), "");
 assert.equal(cleanTranscript("  Mercado 45 no pix. "), "Mercado 45 no pix.");
 assert.equal(cleanTranscript("..."), "");
 assert.equal(cleanTranscript("45"), "45");
+assert.equal(cleanTranscript("Mercado 45, Nupix."), "Mercado 45, no pix.");
 assert.equal(firstSentence("Registrei 45 reais. Saldo: 300."), "Registrei 45 reais.");
 console.log("test-voice (palavra Dimeta e palmas): ok");
 

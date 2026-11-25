@@ -81,7 +81,7 @@ export function VoiceBench() {
 
   async function runSave() {
     setBusy("salvar");
-    for (const f of ["TESTE mercado 45 no pix", "TESTE uber 18 no débito"]) {
+    for (const f of ["mercado 45 no pix", "uber 18 no débito", "ifood 32 no pix"]) {
       const fd = new FormData();
       fd.set("text", f);
       fd.set("voice", "1");
