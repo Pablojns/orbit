@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Modal, ModalHeader } from "@/components/modal";
-import { VOICE_REPLY_KEY } from "@/components/quick-text";
 import { WAKE_KEY } from "@/components/voice-listener";
 
 // Voz: resposta falada e chamada por "Dimeta" ou palmas (experimental). Fica neste aparelho.
@@ -22,12 +21,10 @@ function write(key: string, on: boolean) {
 }
 
 export function VoiceSettings() {
-  const [reply, setReply] = useState(false);
   const [wake, setWake] = useState(false);
   const [consent, setConsent] = useState(false);
   useEffect(() => {
     const id = requestAnimationFrame(() => {
-      setReply(read(VOICE_REPLY_KEY));
       setWake(read(WAKE_KEY));
     });
     return () => cancelAnimationFrame(id);
@@ -61,17 +58,12 @@ export function VoiceSettings() {
     <section className="glass mt-5 rounded-3xl p-5">
       <h2 className="text-lg">Voz</h2>
       <p className="mt-1 text-sm text-ink-soft">
-        Toque no microfone ou use Alt+V no computador. Diga, por exemplo, “mercado 45 pix”, “quanto posso gastar hoje” ou
-        “guardei 20 na meta viagem”.
+        Toque no microfone ou use Alt+V. Ex.: “mercado 45 pix”, “quanto posso gastar hoje”.
       </p>
       <ul className="mt-2 divide-y divide-white/[0.07]">
-        {row("Responder falando", "O Dimeta lê a resposta em voz alta depois de um comando de voz.", reply, () => {
-          write(VOICE_REPLY_KEY, !reply);
-          setReply(!reply);
-        })}
         {row(
-          "Chamar dizendo “Dimeta” ou com duas palmas",
-          "Só no computador e com a aba do Dimeta aberta.",
+          "Chamar dizendo “Dimeta”",
+          "Com o app aberto e a tela ligada. No computador, duas palmas também chamam.",
           wake,
           () => {
             if (wake) {
@@ -88,8 +80,8 @@ export function VoiceSettings() {
           <ModalHeader title="Ligar a escuta?" onClose={() => setConsent(false)} />
           <div className="mt-3 space-y-2 text-[15px] leading-relaxed text-ink-soft">
             <p>
-              Com isto ligado, o navegador fica usando o microfone enquanto a aba do Dimeta estiver aberta, para notar a
-              palavra “Dimeta” ou duas palmas.
+              Com isto ligado, o navegador usa o microfone enquanto o Dimeta estiver aberto e a tela ligada, para notar a
+              palavra “Dimeta” (e, no computador, duas palmas).
             </p>
             <p>
               O reconhecimento de fala é feito pelo próprio navegador (no Chrome, pelo Google). O Dimeta não grava áudio.

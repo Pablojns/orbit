@@ -172,7 +172,7 @@ export default async function StudiesPage() {
 
   return (
     <div className="pt-5 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:pt-7">
-      <header className="flex flex-wrap items-center justify-between gap-3">
+      <header className="flex flex-wrap items-center justify-between gap-3 lg:pr-14">
         <div>
           <h1 className="text-2xl leading-tight lg:text-[28px]">Estudos</h1>
           <p className="mt-0.5 text-[13px] font-semibold text-ink-soft lg:text-sm">

@@ -39,3 +39,17 @@ for (const [said, cents] of ditos) {
   assert.equal(r.amountCents, cents, `não leu: ${said}`);
 }
 console.log("test-voice (transcrições de exemplo): ok");
+import { afterWakeWord, choiceFromSpeech, spokenConfirm } from "../src/lib/voice-text";
+for (const w of ["Dimeta", "di meta", "dimetá", "Ei Dimeta!"]) assert.ok(hasWakeWord(w), w);
+assert.ok(!hasWakeWord("meta de viagem"));
+assert.equal(afterWakeWord("Dimeta, mercado 45 pix"), "mercado 45 pix");
+assert.equal(afterWakeWord("dimetá"), "");
+assert.equal(spokenConfirm("Gasto: R$ 45,00 · Mercado · Pix · hoje, 24/11."), "Registrei 45 reais em mercado.");
+assert.equal(spokenConfirm("Gasto: R$ 1.234,50 · Lazer · Débito · hoje."), "Registrei 1234 reais e 50 centavos em lazer.");
+assert.equal(spokenConfirm("Entrada: R$ 2.000,00 · Salário · hoje, 24/11."), "Registrei a entrada de 2000 reais.");
+assert.equal(spokenConfirm("Na agenda: Prova de Estatística — sex 27/11 às 19:00. Aviso na véspera."), "Marquei Prova de Estatística.");
+assert.equal(spokenConfirm("Guardado: R$ 200,00 em Viagem."), "Guardei 200 reais em Viagem.");
+assert.equal(choiceFromSpeech("é um gasto"), "expense");
+assert.equal(choiceFromSpeech("compromisso"), "event");
+assert.equal(choiceFromSpeech("sei lá"), null);
+console.log("test-voice (conversa por voz): ok");

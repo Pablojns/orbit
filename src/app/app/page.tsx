@@ -7,7 +7,6 @@ import {
   toggleHabit,
 } from "@/app/app/actions";
 import { ProfileButton } from "@/components/app-nav";
-import { QuickText } from "@/components/quick-text";
 import { addDays, diffInDays, fromISODate, toISODate } from "@/lib/dates";
 import { getClassSlots, getTerm } from "@/lib/class-slots";
 import { classOccurrences } from "@/lib/studies-math";
@@ -236,7 +235,7 @@ export default async function HomePage() {
 
   return (
     <div className="space-y-4 pt-5 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:gap-5 lg:space-y-0 lg:pt-7">
-      <header className="flex items-center justify-between gap-4 lg:items-baseline">
+      <header className="flex items-center justify-between gap-4 lg:items-baseline lg:pr-14">
         <div>
           <h1 className="text-2xl leading-tight lg:text-[28px]">
             {firstName ? `${greeting()}, ${firstName}` : greeting()}
@@ -355,8 +354,6 @@ export default async function HomePage() {
               />
             </div>
           </section>
-
-          <QuickText />
 
           <section className="rounded-3xl border border-[#a78bfa]/45 bg-[#121a45] px-[18px] pt-5 pb-2.5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:px-6 lg:pb-4">
             {sectionHead("Agenda", "/app/agenda", "Ver tudo", true)}

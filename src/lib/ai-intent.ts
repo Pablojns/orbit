@@ -8,6 +8,7 @@ export type AiIntent =
       intent: "expense" | "income";
       amountCents: number;
       method: "pix" | "debit" | "credit" | "cash" | "transfer";
+      paymentGiven: boolean; // a frase disse como pagou (para a conversa por voz perguntar)
       cardName: string | null;
       installments: number;
       categoryName: string | null;
@@ -213,6 +214,7 @@ function normalize(raw: Raw, today: CalendarDate): AiIntent | null {
       intent,
       amountCents: Math.round(amount * 100),
       method: s(raw.card) ? "credit" : method,
+      paymentGiven: Boolean(s(raw.card)) || ["pix", "debit", "credit", "cash", "transfer"].includes(pay ?? ""),
       cardName: s(raw.card),
       installments: Number.isInteger(inst) && inst > 1 ? Math.min(48, inst) : 1,
       categoryName: s(raw.category),

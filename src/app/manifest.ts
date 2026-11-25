@@ -21,9 +21,9 @@ export default function manifest(): MetadataRoute.Manifest {
         icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }],
       },
       {
-        name: "Lançar escrevendo",
-        short_name: "Escrever",
-        url: "/app/dinheiro?abrir=frase",
+        name: "Falar com o Dimeta",
+        short_name: "Falar",
+        url: "/app?voz=1",
         icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }],
       },
       {

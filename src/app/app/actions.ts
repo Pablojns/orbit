@@ -1649,6 +1649,7 @@ export async function deleteGrade(fd: FormData): Promise<UndoResult | void> {
 // Resposta da barra: além de salvo/erro, pode ser uma pergunta da IA (cor neutra) com botões.
 export type QuickState = FormState & {
   tone?: "info";
+  ask?: boolean; // é uma pergunta: a conversa por voz abre o microfone para a resposta
   options?: { label: string; force: "expense" | "income" | "event" }[];
   text?: string;
 };
@@ -1680,8 +1681,9 @@ function doubtOptions(ask: string, text: string): QuickState {
 }
 
 export async function quickText(_prev: QuickState, fd: FormData): Promise<QuickState> {
-  const text = str(fd, "text").slice(0, 160);
+  const text = str(fd, "text").slice(0, 200);
   const force = str(fd, "force");
+  const voice = str(fd, "voice") === "1"; // conversa por voz: pergunta o que faltar, um dado por vez
   if (!text) return fail("Escreva algo como: mercado 45 pix");
   const supabase = await db();
   const [{ data: cats }, { data: cards }] = await Promise.all([
@@ -1714,7 +1716,10 @@ export async function quickText(_prev: QuickState, fd: FormData): Promise<QuickS
   if (special) return moneyIntentFromText(special);
 
   // Falou "semana passada" sem o dia: não dá para adivinhar.
-  if (md.kind === "vague") return info("Em que dia foi? Escreva junto, como “dia 12” ou “ontem”.");
+  if (md.kind === "vague")
+    return voice
+      ? info("Em que dia foi?", { ask: true, text })
+      : info("Em que dia foi? Escreva junto, como “dia 12” ou “ontem”.");
 
   // 1) IA entende a intenção (gasto, entrada, compromisso, pergunta ou dúvida).
   const { interpretWithAI, AiBusyError } = await import("@/lib/ai-intent");
@@ -1732,6 +1737,7 @@ export async function quickText(_prev: QuickState, fd: FormData): Promise<QuickS
     aiBusy = true; // segue pelas regras fixas; se elas não entenderem, avisa abaixo
   }
   const aiMissedValue = ai?.intent === "unclear" && ai.ask === "Qual foi o valor?";
+  if (voice && aiMissedValue) return info("Quanto foi?", { ask: true, text });
   const todayIso = toISODate(today);
   // Data passada + valor nunca é compromisso: é dinheiro ("gasolina 120 no inter dia 2/11").
   const pastMoney =
@@ -1745,7 +1751,7 @@ export async function quickText(_prev: QuickState, fd: FormData): Promise<QuickS
     if ((ai.intent === "unclear" || ai.intent === "event") && pastMoney) {
       return moneyFromRules(text, null, md, cats ?? [], cards ?? []);
     }
-    if (ai.intent === "unclear") return doubtOptions(ai.ask, text);
+    if (ai.intent === "unclear") return voice ? info(ai.ask, { ...doubtOptions(ai.ask, text), ask: true }) : doubtOptions(ai.ask, text);
     if (ai.intent === "question") {
       return info("Por enquanto eu respondo: quanto posso gastar, qual meu saldo e quanto tenho de fatura.");
     }
@@ -1775,6 +1781,14 @@ export async function quickText(_prev: QuickState, fd: FormData): Promise<QuickS
     const cat = (cats ?? []).find(
       (c) => c.name.toLowerCase() === (ai.categoryName ?? "").toLowerCase() && c.kind === ai.intent,
     );
+    // Voz: pergunta, um por vez, o que a frase não disse (como pagou e a categoria).
+    if (voice && ai.intent === "expense") {
+      if (!ai.paymentGiven) return info("Pagou como? Pix, débito, crédito ou dinheiro?", { ask: true, text });
+      if (!cat) {
+        const names = (cats ?? []).filter((c) => c.kind === "expense").slice(0, 4).map((c) => c.name.toLowerCase());
+        return info(`Qual a categoria? Por exemplo: ${names.join(", ")}.`, { ask: true, text });
+      }
+    }
     // A data dita na frase manda; sem data na frase, a da IA; sem nenhuma, hoje.
     const date = md.kind === "found" ? md.date : (ai.date ?? todayIso);
     return saveMoneyFromText({
