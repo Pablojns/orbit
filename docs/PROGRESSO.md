@@ -3,9 +3,9 @@
 Leia docs/PLANO-RODADAS.md primeiro. Este arquivo diz onde a sessão parou. Ele é atualizado a cada commit.
 
 ## Estado atual
-- Rodada atual: **12**
-- Último item concluído: R11 inteira (página de vendas, e-mails, domínio, avisos multiusuário, pendências em ordem)
-- Próximo passo: R12, teste de 30 dias no celular e no computador, com as chaves desligadas (produção); corrigir o que aparecer; relatório final com 10 passos de teste em 15 minutos
+- Rodada atual: **todas feitas (R3 a R12)**
+- Último item concluído: R12, teste final e correções (bfa2080, d9ff5b5)
+- Pendente: apagar 9 itens de teste da R12 (lista em RELATORIO-RODADA-12.md), assim que o Pablo confirmar no banco. Depois disso, só as pendências do Pablo.
 
 ## Rodadas
 | Rodada | Situação |
@@ -19,7 +19,7 @@ Leia docs/PLANO-RODADAS.md primeiro. Este arquivo diz onde a sessão parou. Ele 
 | R9 contas, teste grátis, cobrança (desligados) | feita |
 | R10 qualidade, segurança, desempenho | feita (nota de desempenho medida pelo Pablo) |
 | R11 pronto para lançar | feita |
-| R12 caça-bugs final | a fazer |
+| R12 caça-bugs final | feita (falta apagar os dados de teste) |
 
 ## Como testar e publicar
 - Checagem local: `npx tsc --noEmit && npx eslint src --quiet`, depois cada `scripts/test-*.ts` com `npx tsx`
@@ -35,4 +35,4 @@ Leia docs/PLANO-RODADAS.md primeiro. Este arquivo diz onde a sessão parou. Ele 
 - R6: 0014 aplicada (preferências de aviso); resumo do dia na hora escolhida; exportar CSV; Conta atrás de AUTH_ENABLED
 - R10: de65e91 · ab74aa1 · fechamento (desempenho vira teste do Pablo; ver relatório)
 - R11: 366c58f página de vendas · 35aa77a e-mails · 411139b domínio e site.ts · adde9da avisos multiusuário · docs
-- Observação: em 25/11 a marca do tutorial do Pablo foi zerada (tutorial_done_at = null) para ele ver o tutorial uma vez.
+- R12: bfa2080 abas e quebra de linha · d9ff5b5 repetições · relatório final

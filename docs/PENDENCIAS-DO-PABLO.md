@@ -18,7 +18,7 @@ Tempo total estimado: cerca de 4 horas, espalhadas em alguns dias (a aprovação
    - Abra pagespeed.web.dev, cole https://dimeta.vercel.app/app e veja a nota "Celular".
    - A meta é 90 ou mais. Se der menos, me mande o print.
    - Eu não consegui medir daqui: o ambiente de trabalho não acessa o site pela linha de comando.
-4. **Tutorial:** ele vai aparecer uma vez na sua conta. Responda ou pule as perguntas; depois não aparece mais.
+4. **Apagar os dados de teste da Rodada 12:** responda "pode apagar" na conversa (9 itens, lista em RELATORIO-RODADA-12.md).
 
 ## 1. Dados do site: e-mail e CNPJ (10 minutos)
 1. Abra `src/lib/site.ts` e troque os dois marcadores entre colchetes:
