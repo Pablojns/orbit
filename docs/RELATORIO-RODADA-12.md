@@ -36,6 +36,10 @@ Depois passei por Início, Dinheiro (todas as abas), Agenda, Estudos, Hábitos e
 | bill_payments | 1 (pagamento dela) |
 | events | 1 (Trabalho de Estatística, 01/12) |
 
+## Ações no banco nesta sessão, fora dos commits
+- **Sobras do teste do tutorial (Rodada 3) apagadas:** a entrada fixa "Salário" de R$ 2.000, o cartão "TESTE cartão" e as contas "Luz" e "Assinaturas". Os seus itens arquivados ("salario" e "aluguel") ficaram.
+- **Marca do tutorial zerada (`tutorial_done_at`)** para você ver o tutorial uma vez. Às 22:30 ela foi marcada de novo, sem nenhum dado novo criado, ou seja, o tutorial foi pulado. Não sei se foi você no celular.
+
 ## Decisões que tomei
 - **Os dados de teste são identificados pela hora de criação, não só pelo prefixo "TESTE",** porque a IA da barra às vezes tira essa palavra do título.
 - **"Para onde foi o dinheiro" conta a compra parcelada pela parcela do ciclo,** e o "Resumo da semana" pelo valor da compra. Deixei como está: são perguntas diferentes. Fica registrado para revisar se confundir.
