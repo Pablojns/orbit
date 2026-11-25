@@ -2138,14 +2138,7 @@ export async function loadExtrato(periodo: string, de?: string, ate?: string) {
 }
 
 // Teste de velocidade da IA (Rodada 14): mesmas frases em modelos diferentes, sem gravar nada.
-const BENCH_MODELS = [
-  "openai/gpt-oss-120b",
-  "openai/gpt-oss-20b",
-  "llama-3.1-8b-instant",
-  "llama-3.3-70b-versatile",
-  "meta-llama/llama-4-scout-17b-16e-instruct",
-  "qwen/qwen3-32b",
-];
+const BENCH_MODELS = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]; // os outros não existem nesta conta da Groq
 export async function benchIntent(phrases: string[], model: string) {
   if (!BENCH_MODELS.includes(model)) return [];
   const { interpretWithAI } = await import("@/lib/ai-intent");

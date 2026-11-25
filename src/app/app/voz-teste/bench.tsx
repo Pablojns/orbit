@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { benchIntent, quickText } from "@/app/app/actions";
+import { benchIntent, quickText, voiceContext } from "@/app/app/actions";
 import { cleanTranscript, hasWakeWord } from "@/lib/voice-text";
 import { createVad, transcribe } from "@/lib/voice-vad";
 
@@ -18,7 +18,7 @@ const FRASES = [
   "gastei 30",
   "e mais 20 de uber",
 ];
-const MODELS = ["llama-3.3-70b-versatile", "meta-llama/llama-4-scout-17b-16e-instruct", "qwen/qwen3-32b", "openai/gpt-oss-120b"];
+const MODELS = ["openai/gpt-oss-120b"];
 
 // WAV 16 bits mono → Float32 (os arquivos de teste já estão em 16 kHz).
 function wavToFloat(buf: ArrayBuffer): Float32Array {
@@ -47,13 +47,15 @@ export function VoiceBench() {
 
   async function runAudio() {
     setBusy("audio");
+    void fetch("/api/voz"); // como o pop-up: acorda o servidor ao abrir
+    const ctx = await voiceContext();
     for (let rep = 0; rep < 2; rep++) {
       for (const a of AUDIOS) {
         const buf = await (await fetch(`/voz-teste/${a}.wav`)).arrayBuffer();
         const samples = wavToFloat(buf);
         const modo = a === "dimeta" || a === "tosse" ? "chamada" : "comando";
         const t = performance.now();
-        const r = await transcribe(samples, modo);
+        const r = await transcribe(samples, modo, modo === "comando" ? ctx.words : []);
         const text = cleanTranscript(r.text);
         add({
           etapa: `transcrever (${modo})`,
