@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Mic, Send } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { type QuickState, quickText } from "@/app/app/actions";
+import { type QuickState, quickText, voiceContext } from "@/app/app/actions";
 import { Modal, ModalHeader } from "./modal";
-import { choiceFromSpeech, cleanTranscript, firstSentence, spokenConfirm } from "@/lib/voice-text";
+import { choiceFromSpeech, cleanTranscript, firstSentence, spokenConfirm, spokenExpense } from "@/lib/voice-text";
+import { fastExpense } from "@/lib/quick-fast";
 import { createVad, transcribe, voiceSupported, type VadHandle } from "@/lib/voice-vad";
 
 // Conversa por voz (Rodada 14). Abre pelo microfone, Alt+V, "Dimeta" ou palmas.
@@ -16,7 +17,7 @@ import { createVad, transcribe, voiceSupported, type VadHandle } from "@/lib/voi
 const FIRST_SILENCE_MS = 8000; // ao abrir
 const NEXT_SILENCE_MS = 5000; // modo conversa, depois de cada resposta
 const MAX_TURNS = 8;
-const END_SILENCE_MS = 550; // silêncio que o detector espera para saber que a fala acabou
+const END_SILENCE_MS = 450; // silêncio que o detector espera para saber que a fala acabou
 
 type Phase = "loading" | "ready" | "listening" | "thinking" | "speaking" | "idle";
 type Times = { gravar: number; transcrever: number; entender: number; salvar: number; falar: number; total: number };
@@ -58,6 +59,7 @@ export function VoiceChat({ name }: { name: string | null }) {
   const speechStartRef = useRef(0);
   const onAudioRef = useRef<(a: Float32Array) => void>(() => {});
   const listenRef = useRef<(waitMs: number) => void>(() => {});
+  const ctxRef = useRef<Awaited<ReturnType<typeof voiceContext>> | null>(null);
   const params = useSearchParams();
 
   useEffect(() => {
@@ -109,6 +111,45 @@ export function VoiceChat({ name }: { name: string | null }) {
       fd.set("voice", "1");
       setPhase("thinking");
       const tq = performance.now();
+
+      // Caminho rápido no aparelho: frase simples e completa ("mercado 45 no pix") é confirmada
+      // na hora, enquanto o servidor salva. Se o servidor falhar, o Dimeta corrige em seguida.
+      const ctx = ctxRef.current;
+      const fast = byVoice && ctx && !pendingRef.current && !choice ? fastExpense(text, ctx.cats, ctx.cards) : null;
+      if (fast && t) {
+        const reply = spokenExpense(fast.amountCents, fast.category.name);
+        const saving = quickText({ status: "idle" }, fd);
+        say("dimeta", reply);
+        setPhase("speaking");
+        const spoken = speak(reply, () => {
+          const now = performance.now();
+          const tm: Times = {
+            gravar: t.gravar,
+            transcrever: t.transcrever,
+            entender: 0,
+            salvar: 0,
+            falar: now - tq,
+            total: now - t.fim + END_SILENCE_MS,
+          };
+          setTimes(tm);
+          console.info("[Dimeta voz] tempos (ms), caminho rápido", tm);
+        });
+        const r = await saving;
+        lastRef.current = r;
+        turnsRef.current += 1;
+        if (r.status !== "saved") {
+          await spoken;
+          if (!openRef.current) return;
+          const fix = `Não consegui registrar. ${r.message ?? "Tente de novo."}`;
+          say("dimeta", fix);
+          await speak(firstSentence(fix));
+        } else await spoken;
+        if (!openRef.current) return;
+        if (turnsRef.current < MAX_TURNS) listenRef.current(NEXT_SILENCE_MS);
+        else close();
+        return;
+      }
+
       const r = await quickText({ status: "idle" }, fd);
       const quickMs = performance.now() - tq;
       if (!openRef.current) return;
@@ -163,7 +204,7 @@ export function VoiceChat({ name }: { name: string | null }) {
       setPhase("thinking");
       const gravar = speechStartRef.current ? fim - speechStartRef.current : (audio.length / 16000) * 1000;
       const tt = performance.now();
-      const r = await transcribe(audio, "comando");
+      const r = await transcribe(audio, "comando", ctxRef.current?.words ?? []);
       const transcrever = performance.now() - tt;
       if (!openRef.current) return;
       const text = cleanTranscript(r.text);
@@ -232,6 +273,9 @@ export function VoiceChat({ name }: { name: string | null }) {
       openRef.current = true;
       setOpen(true);
       setTimes(null);
+      // Em paralelo: acorda o servidor da voz e busca as palavras/categorias da pessoa.
+      void fetch("/api/voz", { method: "GET" }).catch(() => {});
+      if (!ctxRef.current) void voiceContext().then((c) => (ctxRef.current = c)).catch(() => {});
       if (opts.text) {
         void send(opts.text, true);
         return;

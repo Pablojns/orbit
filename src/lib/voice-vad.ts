@@ -38,7 +38,7 @@ export async function createVad(o: VadOptions): Promise<VadHandle> {
     startOnLoad: false,
     positiveSpeechThreshold: o.positiveSpeechThreshold ?? 0.5,
     negativeSpeechThreshold: (o.positiveSpeechThreshold ?? 0.5) - 0.15,
-    redemptionMs: o.redemptionMs ?? 550,
+    redemptionMs: o.redemptionMs ?? 450,
     minSpeechMs: o.minSpeechMs ?? 250,
     preSpeechPadMs: 300,
     submitUserSpeechOnPause: false,
@@ -74,11 +74,13 @@ export async function createVad(o: VadOptions): Promise<VadHandle> {
 export async function transcribe(
   audio: Float32Array,
   modo: "comando" | "chamada",
+  palavras: string[] = [],
 ): Promise<{ text: string; ms?: { palavras: number; whisper: number; total: number }; error?: string }> {
   const { encodeWav } = await import("@/lib/wav");
   const fd = new FormData();
   fd.set("audio", new Blob([encodeWav(audio)], { type: "audio/wav" }), "fala.wav");
   fd.set("modo", modo);
+  if (palavras.length) fd.set("palavras", palavras.join("|"));
   try {
     const res = await fetch("/api/voz", { method: "POST", body: fd });
     const data = (await res.json()) as { text?: string; ms?: { palavras: number; whisper: number; total: number }; error?: string };

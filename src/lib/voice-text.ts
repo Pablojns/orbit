@@ -126,6 +126,13 @@ function spokenMoney(v: string): string {
   const [int, cents] = v.replace(/\./g, "").split(",");
   return cents && cents !== "00" ? `${int} reais e ${Number(cents)} centavos` : `${int} reais`;
 }
+// Confirmação dita na hora pelo caminho rápido, sem esperar o servidor.
+export function spokenExpense(cents: number, category: string): string {
+  const int = Math.floor(cents / 100);
+  const c = cents % 100;
+  return `Registrei ${c ? `${int} reais e ${c} centavos` : `${int} reais`} em ${category.toLowerCase()}.`;
+}
+
 export function spokenConfirm(message: string): string {
   const m = message.trim();
   let r = m.match(/^Gasto: R\$ ([\d.,]+) · ([^·]+)/);

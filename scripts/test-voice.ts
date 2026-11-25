@@ -44,7 +44,9 @@ for (const [said, cents] of ditos) {
   assert.equal(r.amountCents, cents, `não leu: ${said}`);
 }
 console.log("test-voice (transcrições de exemplo): ok");
-import { afterWakeWord, choiceFromSpeech, spokenConfirm } from "../src/lib/voice-text";
+import { afterWakeWord, choiceFromSpeech, spokenConfirm, spokenExpense } from "../src/lib/voice-text";
+assert.equal(spokenExpense(4500, "Mercado"), "Registrei 45 reais em mercado.");
+assert.equal(spokenExpense(3790, "Saúde"), "Registrei 37 reais e 90 centavos em saúde.");
 for (const w of ["Dimeta", "di meta", "dimetá", "Ei Dimeta!"]) assert.ok(hasWakeWord(w), w);
 assert.ok(!hasWakeWord("meta de viagem"));
 assert.equal(afterWakeWord("Dimeta, mercado 45 pix"), "mercado 45 pix");

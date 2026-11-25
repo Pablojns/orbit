@@ -173,7 +173,10 @@ export async function interpretWithAI(
         if (attempt === 0) await new Promise((ok) => setTimeout(ok, 1500));
         continue;
       }
-      if (!res.ok) return null;
+      if (!res.ok) {
+        console.error(`[ia] ${model} respondeu ${res.status}: ${(await res.text().catch(() => "")).slice(0, 300)}`);
+        return null;
+      }
       const data = (await res.json()) as {
         choices?: { message?: { content?: string } }[];
       };

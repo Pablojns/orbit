@@ -18,7 +18,7 @@ const FRASES = [
   "gastei 30",
   "e mais 20 de uber",
 ];
-const MODELS = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.1-8b-instant"];
+const MODELS = ["llama-3.3-70b-versatile", "meta-llama/llama-4-scout-17b-16e-instruct", "qwen/qwen3-32b", "openai/gpt-oss-120b"];
 
 // WAV 16 bits mono → Float32 (os arquivos de teste já estão em 16 kHz).
 function wavToFloat(buf: ArrayBuffer): Float32Array {
@@ -73,6 +73,7 @@ export function VoiceBench() {
   async function runModels() {
     setBusy("modelos");
     for (const m of MODELS) {
+      await new Promise((r) => setTimeout(r, 8000)); // pausa: evita o limite da Groq
       const out = await benchIntent(FRASES, m);
       for (const o of out) add({ etapa: "entender", modelo: m, frase: o.phrase, ms: o.ms, resultado: JSON.stringify(o.result) });
     }

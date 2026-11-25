@@ -2138,7 +2138,14 @@ export async function loadExtrato(periodo: string, de?: string, ate?: string) {
 }
 
 // Teste de velocidade da IA (Rodada 14): mesmas frases em modelos diferentes, sem gravar nada.
-const BENCH_MODELS = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.1-8b-instant"];
+const BENCH_MODELS = [
+  "openai/gpt-oss-120b",
+  "openai/gpt-oss-20b",
+  "llama-3.1-8b-instant",
+  "llama-3.3-70b-versatile",
+  "meta-llama/llama-4-scout-17b-16e-instruct",
+  "qwen/qwen3-32b",
+];
 export async function benchIntent(phrases: string[], model: string) {
   if (!BENCH_MODELS.includes(model)) return [];
   const { interpretWithAI } = await import("@/lib/ai-intent");
@@ -2150,6 +2157,7 @@ export async function benchIntent(phrases: string[], model: string) {
     .eq("is_archived", false);
   const out: { phrase: string; ms: number; result: unknown }[] = [];
   for (const phrase of phrases.slice(0, 12)) {
+    await new Promise((r) => setTimeout(r, 1200)); // espaça as chamadas (limite da Groq)
     const t = Date.now();
     let result: unknown = null;
     try {
@@ -2160,4 +2168,21 @@ export async function benchIntent(phrases: string[], model: string) {
     out.push({ phrase, ms: Date.now() - t, result });
   }
   return out;
+}
+
+// Voz (Rodada 15): o pop-up pede isto ao abrir. Serve para (1) mandar as palavras da pessoa
+// junto com o áudio, sem o servidor consultar o banco a cada fala, (2) o caminho rápido rodar no
+// próprio aparelho e (3) "acordar" o servidor antes da primeira fala.
+export async function voiceContext() {
+  const supabase = await db();
+  const user = await uid();
+  const [c, k, m] = await Promise.all([
+    supabase.from("categories").select("id, name, kind").eq("user_id", user).eq("is_archived", false),
+    supabase.from("credit_cards").select("id, name").eq("user_id", user).eq("is_archived", false),
+    supabase.from("subjects").select("name").eq("user_id", user),
+  ]);
+  const cats = (c.data ?? []) as { id: string; name: string; kind: string }[];
+  const cards = (k.data ?? []) as { id: string; name: string }[];
+  const words = [...new Set([...cats.map((x) => x.name), ...cards.map((x) => x.name), ...(m.data ?? []).map((x) => String(x.name))])];
+  return { cats, cards, words: words.slice(0, 50) };
 }

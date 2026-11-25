@@ -20,11 +20,15 @@ export async function POST(request: Request) {
   if (!(audio instanceof Blob) || audio.size < 1000) return Response.json({ error: "sem-audio" }, { status: 400 });
   if (audio.size > MAX_BYTES) return Response.json({ error: "audio-grande" }, { status: 413 });
   const wake = form?.get("modo") === "chamada";
+  const sent = String(form?.get("palavras") ?? "").trim(); // o pop-up já manda as palavras da pessoa
 
   // Palavras do app e da pessoa ajudam o Whisper a acertar nomes (categorias, cartões, matérias).
   let words = BASE_WORDS;
   const tPrompt = Date.now();
-  if (!wake) {
+  if (!wake && sent) {
+    words = [...new Set([...BASE_WORDS, ...sent.split("|").map((w) => w.trim().slice(0, 40)).filter(Boolean)])].slice(0, 60);
+    await uid();
+  } else if (!wake) {
     try {
       const supabase = await createClient();
       const user = await uid();
@@ -69,4 +73,9 @@ export async function POST(request: Request) {
   } catch {
     return Response.json({ error: "falhou" }, { status: 502 });
   }
+}
+
+// "Acorda" a função antes da primeira fala (o pop-up chama ao abrir).
+export async function GET() {
+  return new Response(null, { status: 204 });
 }
