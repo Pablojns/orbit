@@ -1,4 +1,14 @@
-import { Bell, BookOpen, CalendarCheck, Check, Clock, FileWarning, GraduationCap, Receipt, Repeat } from "lucide-react";
+import {
+  Bell,
+  BookOpen,
+  CalendarCheck,
+  Check,
+  Clock,
+  FileWarning,
+  GraduationCap,
+  Receipt,
+  Repeat,
+} from "lucide-react";
 import { DeleteButton } from "@/components/undo";
 import { deleteEvent, toggleEventDone } from "@/app/app/actions";
 import type { AgendaEvent, ChecklistItem, EventType } from "@/lib/routine";
@@ -30,17 +40,33 @@ export function countdown(days: number) {
 
 function dateLabelOf(iso: string) {
   const [y, m, d] = iso.split("-").map(Number);
-  return new Intl.DateTimeFormat("pt-BR", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })
+  return new Intl.DateTimeFormat("pt-BR", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  })
     .format(new Date(Date.UTC(y, m - 1, d)))
     .replace(/\./g, "");
 }
 
-function TypeIcon({ e }: { e: AgendaEvent }) {
+function TypeIcon({ e, dense }: { e: AgendaEvent; dense?: boolean }) {
+  if (dense)
+    return (
+      <span
+        className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full"
+        style={{ backgroundColor: e.done ? "#b9c6ff55" : e.color }}
+        aria-hidden
+      />
+    );
   const Icon = KIND[e.kind]?.icon ?? Clock;
   return (
     <span
       className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-2xl"
-      style={{ backgroundColor: `${e.done ? "#b9c6ff" : e.color}26`, color: e.done ? "#b9c6ff" : e.color }}
+      style={{
+        backgroundColor: `${e.done ? "#b9c6ff" : e.color}26`,
+        color: e.done ? "#b9c6ff" : e.color,
+      }}
     >
       <Icon size={18} aria-hidden />
     </span>
@@ -52,7 +78,9 @@ function Meta({ e, hideDate }: { e: AgendaEvent; hideDate?: boolean }) {
   return (
     <p className="text-[13px] leading-snug text-ink-soft">
       {!e.done ? (
-        <span className={`font-semibold ${e.daysLeft < 0 ? "text-loss" : urgent ? "text-sun" : "text-ink"}`}>
+        <span
+          className={`font-semibold ${e.daysLeft < 0 ? "text-loss" : urgent ? "text-sun" : "text-ink"}`}
+        >
           {countdown(e.daysLeft)}
         </span>
       ) : (
@@ -60,15 +88,31 @@ function Meta({ e, hideDate }: { e: AgendaEvent; hideDate?: boolean }) {
       )}
       {", "}
       {e.typeName.toLowerCase()}
-      {hideDate ? (e.time ? `, ${e.time}` : "") : `, ${dateLabelOf(e.date)}${e.time ? ` às ${e.time}` : ""}`}
-      {e.seriesId ? <Repeat size={11} className="ml-1 inline align-[-1px]" aria-label="Faz parte de uma série" /> : null}
+      {hideDate
+        ? e.time
+          ? `, ${e.time}`
+          : ""
+        : `, ${dateLabelOf(e.date)}${e.time ? ` às ${e.time}` : ""}`}
+      {e.seriesId ? (
+        <Repeat
+          size={11}
+          className="ml-1 inline align-[-1px]"
+          aria-label="Faz parte de uma série"
+        />
+      ) : null}
       {e.remindDays ? (
-        <span className="ml-1 whitespace-nowrap" title={`Aviso ${e.remindDays} dia(s) antes`}>
-          <Bell size={11} className="inline align-[-1px]" aria-hidden /> {e.remindDays}d
+        <span
+          className="ml-1 whitespace-nowrap"
+          title={`Aviso ${e.remindDays} dia(s) antes`}
+        >
+          <Bell size={11} className="inline align-[-1px]" aria-hidden />{" "}
+          {e.remindDays}d
         </span>
       ) : null}
       {e.priority && !e.done ? (
-        <span className={`ml-1.5 rounded-full px-1.5 py-px text-[11px] font-semibold ${PRIORITY[e.priority].tone}`}>
+        <span
+          className={`ml-1.5 rounded-full px-1.5 py-px text-[11px] font-semibold ${PRIORITY[e.priority].tone}`}
+        >
           {PRIORITY[e.priority].label}
         </span>
       ) : null}
@@ -82,15 +126,19 @@ export function EventRow({
   checklist,
   types = [],
   hideDate,
+  dense,
 }: {
   e: AgendaEvent;
   hideDate?: boolean;
+  dense?: boolean;
   compact?: boolean;
   checklist?: ChecklistItem[];
   types?: EventType[];
 }) {
   const title = (
-    <p className={`text-[15px] leading-snug font-medium break-words ${e.done ? "text-ink-soft line-through" : ""}`}>
+    <p
+      className={`${dense ? "text-sm" : "text-[15px]"} leading-snug font-medium break-words ${e.done ? "text-ink-soft line-through" : ""}`}
+    >
       {e.title}
     </p>
   );
@@ -111,7 +159,8 @@ export function EventRow({
   return (
     <ItemShell
       title={e.title}
-      icon={<TypeIcon e={e} />}
+      dense={dense}
+      icon={<TypeIcon e={e} dense={dense} />}
       body={
         <>
           {title}
@@ -121,7 +170,11 @@ export function EventRow({
       actions={
         <>
           <EditEvent e={e} types={types} />
-          <DeleteButton action={deleteEvent} fields={{ id: e.id }} label={`Excluir ${e.title}`} />
+          <DeleteButton
+            action={deleteEvent}
+            fields={{ id: e.id }}
+            label={`Excluir ${e.title}`}
+          />
         </>
       }
       check={
@@ -132,15 +185,19 @@ export function EventRow({
             type="submit"
             aria-label={e.done ? `Reabrir ${e.title}` : `Concluir ${e.title}`}
             title={e.done ? "Reabrir" : "Marcar como feito"}
-            className={`ml-1 grid h-9 w-9 place-items-center rounded-full border ${
-              e.done ? "border-gain bg-gain text-[#0b1440]" : "border-white/20 text-transparent hover:text-ink-soft"
+            className={`ml-1 grid place-items-center rounded-full border ${dense ? "h-7 w-7" : "h-9 w-9"} ${
+              e.done
+                ? "border-gain bg-gain text-[#0b1440]"
+                : "border-white/20 text-transparent hover:text-ink-soft"
             }`}
           >
-            <Check size={16} strokeWidth={3} aria-hidden />
+            <Check size={dense ? 13 : 16} strokeWidth={3} aria-hidden />
           </button>
         </form>
       }
-      steps={<ChecklistPanel parentType="event" parentId={e.id} items={steps} />}
+      steps={
+        <ChecklistPanel parentType="event" parentId={e.id} items={steps} />
+      }
       stepsCount={steps.length}
       stepsDone={steps.filter((s) => s.done).length}
     />

@@ -14,7 +14,9 @@ export function ItemShell({
   stepsCount,
   stepsDone,
   title,
+  dense,
 }: {
+  dense?: boolean;
   icon: React.ReactNode;
   body: React.ReactNode;
   actions: React.ReactNode;
@@ -26,11 +28,17 @@ export function ItemShell({
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <li className="py-3">
-      <div className="flex items-start gap-3">
+    <li className={dense ? "py-2" : "py-3"}>
+      <div className={`flex items-start ${dense ? "gap-2.5" : "gap-3"}`}>
         {icon}
         <div className="min-w-0 flex-1">{body}</div>
-        <div className="flex shrink-0 items-center">
+        <div
+          className={`flex shrink-0 items-center ${
+            dense
+              ? "[&_button]:h-7 [&_button]:w-7 [&_svg]:h-[13px] [&_svg]:w-[13px] opacity-70 hover:opacity-100"
+              : ""
+          }`}
+        >
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
@@ -52,7 +60,9 @@ export function ItemShell({
           {check}
         </div>
       </div>
-      {open ? <div className="mt-2 pl-[3.25rem]">{steps}</div> : null}
+      {open ? (
+        <div className={`mt-2 ${dense ? "pl-5" : "pl-[3.25rem]"}`}>{steps}</div>
+      ) : null}
     </li>
   );
 }
