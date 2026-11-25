@@ -10,6 +10,7 @@ import { GoalFields } from "@/components/goal-fields";
 import { getFinance } from "@/lib/finance";
 import { formatCents } from "@/lib/money";
 import { requireProfile } from "@/lib/profile";
+import { BudgetSection } from "@/components/budget-section";
 
 export const metadata = { title: "Metas" };
 export const dynamic = "force-dynamic";
@@ -24,7 +25,7 @@ export default async function GoalsPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-[15px] text-ink-soft">O que você guarda aqui sai do seu livre para gastar.</p>
+        <h2 className="text-lg">Metas</h2>
         <FormSheet title="Nova meta" trigger="Meta" submitLabel="Criar meta" action={saveGoal}>
           <GoalFields hasEmergency={hasEmergency} monthlyCents={monthlyCents} />
         </FormSheet>
@@ -108,6 +109,7 @@ export default async function GoalsPage() {
           );
         })}
       </ul>
+      <BudgetSection f={f} />
     </div>
   );
 }

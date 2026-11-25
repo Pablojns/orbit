@@ -89,18 +89,18 @@ export function QuickAdd({
         <button
           type="button"
           onClick={() => openSheet("expense")}
-          className="flex items-center justify-center gap-2 rounded-2xl bg-loss px-4 py-3.5 text-[15px] font-semibold text-[#2a0710] hover:brightness-110"
+          className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-white/[0.14] px-3.5 text-sm font-bold hover:bg-white/[0.05]"
         >
-          <ArrowUpRight size={18} aria-hidden /> Lançar gasto
+          <ArrowUpRight size={16} className="text-[#ff9db0]" aria-hidden /> Gasto
         </button>
       ) : null}
       {variant === "income" ? (
         <button
           type="button"
           onClick={() => openSheet("income")}
-          className="flex items-center justify-center gap-2 rounded-2xl bg-gain px-4 py-3.5 text-[15px] font-semibold text-[#0b1440] hover:brightness-110"
+          className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-white/[0.14] px-3.5 text-sm font-bold hover:bg-white/[0.05]"
         >
-          <ArrowDownLeft size={18} aria-hidden /> Lançar entrada
+          <ArrowDownLeft size={16} className="text-[#b9c6ff]" aria-hidden /> Entrada
         </button>
       ) : null}
 

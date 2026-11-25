@@ -10,6 +10,7 @@ import { FormSheet } from "@/components/form-sheet";
 import { archiveBill, archiveIncome, receiveIncome, saveBill, saveIncome, toggleBillPaid } from "@/app/app/actions";
 import { diffInDays, formatShort, fromISODate } from "@/lib/dates";
 import { getFinance } from "@/lib/finance";
+import { installmentOf } from "@/lib/schedule";
 import { formatCents } from "@/lib/money";
 import { requireProfile } from "@/lib/profile";
 
@@ -153,8 +154,8 @@ export default async function FixedPage({ searchParams }: { searchParams: Promis
                 options={expenseCats.map((c) => ({ value: c.id, label: c.name }))}
               />
             </Field>
-            <Field label="Termina em (opcional)" hint="Para parcelas fora do cartão, como um financiamento.">
-              <TextInput name="ends_on" type="date" />
+            <Field label="Parcelado em (opcional)" hint="Ex.: 10 para um crediário em 10x. Some depois da última.">
+              <TextInput name="installments" type="number" inputMode="numeric" min={2} max={72} placeholder="vezes" />
             </Field>
             <BillExtraFields />
           </FormSheet>
@@ -168,6 +169,8 @@ export default async function FixedPage({ searchParams }: { searchParams: Promis
                 const occ = f.billsInCycle.find((b) => b.billId === bill.id);
                 const days = occ ? diffInDays(f.today, occ.dueDate) : null;
                 const late = occ && !occ.paid && days !== null && days < 0;
+                const parcel =
+                  bill.endsOn && occ ? installmentOf(bill.dueDay, bill.startsOn, bill.endsOn, occ.dueDate) : null;
                 return (
                   <li key={bill.id} className="space-y-2">
                     {firstSub ? (
@@ -194,6 +197,7 @@ export default async function FixedPage({ searchParams }: { searchParams: Promis
                             ) : null}
                           </p>
                           <p className={`text-[13px] ${late ? "text-loss" : "text-ink-soft"}`}>
+                            {parcel ? `Parcela ${parcel.k} de ${parcel.total} · ` : ""}
                             {!occ
                               ? `Vence todo dia ${bill.dueDay}`
                               : occ.paid

@@ -1,113 +1,179 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { EditMovement } from "@/components/edit-forms";
 import { MovementRow } from "@/components/movement-list";
 import { QuickAdd } from "@/components/quick-add";
-import { formatDayLabel, formatShort, todayInSaoPaulo } from "@/lib/dates";
+import { formatDayLabel, todayInSaoPaulo, toISODate } from "@/lib/dates";
 import { getFinance, type Movement } from "@/lib/finance";
 import { formatCents } from "@/lib/money";
 import { requireProfile } from "@/lib/profile";
-import { paydayText } from "@/lib/cycle";
-import { MoneyStrip } from "@/components/money-strip";
-import { FormSheet } from "@/components/form-sheet";
-import { MoneyInput } from "@/components/fields";
-import { saveBudgets } from "@/app/app/actions";
-import { BUDGET_LABEL, budgetLevel } from "@/lib/budget";
+import { periodLabel, periodRange } from "@/lib/period";
+import { PeriodPicker } from "@/components/period-picker";
 
-export const metadata = { title: "Dinheiro" };
+export const metadata = { title: "Extrato" };
 export const dynamic = "force-dynamic";
 
 export default async function MoneyPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ciclo?: string; q?: string; tipo?: string; cat?: string }>;
+  searchParams: Promise<{
+    periodo?: string;
+    de?: string;
+    ate?: string;
+    q?: string;
+    tipo?: string;
+    cat?: string;
+  }>;
 }) {
-  const { ciclo, q = "", tipo = "", cat = "" } = await searchParams;
-  const offset = Math.max(-24, Math.min(0, Number.parseInt(ciclo ?? "0", 10) || 0));
+  const { periodo, de, ate, q = "", tipo = "", cat = "" } = await searchParams;
   const profile = await requireProfile();
-  const f = await getFinance(profile.cycleStartDay, offset);
-  const href = (o: number) => (o === 0 ? "/app/dinheiro" : `/app/dinheiro?ciclo=${o}`);
-  const { summary: s, cycle } = f;
   const today = todayInSaoPaulo();
+  const period = periodRange(periodo, today, profile.cycleStartDay, de, ate);
+  const f = await getFinance(profile.cycleStartDay, 0, {
+    start: period.start,
+    end: period.end,
+  });
+  const { summary: s } = f;
 
   // Busca e filtros do extrato (Rodada 8): texto, entrada/gasto e categoria.
-  const fold = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const fold = (t: string) =>
+    t
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
   const query = fold(q.trim());
   const filtered = f.movements.filter(
     (m) =>
-      (!query || fold(`${m.description ?? ""} ${m.category?.name ?? ""} ${m.cardName ?? ""}`).includes(query)) &&
+      (!query ||
+        fold(
+          `${m.description ?? ""} ${m.category?.name ?? ""} ${m.cardName ?? ""}`,
+        ).includes(query)) &&
       (tipo !== "entrada" || m.type === "income") &&
       (tipo !== "gasto" || m.type === "expense") &&
       (!cat || (m.category?.name ?? "Sem categoria") === cat),
   );
   const filtering = Boolean(query || tipo || cat);
-  const filteredTotal = filtered.reduce((a, m) => a + (m.type === "income" ? m.amountCents : -m.amountCents), 0);
-  const catNames = [...new Set(f.movements.map((m) => m.category?.name ?? "Sem categoria"))].sort();
-
-  const expenseCats = f.categories.filter((c) => c.kind === "expense");
-  const spentBy = new Map(s.byCategory.map((c) => [c.name, c.cents]));
-  const budgeted = expenseCats
-    .filter((c) => c.budgetCents)
-    .map((c) => {
-      const spent = spentBy.get(c.name) ?? 0;
-      return { id: c.id, name: c.name, spent, budget: c.budgetCents!, level: budgetLevel(spent, c.budgetCents) };
-    });
+  const filteredTotal = filtered.reduce(
+    (a, m) => a + (m.type === "income" ? m.amountCents : -m.amountCents),
+    0,
+  );
+  const catNames = [
+    ...new Set(f.movements.map((m) => m.category?.name ?? "Sem categoria")),
+  ].sort();
 
   const byDay = new Map<string, Movement[]>();
-  for (const m of filtered) byDay.set(m.occurredOn, [...(byDay.get(m.occurredOn) ?? []), m]);
+  for (const m of filtered)
+    byDay.set(m.occurredOn, [...(byDay.get(m.occurredOn) ?? []), m]);
 
-  const rows = [
-    { label: "Entrou", cents: s.receivedCents, tone: "text-gain" },
-    { label: "Saiu", cents: -s.spentCents, tone: "" },
-    { label: "Guardado em metas", cents: -s.savedCents, tone: "" },
-    { label: "A pagar no ciclo (faturas e contas)", cents: -s.committedCents, tone: "text-sun" },
-  ];
-
-  const past = offset < 0;
+  const expenses = filtered.filter((m) => m.type === "expense");
+  const incomes = filtered.filter((m) => m.type === "income");
+  const biggest = (list: Movement[]) => {
+    const by = new Map<string, number>();
+    for (const m of list) {
+      const k = m.category?.name ?? "Sem categoria";
+      by.set(k, (by.get(k) ?? 0) + m.amountCents);
+    }
+    return [...by.entries()].sort((a, b) => b[1] - a[1])[0] ?? null;
+  };
+  const bigOut = biggest(expenses);
+  const bigIn = biggest(incomes);
+  const keep = (extra: Record<string, string>) => {
+    const p = new URLSearchParams();
+    if (period.kind !== "ciclo") p.set("periodo", period.kind);
+    if (period.kind === "personalizado") {
+      p.set("de", toISODate(period.start));
+      p.set("ate", toISODate(period.end));
+    }
+    for (const [k, v] of Object.entries(extra)) if (v) p.set(k, v);
+    const qs = p.toString();
+    return qs ? `/app/dinheiro?${qs}` : "/app/dinheiro";
+  };
 
   return (
     <>
-      {!past ? (
-        <div className="mb-3">
-          <MoneyStrip
-            balanceCents={s.balanceCents}
-            openStatementCents={s.openStatementCents}
-            hasCards={f.cards.length > 0}
+      <div className="flex flex-wrap items-center gap-2">
+        <PeriodPicker
+          kind={period.kind}
+          de={toISODate(period.start)}
+          ate={toISODate(period.end)}
+        />
+        <span className="text-[13px] text-ink-soft">
+          {periodLabel(period.start, period.end)}
+        </span>
+        <div className="ml-auto flex gap-2">
+          <QuickAdd
+            categories={f.categories}
+            cards={f.cards}
+            variant="expense"
+          />
+          <QuickAdd
+            categories={f.categories}
+            cards={f.cards}
+            variant="income"
           />
         </div>
-      ) : null}
-      <div className="grid grid-cols-2 gap-3">
-        <QuickAdd categories={f.categories} cards={f.cards} variant="expense" />
-        <QuickAdd categories={f.categories} cards={f.cards} variant="income" />
       </div>
 
-      <div className="mt-5 flex items-center justify-between gap-2 px-1">
+      <div className="mt-3 grid grid-cols-3 gap-2.5 lg:gap-4">
         <Link
-          href={href(offset - 1)}
-          aria-label="Ciclo anterior"
-          className={`grid h-9 w-9 place-items-center rounded-full hover:bg-white/[0.06] ${offset <= -24 ? "pointer-events-none opacity-30" : ""}`}
+          href={keep({ tipo: "gasto" })}
+          className="glass rounded-2xl p-3.5 hover:bg-white/[0.03] lg:p-4"
         >
-          <ChevronLeft size={18} aria-hidden />
+          <p className="text-xs font-bold text-ink-soft">Saídas</p>
+          <p className="mt-1 text-[15px] font-extrabold lg:text-lg">
+            {expenses.length}{" "}
+            {expenses.length === 1 ? "lançamento" : "lançamentos"}
+          </p>
+          <p className="mt-0.5 truncate text-[12px] text-ink-soft lg:text-[13px]">
+            {bigOut ? `mais em ${bigOut[0]}` : "nenhuma"}
+          </p>
         </Link>
-        <p className="text-sm font-semibold">
-          {offset === 0 ? "Ciclo atual" : offset === -1 ? "Ciclo passado" : `${-offset} ciclos atrás`}
-          {past ? (
-            <span className="ml-2 font-normal text-ink-soft">
-              {formatShort(cycle.start)} a {formatShort(cycle.end)}
-            </span>
-          ) : null}
-        </p>
         <Link
-          href={href(offset + 1)}
-          aria-label="Próximo ciclo"
-          className={`grid h-9 w-9 place-items-center rounded-full hover:bg-white/[0.06] ${offset >= 0 ? "pointer-events-none opacity-30" : ""}`}
+          href={keep({ tipo: "entrada" })}
+          className="glass rounded-2xl p-3.5 hover:bg-white/[0.03] lg:p-4"
         >
-          <ChevronRight size={18} aria-hidden />
+          <p className="text-xs font-bold text-ink-soft">Entradas</p>
+          <p className="mt-1 text-[15px] font-extrabold lg:text-lg">
+            {incomes.length}{" "}
+            {incomes.length === 1 ? "lançamento" : "lançamentos"}
+          </p>
+          <p className="mt-0.5 truncate text-[12px] text-ink-soft lg:text-[13px]">
+            {bigIn ? `mais em ${bigIn[0]}` : "nenhuma"}
+          </p>
         </Link>
+        <div className="hero-card rounded-2xl p-3.5 lg:p-4">
+          <p className="text-xs font-bold text-[#b9c2f5]">Resumo</p>
+          <dl className="mt-1 space-y-0.5 text-[12px] lg:text-[13px]">
+            <div className="flex justify-between gap-2">
+              <dt className="text-[#c7cff7]">Entrou</dt>
+              <dd className="font-extrabold">{formatCents(s.receivedCents)}</dd>
+            </div>
+            <div className="flex justify-between gap-2">
+              <dt className="text-[#c7cff7]">Saiu</dt>
+              <dd className="font-extrabold">{formatCents(s.spentCents)}</dd>
+            </div>
+            <div className="flex justify-between gap-2">
+              <dt className="text-[#c7cff7]">Metas</dt>
+              <dd className="font-extrabold">{formatCents(s.savedCents)}</dd>
+            </div>
+          </dl>
+        </div>
       </div>
 
-      <form method="get" className="mt-2 flex flex-wrap gap-2" role="search" aria-label="Buscar no extrato">
-        {offset ? <input type="hidden" name="ciclo" value={offset} /> : null}
+      <form
+        method="get"
+        className="mt-3 flex flex-wrap gap-2"
+        role="search"
+        aria-label="Buscar no extrato"
+      >
+        {period.kind !== "ciclo" ? (
+          <input type="hidden" name="periodo" value={period.kind} />
+        ) : null}
+        {period.kind === "personalizado" ? (
+          <>
+            <input type="hidden" name="de" value={toISODate(period.start)} />
+            <input type="hidden" name="ate" value={toISODate(period.end)} />
+          </>
+        ) : null}
         <input
           name="q"
           defaultValue={q}
@@ -138,17 +204,22 @@ export default async function MoneyPage({
             </option>
           ))}
         </select>
-        <button type="submit" className="grad-primary h-11 rounded-xl px-4 text-sm font-bold text-white">
+        <button
+          type="submit"
+          className="grad-primary h-11 rounded-xl px-4 text-sm font-bold text-white"
+        >
           Filtrar
         </button>
       </form>
       {filtering ? (
         <p className="mt-2 flex items-center justify-between gap-3 text-sm text-ink-soft">
           <span>
-            {filtered.length} {filtered.length === 1 ? "lançamento" : "lançamentos"}, saldo dos filtrados{" "}
+            {filtered.length}{" "}
+            {filtered.length === 1 ? "lançamento" : "lançamentos"}, saldo dos
+            filtrados{" "}
             <strong className="text-ink">{formatCents(filteredTotal)}</strong>
           </span>
-          <Link href={href(offset)} className="font-bold text-[#a78bfa]">
+          <Link href={keep({})} className="font-bold text-[#a78bfa]">
             Limpar
           </Link>
         </p>
@@ -158,7 +229,9 @@ export default async function MoneyPage({
         {byDay.size ? (
           [...byDay.entries()].map(([day, items]) => (
             <div key={day} className="py-2">
-              <h2 className="pt-2 text-[13px] font-semibold text-ink-soft">{formatDayLabel(day, today)}</h2>
+              <h2 className="pt-2 text-[13px] font-semibold text-ink-soft">
+                {formatDayLabel(day, today)}
+              </h2>
               <ul className="divide-y divide-white/[0.06]">
                 {items.map((m) => (
                   <MovementRow
@@ -166,7 +239,15 @@ export default async function MoneyPage({
                     m={m}
                     today={today}
                     deletable
-                    edit={m.source === "bill_payment" ? null : <EditMovement m={m} categories={f.categories} cards={f.cards} />}
+                    edit={
+                      m.source === "bill_payment" ? null : (
+                        <EditMovement
+                          m={m}
+                          categories={f.categories}
+                          cards={f.cards}
+                        />
+                      )
+                    }
                   />
                 ))}
               </ul>
@@ -176,117 +257,10 @@ export default async function MoneyPage({
           <p className="py-4 text-[15px] leading-relaxed text-ink-soft">
             {filtering
               ? "Nada encontrado com esses filtros."
-              : "Nenhuma movimentação neste ciclo. Use os botões acima para lançar a primeira."}
+              : "Nada lançado neste período."}
           </p>
         )}
       </section>
-
-      <section className="glass mt-5 rounded-3xl p-5">
-        {past ? (
-          <p className="text-sm text-ink-soft">
-            Resumo de {formatShort(cycle.start)} a {formatShort(cycle.end)}
-          </p>
-        ) : (
-          <p className="text-sm font-semibold">{paydayText(cycle)}</p>
-        )}
-        <dl className="mt-3 space-y-2.5">
-          {rows.map((r) => (
-            <div key={r.label} className="flex items-center justify-between text-[15px]">
-              <dt className="text-ink-soft">{r.label}</dt>
-              <dd className={`font-semibold ${r.tone}`}>
-                {r.cents < 0 ? "− " : ""}
-                {formatCents(Math.abs(r.cents))}
-              </dd>
-            </div>
-          ))}
-          <div className="flex items-center justify-between border-t border-white/10 pt-3">
-            <dt className="font-semibold">
-              {past ? "Sobrou no ciclo" : s.freeCents < 0 ? "Faltando no ciclo" : "Pode gastar por dia"}
-            </dt>
-            <dd className={`font-display text-2xl font-bold ${s.freeCents < 0 ? "text-loss" : "metal-text"}`}>
-              {formatCents(past || s.freeCents < 0 ? s.freeCents : s.perDayCents)}
-            </dd>
-          </div>
-        </dl>
-        {!past && s.toReceiveCents > 0 ? (
-          <p className="mt-3 text-sm text-ink-soft">
-            Ainda vai entrar neste ciclo: <strong className="text-gain">{formatCents(s.toReceiveCents)}</strong>
-          </p>
-        ) : null}
-      </section>
-
-      {!past ? (
-        <section className="glass mt-5 rounded-3xl p-5">
-          <h2 className="text-lg">Resumo da semana</h2>
-          <p className="mt-1 text-[15px]">
-            Nos últimos 7 dias você gastou <strong>{formatCents(s.week.thisWeekCents)}</strong>
-            {s.week.lastWeekCents > 0 ? (
-              <>
-                {" "}
-                ({s.week.thisWeekCents >= s.week.lastWeekCents ? "+" : "−"}
-                {Math.abs(Math.round(((s.week.thisWeekCents - s.week.lastWeekCents) / s.week.lastWeekCents) * 100))}% em
-                relação aos 7 dias antes, que foram {formatCents(s.week.lastWeekCents)}).
-              </>
-            ) : (
-              "."
-            )}
-          </p>
-        </section>
-      ) : null}
-
-      {!past ? (
-        <section className="glass mt-5 rounded-3xl p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg">Orçamento do ciclo</h2>
-              <p className="text-sm text-ink-soft">Aviso em 75%, 90% e 100% do que você definiu para cada categoria.</p>
-            </div>
-            <FormSheet
-              title="Orçamento por categoria"
-              trigger={budgeted.length ? "Mudar" : "Definir"}
-              submitLabel="Salvar orçamentos"
-              action={saveBudgets}
-              triggerClassName="h-11 shrink-0 rounded-xl border border-white/[0.14] px-4 text-sm font-bold hover:bg-white/[0.05]"
-            >
-              <p className="text-sm text-ink-soft">Quanto quer gastar em cada categoria até o salário. Deixe vazio para não ter limite.</p>
-              {expenseCats.map((c) => (
-                <div key={c.id} className="grid grid-cols-[1fr_9rem] items-center gap-3">
-                  <input type="hidden" name="cat_id" value={c.id} />
-                  <span className="text-[15px] font-semibold">{c.name}</span>
-                  <MoneyInput
-                    name={`budget_${c.id}`}
-                    aria-label={`Orçamento de ${c.name}`}
-                    defaultValue={c.budgetCents ? (c.budgetCents / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : ""}
-                  />
-                </div>
-              ))}
-            </FormSheet>
-          </div>
-          {budgeted.length ? (
-            <ul className="mt-3 space-y-3">
-              {budgeted.map((b) => (
-                <li key={b.id}>
-                  <div className="flex items-center justify-between gap-3 text-[15px]">
-                    <span className="font-semibold">{b.name}</span>
-                    <span className={b.level === "100" ? "font-bold text-loss" : b.level !== "ok" ? "font-bold text-[#c4b5fd]" : "text-ink-soft"}>
-                      {formatCents(b.spent)} de {formatCents(b.budget)}
-                    </span>
-                  </div>
-                  <div className="mt-1.5 h-2 rounded-full bg-white/10" aria-hidden>
-                    <div
-                      className={`h-2 rounded-full ${b.level === "100" ? "bg-loss" : b.level === "ok" ? "bg-[#4361f5]" : "bg-[#a78bfa]"}`}
-                      style={{ width: `${Math.min(100, (b.spent / b.budget) * 100)}%` }}
-                    />
-                  </div>
-                  {b.level !== "ok" ? <p className="mt-1 text-[13px] font-semibold text-[#c4b5fd]">{BUDGET_LABEL[b.level]}</p> : null}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-2 text-[15px] text-ink-soft">Nenhum orçamento definido ainda.</p>
-          )}
-        </section>
-      ) : null}
     </>
   );
 }

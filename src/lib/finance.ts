@@ -99,6 +99,7 @@ export type Bill = {
   isSubscription: boolean;
   paymentCode: string | null;
   dueDay: number;
+  startsOn: string;
   endsOn: string | null;
   category: CategoryRef;
   categoryId: string | null;
@@ -198,12 +199,22 @@ export async function getCards(): Promise<Card[]> {
   }));
 }
 
-export async function getFinance(cycleStartDay: number, offset = 0): Promise<Finance> {
+export async function getFinance(
+  cycleStartDay: number,
+  offset = 0,
+  // Período livre do Extrato (Rodada 13): no lugar do ciclo, usa estas datas.
+  range?: { start: CalendarDate; end: CalendarDate },
+): Promise<Finance> {
   const safeOffset = Math.max(-24, Math.min(0, Math.trunc(offset) || 0));
   const now = todayInSaoPaulo();
-  const cycle = cycleAt(now, cycleStartDay, safeOffset);
-  // Em ciclo passado, "hoje" é o último dia dele (para status de faturas e contas).
-  const today = safeOffset < 0 ? cycle.end : now;
+  let cycle = cycleAt(now, cycleStartDay, safeOffset);
+  if (range) {
+    const total = diffInDays(range.start, range.end) + 1;
+    const passed = Math.min(total, Math.max(1, diffInDays(range.start, now) + 1));
+    cycle = { start: range.start, end: range.end, totalDays: total, dayNumber: passed, daysLeft: Math.max(0, total - passed) };
+  }
+  // Em período já terminado, "hoje" é o último dia dele (para status de faturas e contas).
+  const today = safeOffset < 0 || (range && diffInDays(range.end, now) > 0) ? cycle.end : now;
   const startISO = toISODate(cycle.start);
   const endISO = toISODate(cycle.end);
   const weekStartISO = toISODate(addDays(today, -13));
@@ -541,6 +552,7 @@ export async function getFinance(cycleStartDay: number, offset = 0): Promise<Fin
       isSubscription: b.isSubscription,
       paymentCode: b.paymentCode,
       dueDay: b.dueDay,
+      startsOn: b.startsOn,
       endsOn: b.endsOn,
       category: b.category,
       categoryId: b.categoryId,

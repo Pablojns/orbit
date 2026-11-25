@@ -1,12 +1,11 @@
 // Frases de dinheiro que não são gasto nem entrada comum, entendidas por regras
-// (antes da IA): guardar em meta, conta fixa "todo dia N", empréstimo e perguntas.
+// (antes da IA): guardar em meta, conta fixa "todo dia N" (e parcelada) e perguntas.
 // Funções puras, testadas em scripts/test-money-intents.ts.
 import { parseToCents } from "./money";
 
 export type MoneyIntent =
   | { intent: "goal_deposit"; amountCents: number; goal: string }
-  | { intent: "fixed_bill"; amountCents: number; name: string; dueDay: number; subscription: boolean }
-  | { intent: "debt"; amountCents: number; person: string; direction: "owed_to_me" | "i_owe"; note: string | null }
+  | { intent: "fixed_bill"; amountCents: number; name: string; dueDay: number; subscription: boolean; installments?: number }
   | { intent: "question"; topic: "per_day" | "balance" | "statement" | "other" };
 
 const fold = (s: string) =>
@@ -62,19 +61,16 @@ export function parseMoneyIntent(text: string): MoneyIntent | null {
     if (amount && goal) return { intent: "goal_deposit", amountCents: amount, goal };
   }
 
-  // Empréstimo: "emprestei 50 pro João" (me deve) / "peguei 50 emprestado com a Ana", "devo 30 pra Ana"
-  m = new RegExp(`^(?:emprestei|empresto|passei) ${VALUE} (?:pro|pra|para o|para a|para|ao|a|à) (\\S+(?: \\S+)?)(?: (?:para|pra|de) (.+))?$`).exec(t);
-  if (m && /^(emprestei|empresto)/.test(t)) {
-    const amount = cents(m[1]);
-    const person = cap(cut(t.indexOf(m[2], t.indexOf(m[1]) + m[1].length), m[2].length));
-    if (amount && person) return { intent: "debt", amountCents: amount, person, direction: "owed_to_me", note: m[3] ? cut(t.lastIndexOf(m[3]), m[3].length) : null };
-  }
-  m = new RegExp(`^(?:peguei|pedi) ${VALUE} emprestado (?:com|do|da|de)(?: o| a)? (\\S+(?: \\S+)?)$`).exec(t) ??
-    new RegExp(`^(?:devo|to devendo|estou devendo) ${VALUE} (?:pro|pra|para o|para a|para|ao|a|à) (\\S+(?: \\S+)?)$`).exec(t);
+  // Conta parcelada: "crediário 150 em 10x todo dia 5", "geladeira 200 parcelado em 12 vezes dia 10"
+  m = new RegExp(`^(.+?) ${VALUE} (?:parcelad[oa] )?em (\\d{1,2}) ?(?:x|vezes|parcelas)(?: (?:todo (?:mes )?(?:no )?dia|vence (?:todo )?dia|no dia|dia) (\\d{1,2}))?$`).exec(t);
   if (m) {
-    const amount = cents(m[1]);
-    const person = cap(cut(t.lastIndexOf(m[2]), m[2].length));
-    if (amount && person) return { intent: "debt", amountCents: amount, person, direction: "i_owe", note: null };
+    const amount = cents(m[2]);
+    const n = Number(m[3]);
+    const day = m[4] ? Number(m[4]) : 0;
+    const name = cap(cut(0, m[1].length));
+    if (amount && n >= 2 && n <= 72 && day >= 1 && day <= 31 && name) {
+      return { intent: "fixed_bill", amountCents: amount, name, dueDay: day, subscription: false, installments: n };
+    }
   }
 
   // Conta fixa: "netflix 44,90 todo dia 12", "aluguel 900 todo mês dia 10"

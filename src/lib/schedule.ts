@@ -111,3 +111,29 @@ export function parcelInCycle(
   }
   return null;
 }
+
+// Conta parcelada: data da última parcela, contando a 1ª no próximo vencimento a partir de `fromISO`.
+export function installmentEndISO(dueDay: number, fromISO: string, count: number): string {
+  const from = fromISODate(fromISO);
+  let first = clampDay(from.year, from.month, dueDay);
+  if (diffInDays(from, first) < 0) {
+    const next = addMonths(from.year, from.month, 1);
+    first = clampDay(next.year, next.month, dueDay);
+  }
+  const last = addMonths(first.year, first.month, Math.max(1, count) - 1);
+  return toISODate(clampDay(last.year, last.month, dueDay));
+}
+
+// "parcela k de N" de um vencimento, para contas com início e fim.
+export function installmentOf(dueDay: number, startsOnISO: string, endsOnISO: string, due: CalendarDate) {
+  const months = (a: CalendarDate, b: CalendarDate) => (b.year - a.year) * 12 + (b.month - a.month);
+  const start = fromISODate(startsOnISO);
+  let first = clampDay(start.year, start.month, dueDay);
+  if (diffInDays(start, first) < 0) {
+    const next = addMonths(start.year, start.month, 1);
+    first = clampDay(next.year, next.month, dueDay);
+  }
+  const total = months(first, fromISODate(endsOnISO)) + 1;
+  const k = months(first, due) + 1;
+  return total >= 2 && k >= 1 && k <= total ? { k, total } : null;
+}

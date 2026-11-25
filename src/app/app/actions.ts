@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { uid } from "@/lib/user";
 import { formatCents, parseToCents } from "@/lib/money";
 import { fromISODate, todayInSaoPaulo, toISODate } from "@/lib/dates";
-import { installmentPlan } from "@/lib/schedule";
+import { installmentEndISO, installmentPlan } from "@/lib/schedule";
 import { currentCycle } from "@/lib/cycle";
 import { requireProfile } from "@/lib/profile";
 
@@ -234,10 +234,13 @@ export async function saveBill(_prev: FormState, fd: FormData): Promise<FormStat
   const name = str(fd, "name").slice(0, 60);
   const amount = parseToCents(str(fd, "amount"));
   const due = day(str(fd, "due_day"));
-  const endsOn = str(fd, "ends_on");
+  const parcels = Math.trunc(Number(str(fd, "installments")) || 0);
   if (!name) return fail("Dê um nome à conta, como Luz.");
   if (!amount || amount <= 0) return fail("Digite o valor da conta.");
   if (!due) return fail("Informe o dia de vencimento.");
+  if (parcels && (parcels < 2 || parcels > 72)) return fail("Parcelas: de 2 a 72.");
+  // Parcelada: a conta some depois da última parcela.
+  const endsOn = parcels ? installmentEndISO(due, todayISO(), parcels) : str(fd, "ends_on");
   const extra = billExtras(fd);
   const supabase = await db();
   const { error } = await supabase.from("bills").insert({
@@ -253,7 +256,7 @@ export async function saveBill(_prev: FormState, fd: FormData): Promise<FormStat
     ...extra.values,
   });
   if (error) return fail("Não foi possível salvar a conta.");
-  return ok("Conta salva.");
+  return ok(parcels ? `Conta salva em ${parcels} parcelas.` : "Conta salva.");
 }
 
 export async function archiveBill(fd: FormData): Promise<UndoResult | void> {
@@ -1264,7 +1267,6 @@ const RESTORABLE = new Set([
   "events",
   "tasks",
   "checklist_items",
-  "debts",
   "grades",
   "subjects",
   "credit_cards",
@@ -1414,74 +1416,6 @@ export async function deleteChecklistItem(fd: FormData) {
 }
 
 // ---------- quem me deve / quem eu devo -----------------------------------
-
-export async function saveDebt(_prev: FormState, fd: FormData): Promise<FormState> {
-  const person = str(fd, "person").slice(0, 60);
-  const direction = str(fd, "direction") === "i_owe" ? "i_owe" : "owed_to_me";
-  const amount = parseToCents(str(fd, "amount"));
-  const date = str(fd, "occurred_on");
-  if (!person) return fail("Escreva o nome da pessoa.");
-  if (!amount || amount <= 0) return fail("Digite o valor.");
-  const supabase = await db();
-  const { error } = await supabase.from("debts").insert({
-    user_id: (await uid()),
-    person,
-    direction,
-    amount_cents: amount,
-    note: str(fd, "note").slice(0, 120) || null,
-    occurred_on: ISO_DATE.test(date) ? date : todayISO(),
-  });
-  if (error) return fail("Não foi possível salvar.");
-  return ok(direction === "i_owe" ? "Anotado: você deve." : "Anotado: te devem.");
-}
-
-export async function updateDebt(_prev: FormState, fd: FormData): Promise<FormState> {
-  const id = optUuid(str(fd, "id"));
-  const person = str(fd, "person").slice(0, 60);
-  const amount = parseToCents(str(fd, "amount"));
-  if (!id) return fail("Item inválido.");
-  if (!person) return fail("Escreva o nome da pessoa.");
-  if (!amount || amount <= 0) return fail("Digite o valor.");
-  const supabase = await db();
-  const { error } = await supabase
-    .from("debts")
-    .update({
-      person,
-      amount_cents: amount,
-      direction: str(fd, "direction") === "i_owe" ? "i_owe" : "owed_to_me",
-      note: str(fd, "note").slice(0, 120) || null,
-    })
-    .eq("id", id)
-    .eq("user_id", (await uid()));
-  if (error) return fail("Não foi possível salvar.");
-  return ok("Atualizado.");
-}
-
-export async function settleDebt(fd: FormData) {
-  const id = optUuid(str(fd, "id"));
-  if (!id) return;
-  const supabase = await db();
-  await supabase
-    .from("debts")
-    .update({ settled_at: str(fd, "settled") === "true" ? null : new Date().toISOString() })
-    .eq("id", id)
-    .eq("user_id", (await uid()));
-  revalidatePath("/app", "layout");
-}
-
-export async function deleteDebt(fd: FormData): Promise<UndoResult | void> {
-  const me = await uid();
-  const id = optUuid(str(fd, "id"));
-  if (!id) return;
-  const supabase = await db();
-  const { data: rows } = await supabase.from("debts").select("*").eq("id", id).eq("user_id", (await uid()));
-  if (!rows?.length) return;
-  return deleteWithUndo(
-    [{ table: "debts", rows }],
-    () => supabase.from("debts").delete().eq("id", id).eq("user_id", me),
-    "Apagado.",
-  );
-}
 
 // ---------- notas da faculdade --------------------------------------------
 
@@ -1958,29 +1892,16 @@ async function moneyIntentFromText(it: import("@/lib/money-intents").MoneyIntent
     fd.set("due_day", String(it.dueDay));
     if (cat) fd.set("category_id", cat.id);
     if (it.subscription) fd.set("is_subscription", "on");
+    if (it.installments) fd.set("installments", String(it.installments));
     const r = await saveBill({ status: "idle" }, fd);
     if (r.status !== "saved") return r;
     revalidatePath("/app", "layout");
     return {
       status: "saved",
-      message: `Conta fixa: ${it.name}, ${formatCents(it.amountCents)} todo dia ${it.dueDay}${it.subscription ? " (assinatura)" : ""}.`,
+      message: `Conta fixa: ${it.name}, ${formatCents(it.amountCents)} todo dia ${it.dueDay}${it.installments ? `, em ${it.installments}x` : it.subscription ? " (assinatura)" : ""}.`,
     };
   }
-  const fd = new FormData();
-  fd.set("person", it.person);
-  fd.set("direction", it.direction);
-  fd.set("amount", (it.amountCents / 100).toFixed(2).replace(".", ","));
-  if (it.note) fd.set("note", it.note);
-  const r = await saveDebt({ status: "idle" }, fd);
-  if (r.status !== "saved") return r;
-  revalidatePath("/app", "layout");
-  return {
-    status: "saved",
-    message:
-      it.direction === "owed_to_me"
-        ? `Empréstimos: ${it.person} te deve ${formatCents(it.amountCents)}.`
-        : `Empréstimos: você deve ${formatCents(it.amountCents)} para ${it.person}.`,
-  };
+  return fail("Não entendi.");
 }
 
 const METHOD_LABEL: Record<string, string> = {
