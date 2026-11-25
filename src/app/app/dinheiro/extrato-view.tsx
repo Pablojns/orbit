@@ -90,6 +90,7 @@ export function ExtratoView({
             m={m}
             today={today}
             deletable
+            compact
             edit={m.source === "bill_payment" ? null : <EditMovement m={m} categories={categories} cards={cards} />}
           />
         ))}
@@ -178,7 +179,7 @@ export function ExtratoView({
         </select>
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_17rem]">
+      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_15.5rem]">
         {/* Resumo: no celular vem primeiro; no computador fica à direita. */}
         <section className="hero-card self-start rounded-3xl p-5 lg:order-2">
           <div className="flex items-baseline justify-between gap-2">
