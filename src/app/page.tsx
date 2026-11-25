@@ -1,14 +1,31 @@
 import Link from "next/link";
-import { CalendarClock, CreditCard, Flame, Laptop, PiggyBank, Smartphone } from "lucide-react";
+import {
+  BookOpen,
+  CalendarClock,
+  Check,
+  CreditCard,
+  Mic,
+  PiggyBank,
+  Repeat,
+  Smartphone,
+} from "lucide-react";
 import { Logo } from "@/components/logo";
+import { AUTH_ENABLED } from "@/lib/flags";
+import { PRICE_LABEL, TRIAL_DAYS } from "@/lib/billing";
 import { PhonePreview } from "./_site/phone-preview";
 import { SiteFooter } from "./_site/site-footer";
 
 export const metadata = {
-  title: { absolute: "Dimeta · Saiba quanto você pode gastar até o próximo salário" },
+  title: {
+    absolute: "Dimeta · Saiba quanto você pode gastar até o próximo salário",
+  },
   description:
-    "Dinheiro, cartões, prazos e hábitos organizados pelo seu ciclo, do dia do salário até o próximo. No celular ou no computador.",
+    "Dinheiro, cartões, contas, provas e hábitos organizados pelo seu ciclo, do dia do salário até o próximo. 7 dias grátis.",
 };
+
+// Com o login ligado, o botão leva a criar conta; antes disso, abre o app em modo teste.
+const START = AUTH_ENABLED ? "/login?modo=criar" : "/app";
+const ENTER = AUTH_ENABLED ? "/login" : "/app";
 
 const PAINS = [
   {
@@ -20,23 +37,23 @@ const PAINS = [
     text: "As parcelas de três meses atrás caem todas juntas, e o mês que parecia folgado aperta.",
   },
   {
-    title: "Prazo importante passa batido",
+    title: "A prova passa batido",
     text: "Prova, boleto, renovação: estava anotado em algum lugar que você não abriu.",
   },
 ];
 
 const STEPS = [
   {
-    title: "Diga o dia em que seu dinheiro entra",
-    text: "O Dimeta organiza tudo pelo seu ciclo, do dia do salário até a véspera do próximo, e não pelo mês do calendário.",
+    title: "Responda 5 perguntas",
+    text: "Dia do salário, cartão, contas fixas, se estuda e se quer acompanhar hábitos. Leva menos de 2 minutos.",
   },
   {
-    title: "Lance gastos em dois toques",
-    text: "Valor, categoria, pronto. Compras no cartão já entram parceladas na fatura certa.",
+    title: "Lance falando ou escrevendo",
+    text: "“Mercado 45 no pix”, “prova de Estatística sexta 19h”. O Dimeta entende e coloca no lugar certo.",
   },
   {
-    title: "Veja quanto sobra de verdade",
-    text: "O que entrou, menos o que saiu, menos faturas e contas que ainda vão vencer no ciclo.",
+    title: "Veja quanto pode gastar por dia",
+    text: "O que entrou, menos o que saiu, menos as contas e faturas que ainda vencem até o próximo salário.",
   },
 ];
 
@@ -44,115 +61,142 @@ const FEATURES = [
   {
     icon: CreditCard,
     title: "Cartões e parcelas",
-    text: "Fechamento, vencimento e limite. Cada parcela aparece na fatura em que vai cair.",
+    text: "Cada parcela aparece na fatura em que vai cair.",
+  },
+  {
+    icon: Repeat,
+    title: "Contas fixas",
+    text: "Aluguel, luz, internet: avisa antes de vencer e já desconta do Saldo.",
   },
   {
     icon: PiggyBank,
-    title: "Reserva de emergência",
-    text: "Defina quanto quer guardar e veja quanto falta, ciclo após ciclo.",
+    title: "Metas e reserva",
+    text: "Quanto guardar por ciclo para chegar na data que você quer.",
   },
   {
     icon: CalendarClock,
-    title: "Prazos com contagem regressiva",
-    text: "Provas, compromissos e contas dos próximos dias numa lista só.",
+    title: "Agenda com avisos",
+    text: "Provas, compromissos e boletos numa lista só, com lembrete.",
   },
   {
-    icon: Flame,
-    title: "Hábitos sem culpa",
-    text: "Marque com um toque. Perder um dia só zera a sequência, sem punição.",
+    icon: BookOpen,
+    title: "Estudos",
+    text: "Notas, média, faltas, horário de aulas e plano de estudo para a prova.",
   },
+  {
+    icon: Mic,
+    title: "Voz",
+    text: "Aperte o microfone e fale. O texto aparece enquanto você fala.",
+  },
+];
+
+const PLAN_ITEMS = [
+  "Tudo do Dimeta, sem limite de cartões, metas ou hábitos",
+  "Celular e computador com a mesma conta",
+  "Lembretes de contas, faturas e provas",
+  "Exportar seus dados quando quiser",
 ];
 
 const FAQ = [
   {
+    q: "Como funcionam os 7 dias grátis?",
+    a: `Você cria a conta e usa tudo por ${TRIAL_DAYS} dias sem pagar nada. Depois, a assinatura custa ${PRICE_LABEL} por mês, no Pix, cartão ou boleto.`,
+  },
+  {
+    q: "Posso cancelar quando quiser?",
+    a: "Sim, em Assinatura, sem multa. O acesso continua até o fim do mês já pago e seus dados ficam guardados se você voltar.",
+  },
+  {
     q: "O Dimeta se conecta com meu banco?",
-    a: "Ainda não. Você lança os gastos, o que leva poucos segundos e te faz enxergar cada compra. A conexão automática com bancos está nos planos para depois do lançamento.",
+    a: "Não. Você lança os gastos, falando ou escrevendo, o que leva poucos segundos. O Dimeta nunca pede senha de banco ou de cartão.",
   },
   {
     q: "Funciona no computador?",
-    a: "Sim. O Dimeta abre em qualquer navegador e pode ser instalado no celular como um app. A conta é a mesma: o que você lança no celular aparece no computador.",
+    a: "Sim. Abre em qualquer navegador e pode ser instalado no celular como um app. O que você lança no celular aparece no computador.",
   },
   {
     q: "Meus dados ficam seguros?",
-    a: "Cada conta só enxerga os próprios dados, e essa regra é aplicada direto no banco de dados. O Dimeta não pede senha de banco nem de cartão.",
-  },
-  {
-    q: "Preciso pagar para começar?",
-    a: "Não. Você abre o Dimeta e usa o plano gratuito pelo tempo que quiser.",
-  },
-  {
-    q: "Quanto vai custar?",
-    a: "O plano gratuito tem o essencial. O Premium vai custar R$ 19,90 por mês e chega em breve; até lá, tudo é gratuito.",
+    a: "Cada conta só enxerga os próprios dados, e essa regra é aplicada direto no banco de dados. Você pode exportar ou excluir tudo pelo Perfil.",
   },
 ];
 
 export default function SitePage() {
   return (
-    <div className="bg-sky">
+    <div className="app-theme">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
         <Logo />
         <nav className="flex items-center gap-2 text-[15px]">
-          <Link href="/app" className="rounded-2xl bg-ink px-4 py-2 font-semibold text-white">
-            Abrir o Dimeta
+          <Link
+            href={ENTER}
+            className="hidden h-11 items-center rounded-2xl px-4 font-bold text-ink-soft hover:text-ink sm:flex"
+          >
+            Entrar
+          </Link>
+          <Link
+            href={START}
+            className="grad-primary flex h-11 items-center rounded-2xl px-4 font-bold text-white"
+          >
+            Começar grátis
           </Link>
         </nav>
       </header>
 
       <main>
-        {/* Hero */}
-        <section className="mx-auto grid max-w-6xl items-center gap-14 px-6 pt-8 pb-20 lg:grid-cols-[1.2fr_1fr] lg:pt-16 lg:pb-28">
+        <section className="mx-auto grid max-w-6xl items-center gap-14 px-6 pt-8 pb-20 lg:grid-cols-[1.2fr_1fr] lg:pt-14 lg:pb-24">
           <div>
-            <h1 className="max-w-[14ch] text-[3rem] leading-[0.98] font-bold sm:text-[4.25rem]">
+            <h1 className="max-w-[15ch] text-[2.75rem] leading-[1.02] font-extrabold tracking-[-0.03em] sm:text-[4rem]">
               Saiba quanto você pode gastar até o próximo salário.
             </h1>
             <p className="mt-6 max-w-[46ch] text-lg leading-relaxed text-ink-soft">
-              O Dimeta junta seu dinheiro, seus cartões, seus prazos e seus hábitos, e organiza tudo pelo dia em que o
-              seu dinheiro entra.
+              O Dimeta junta dinheiro, cartões, contas, provas e hábitos, e
+              organiza tudo pelo dia em que o seu dinheiro entra.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link
-                href="/app"
-                className="rounded-2xl bg-cobalt px-6 py-3.5 text-center text-base font-semibold text-white"
+                href={START}
+                className="grad-primary flex h-14 items-center justify-center rounded-2xl px-7 text-base font-extrabold text-white"
               >
-                Abrir o Dimeta
+                Começar 7 dias grátis
               </Link>
-              <p className="text-sm text-ink-soft">Funciona no navegador do celular e do computador.</p>
+              <p className="text-sm text-ink-soft">
+                Depois, {PRICE_LABEL} por mês. Cancele quando quiser.
+              </p>
             </div>
           </div>
           <PhonePreview />
         </section>
 
-        {/* Problema */}
-        <section className="border-y border-line bg-card">
+        <section className="border-y border-white/[0.07] bg-[#0b1128]">
           <div className="mx-auto max-w-6xl px-6 py-16 lg:py-20">
-            <h2 className="max-w-[20ch] text-3xl leading-tight font-bold sm:text-4xl">
+            <h2 className="max-w-[22ch] text-3xl leading-tight sm:text-4xl">
               Planilha você abandona em duas semanas. O problema continua.
             </h2>
             <dl className="mt-10 grid gap-8 md:grid-cols-3">
               {PAINS.map((p) => (
-                <div key={p.title} className="border-t-2 border-ink pt-4">
-                  <dt className="text-lg font-semibold">{p.title}</dt>
-                  <dd className="mt-2 leading-relaxed text-ink-soft">{p.text}</dd>
+                <div key={p.title} className="border-t-2 border-[#a78bfa] pt-4">
+                  <dt className="text-lg font-bold">{p.title}</dt>
+                  <dd className="mt-2 leading-relaxed text-ink-soft">
+                    {p.text}
+                  </dd>
                 </div>
               ))}
             </dl>
           </div>
         </section>
 
-        {/* Como funciona */}
         <section className="mx-auto max-w-6xl px-6 py-16 lg:py-24">
-          <h2 className="text-3xl leading-tight font-bold sm:text-4xl">Como funciona</h2>
+          <h2 className="text-3xl leading-tight sm:text-4xl">Como funciona</h2>
           <ol className="mt-10 grid gap-10 md:grid-cols-3">
             {STEPS.map((s, i) => (
               <li key={s.title} className="flex gap-4">
                 <span
                   aria-hidden
-                  className="font-display grid h-11 w-11 shrink-0 place-items-center rounded-full bg-cobalt text-lg font-bold text-white"
+                  className="grad-primary grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-lg font-extrabold text-white"
                 >
                   {i + 1}
                 </span>
                 <div>
-                  <h3 className="text-lg leading-snug font-semibold">{s.title}</h3>
+                  <h3 className="text-lg leading-snug font-bold">{s.title}</h3>
                   <p className="mt-2 leading-relaxed text-ink-soft">{s.text}</p>
                 </div>
               </li>
@@ -160,19 +204,18 @@ export default function SitePage() {
           </ol>
         </section>
 
-        {/* Funcionalidades */}
         <section className="mx-auto max-w-6xl px-6 pb-16 lg:pb-24">
-          <h2 className="max-w-[22ch] text-3xl leading-tight font-bold sm:text-4xl">
+          <h2 className="max-w-[22ch] text-3xl leading-tight sm:text-4xl">
             O dinheiro no centro, a rotina em volta.
           </h2>
-          <ul className="mt-10 grid gap-x-10 gap-y-8 sm:grid-cols-2">
+          <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map(({ icon: Icon, title, text }) => (
-              <li key={title} className="flex gap-4">
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-cobalt-soft text-cobalt">
+              <li key={title} className="glass flex gap-4 rounded-3xl p-5">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#4361f5]/20 text-[#b9c6ff]">
                   <Icon size={22} aria-hidden />
                 </span>
                 <div>
-                  <h3 className="text-lg font-semibold">{title}</h3>
+                  <h3 className="text-[17px] font-bold">{title}</h3>
                   <p className="mt-1 leading-relaxed text-ink-soft">{text}</p>
                 </div>
               </li>
@@ -180,101 +223,101 @@ export default function SitePage() {
           </ul>
         </section>
 
-        {/* Celular e computador */}
         <section className="mx-auto max-w-6xl px-6 pb-16 lg:pb-24">
-          <div className="grid gap-8 rounded-[2rem] bg-cobalt px-7 py-10 text-white md:grid-cols-[1.3fr_1fr] md:items-center md:px-12 md:py-14">
+          <div className="hero-card grid gap-8 rounded-3xl px-7 py-10 md:grid-cols-[1.3fr_1fr] md:items-center md:px-12 md:py-14">
             <div>
-              <h2 className="text-3xl leading-tight font-bold sm:text-4xl">Celular sem bateria? Abre no computador.</h2>
-              <p className="mt-4 max-w-[48ch] text-lg leading-relaxed text-white/80">
-                O Dimeta funciona no navegador de qualquer aparelho, e no celular dá para instalar com ícone na tela
-                inicial. Sem loja de apps e sem ocupar espaço.
+              <h2 className="text-3xl leading-tight sm:text-4xl">
+                Celular sem bateria? Abre no computador.
+              </h2>
+              <p className="mt-4 max-w-[48ch] text-lg leading-relaxed text-[#c7cff7]">
+                O Dimeta funciona no navegador de qualquer aparelho. No celular,
+                dá para instalar com ícone na tela inicial, sem loja de apps.
               </p>
             </div>
-            <ul className="space-y-3 text-[15px]">
+            <ul className="space-y-3 text-[15px] font-semibold">
               <li className="flex items-center gap-3 rounded-2xl bg-white/10 px-4 py-3">
-                <Smartphone size={20} aria-hidden /> Android e iPhone, instalado como app
+                <Smartphone size={20} aria-hidden /> Android e iPhone, instalado
+                como app
               </li>
               <li className="flex items-center gap-3 rounded-2xl bg-white/10 px-4 py-3">
-                <Laptop size={20} aria-hidden /> Computador, direto no navegador
+                <Check size={20} aria-hidden /> Computador, direto no navegador
               </li>
             </ul>
           </div>
         </section>
 
-        {/* Planos */}
-        <section className="mx-auto max-w-6xl px-6 pb-16 lg:pb-24">
-          <h2 className="text-3xl leading-tight font-bold sm:text-4xl">Planos</h2>
-          <p className="mt-3 max-w-[56ch] text-ink-soft">
-            Comece de graça. O Premium chega em breve; até lá, você usa tudo sem pagar.
-          </p>
-          <div className="mt-10 grid gap-5 md:grid-cols-2">
-            <article className="rounded-[2rem] border border-line bg-card p-7">
-              <h3 className="text-xl font-semibold">Gratuito</h3>
-              <p className="font-display mt-3 text-4xl font-bold">R$ 0</p>
-              <ul className="mt-6 space-y-2.5 text-[15px] text-ink-soft">
-                <li>Ciclo financeiro e painel “livre para gastar”</li>
-                <li>Entradas, gastos e categorias</li>
-                <li>1 cartão de crédito</li>
-                <li>Agenda de prazos e até 3 hábitos</li>
-              </ul>
-            </article>
-            <article className="rounded-[2rem] border-2 border-ink bg-card p-7">
-              <h3 className="text-xl font-semibold">
-                Premium{" "}
-                <span className="ml-1 rounded-full bg-sun/30 px-2 py-0.5 align-middle text-xs font-semibold">
-                  em breve
-                </span>
-              </h3>
-              <p className="font-display mt-3 text-4xl font-bold">
-                R$ 19,90<span className="text-lg font-medium text-ink-soft">/mês</span>
-              </p>
-              <ul className="mt-6 space-y-2.5 text-[15px] text-ink-soft">
-                <li>Tudo do Gratuito</li>
-                <li>Cartões, metas e hábitos ilimitados</li>
-                <li>Resumo semanal e relatório de cada ciclo</li>
-                <li>Exportar seus dados quando quiser</li>
-              </ul>
-            </article>
-          </div>
+        <section id="preco" className="mx-auto max-w-6xl px-6 pb-16 lg:pb-24">
+          <h2 className="text-3xl leading-tight sm:text-4xl">
+            Um plano, tudo incluído
+          </h2>
+          <article className="glass mt-8 max-w-xl rounded-3xl border-[#a78bfa]/45 p-7 sm:p-9">
+            <p className="text-sm font-bold text-[#c4b5fd]">
+              {TRIAL_DAYS} dias grátis para testar
+            </p>
+            <p className="mt-2 text-5xl font-extrabold tracking-[-0.03em]">
+              {PRICE_LABEL}
+              <span className="text-lg font-bold text-ink-soft"> por mês</span>
+            </p>
+            <ul className="mt-6 space-y-2.5 text-[15px]">
+              {PLAN_ITEMS.map((it) => (
+                <li key={it} className="flex gap-2.5">
+                  <Check
+                    size={18}
+                    className="mt-0.5 shrink-0 text-[#a78bfa]"
+                    aria-hidden
+                  />
+                  {it}
+                </li>
+              ))}
+            </ul>
+            <Link
+              href={START}
+              className="grad-primary mt-8 flex h-14 items-center justify-center rounded-2xl text-base font-extrabold text-white"
+            >
+              Começar {TRIAL_DAYS} dias grátis
+            </Link>
+            <p className="mt-3 text-center text-sm text-ink-soft">
+              Pix, cartão ou boleto. Cancele quando quiser.
+            </p>
+          </article>
         </section>
 
-        {/* FAQ */}
-        <section className="border-t border-line bg-card">
+        <section className="border-t border-white/[0.07] bg-[#0b1128]">
           <div className="mx-auto grid max-w-6xl gap-10 px-6 py-16 lg:grid-cols-[1fr_1.6fr] lg:py-24">
-            <h2 className="text-3xl leading-tight font-bold sm:text-4xl">Perguntas frequentes</h2>
-            <div className="divide-y divide-line border-y border-line">
+            <h2 className="text-3xl leading-tight sm:text-4xl">
+              Perguntas frequentes
+            </h2>
+            <div className="divide-y divide-white/[0.08] border-y border-white/[0.08]">
               {FAQ.map((item) => (
                 <details key={item.q} className="group py-5">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-lg font-semibold">
+                  <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 text-lg font-bold">
                     {item.q}
                     <span
                       aria-hidden
-                      className="text-2xl leading-none text-cobalt transition-transform group-open:rotate-45"
+                      className="text-2xl leading-none text-[#a78bfa] transition-transform group-open:rotate-45"
                     >
                       +
                     </span>
                   </summary>
-                  <p className="mt-3 max-w-[62ch] leading-relaxed text-ink-soft">{item.a}</p>
+                  <p className="mt-3 max-w-[62ch] leading-relaxed text-ink-soft">
+                    {item.a}
+                  </p>
                 </details>
               ))}
             </div>
           </div>
         </section>
 
-        {/* CTA final */}
-        <section className="bg-ink text-white">
-          <div className="mx-auto max-w-6xl px-6 py-16 lg:py-24">
-            <h2 className="max-w-[18ch] text-3xl leading-tight font-bold sm:text-5xl">
-              Descubra hoje quanto você pode gastar até o próximo salário.
-            </h2>
-            <p className="mt-4 max-w-[48ch] text-lg text-white/75">Abra no celular ou no computador. É grátis.</p>
-            <Link
-              href="/app"
-              className="mt-8 inline-block rounded-2xl bg-sun px-6 py-3.5 text-base font-semibold text-ink"
-            >
-              Abrir o Dimeta
-            </Link>
-          </div>
+        <section className="mx-auto max-w-6xl px-6 py-16 lg:py-24">
+          <h2 className="max-w-[18ch] text-3xl leading-tight sm:text-5xl">
+            Descubra hoje quanto você pode gastar até o próximo salário.
+          </h2>
+          <Link
+            href={START}
+            className="grad-primary mt-8 inline-flex h-14 items-center rounded-2xl px-7 text-base font-extrabold text-white"
+          >
+            Começar {TRIAL_DAYS} dias grátis
+          </Link>
         </section>
       </main>
 

@@ -12,8 +12,8 @@ const ERRORS: Record<string, string> = {
   "Email not confirmed": "Confirme o e-mail pelo link que enviamos antes de entrar.",
 };
 
-export function LoginForm() {
-  const [mode, setMode] = useState<Mode>("entrar");
+export function LoginForm({ initialMode = "entrar" }: { initialMode?: Mode }) {
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);

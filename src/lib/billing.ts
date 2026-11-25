@@ -2,6 +2,7 @@
 // Só vale com BILLING_ENABLED ligado.
 export const PRICE_CENTS = 2990;
 export const TRIAL_DAYS = 7;
+export const PRICE_LABEL = "R$ 29,90";
 
 export type Subscription = {
   status: "trial" | "active" | "past_due" | "canceled";

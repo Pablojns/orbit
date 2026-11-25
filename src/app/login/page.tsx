@@ -2,8 +2,8 @@ import { LoginForm } from "./login-form";
 
 export const metadata = { title: "Entrar ou criar conta" };
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ erro?: string }> }) {
-  const { erro } = await searchParams;
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ erro?: string; modo?: string }> }) {
+  const { erro, modo } = await searchParams;
 
   return (
     <main className="app-theme mx-auto flex min-h-dvh max-w-md flex-col px-6 pt-16 pb-10">
@@ -21,7 +21,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       ) : null}
 
       <div className="mt-auto pt-10">
-        <LoginForm />
+        <LoginForm initialMode={modo === "criar" ? "criar" : "entrar"} />
       </div>
     </main>
   );

@@ -12,7 +12,7 @@ export function LegalPage({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-sky">
+    <div className="app-theme">
       <header className="mx-auto max-w-3xl px-6 py-5">
         <Link href="/">
           <Logo />
