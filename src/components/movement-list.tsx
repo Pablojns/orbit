@@ -43,7 +43,7 @@ export function MovementRow({
     <li className="flex items-center gap-3 py-3">
       <span
         className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${
-          income ? "bg-gain/15 text-gain" : "bg-white/[0.06] text-ink"
+          income ? "bg-[#34d399]/15 text-[#6ee7b7]" : "bg-white/[0.06] text-ink"
         }`}
       >
         <CategoryIcon name={m.category?.icon} size={19} />
@@ -52,7 +52,7 @@ export function MovementRow({
         <p className="truncate text-[15px] font-medium">{title}</p>
         <p className="truncate text-[13px] text-ink-soft">{meta}</p>
       </div>
-      <p className={`shrink-0 text-[15px] font-semibold ${income ? "text-gain" : "text-ink"}`}>
+      <p className={`shrink-0 text-[15px] font-semibold ${income ? "text-[#6ee7b7]" : "text-[#ff9db0]"}`}>
         {income ? "+" : "−"} {formatCents(m.amountCents)}
       </p>
       {edit}

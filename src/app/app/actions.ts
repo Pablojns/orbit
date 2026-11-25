@@ -2086,3 +2086,21 @@ async function studyFromText(
   revalidatePath("/app", "layout");
   return { status: "saved", message: `${days.length} ${days.length === 1 ? "sessão" : "sessões"} de estudo para ${exam.title} na agenda.` };
 }
+
+// ---------- extrato ao vivo (Rodada 13b) ----------------------------------
+// Troca de período sem recarregar a página: a tela pede só os lançamentos e o resumo.
+export async function loadExtrato(periodo: string, de?: string, ate?: string) {
+  const { getFinance } = await import("@/lib/finance");
+  const { periodRange, periodLabel } = await import("@/lib/period");
+  const profile = await requireProfile();
+  const p = periodRange(periodo, todayInSaoPaulo(), profile.cycleStartDay, de, ate);
+  const f = await getFinance(profile.cycleStartDay, 0, { start: p.start, end: p.end });
+  return {
+    kind: p.kind,
+    de: toISODate(p.start),
+    ate: toISODate(p.end),
+    label: periodLabel(p.start, p.end),
+    movements: f.movements,
+    savedCents: f.summary.savedCents,
+  };
+}
