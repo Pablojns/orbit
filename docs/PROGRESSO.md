@@ -36,3 +36,7 @@ Leia docs/PLANO-RODADAS.md primeiro. Este arquivo diz onde a sessão parou. Ele 
 - R10: de65e91 · ab74aa1 · fechamento (desempenho vira teste do Pablo; ver relatório)
 - R11: 366c58f página de vendas · 35aa77a e-mails · 411139b domínio e site.ts · adde9da avisos multiusuário · docs
 - R12: bfa2080 abas e quebra de linha · d9ff5b5 repetições · relatório final
+
+
+## Rodada 13 — Simplificar (24/11)
+Feita. Ver `docs/RELATORIO-RODADA-13.md` e `docs/NOMES-ANTES-DEPOIS.md`. Falta: testes de voz com microfone real (`docs/VOZ-TESTES.md`).
