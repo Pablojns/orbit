@@ -8,9 +8,9 @@ import { EditBill, EditIncome } from "@/components/edit-forms";
 import { DaySelect, Field, MoneyInput, Select, TextInput } from "@/components/fields";
 import { FormSheet } from "@/components/form-sheet";
 import { archiveBill, archiveIncome, receiveIncome, saveBill, saveIncome, toggleBillPaid } from "@/app/app/actions";
-import { diffInDays, formatShort, fromISODate } from "@/lib/dates";
+import { diffInDays, formatShort, fromISODate, toISODate } from "@/lib/dates";
 import { getFinance } from "@/lib/finance";
-import { installmentOf } from "@/lib/schedule";
+import { installmentOf, nextDueFrom } from "@/lib/schedule";
 import { formatCents } from "@/lib/money";
 import { requireProfile } from "@/lib/profile";
 
@@ -169,8 +169,14 @@ export default async function FixedPage({ searchParams }: { searchParams: Promis
                 const occ = f.billsInCycle.find((b) => b.billId === bill.id);
                 const days = occ ? diffInDays(f.today, occ.dueDate) : null;
                 const late = occ && !occ.paid && days !== null && days < 0;
-                const parcel =
-                  bill.endsOn && occ ? installmentOf(bill.dueDay, bill.startsOn, bill.endsOn, occ.dueDate) : null;
+                const parcel = bill.endsOn
+                  ? installmentOf(
+                      bill.dueDay,
+                      bill.startsOn,
+                      bill.endsOn,
+                      occ?.dueDate ?? nextDueFrom(bill.dueDay, toISODate(f.today)),
+                    )
+                  : null;
                 return (
                   <li key={bill.id} className="space-y-2">
                     {firstSub ? (

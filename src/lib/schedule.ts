@@ -124,6 +124,15 @@ export function installmentEndISO(dueDay: number, fromISO: string, count: number
   return toISODate(clampDay(last.year, last.month, dueDay));
 }
 
+// Próximo vencimento a partir de uma data (para mostrar a parcela fora do ciclo).
+export function nextDueFrom(dueDay: number, fromISO: string): CalendarDate {
+  const from = fromISODate(fromISO);
+  const here = clampDay(from.year, from.month, dueDay);
+  if (diffInDays(from, here) >= 0) return here;
+  const next = addMonths(from.year, from.month, 1);
+  return clampDay(next.year, next.month, dueDay);
+}
+
 // "parcela k de N" de um vencimento, para contas com início e fim.
 export function installmentOf(dueDay: number, startsOnISO: string, endsOnISO: string, due: CalendarDate) {
   const months = (a: CalendarDate, b: CalendarDate) => (b.year - a.year) * 12 + (b.month - a.month);
