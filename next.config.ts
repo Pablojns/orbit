@@ -12,6 +12,11 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // detector de voz: arquivos grandes que não mudam; o navegador guarda por 30 dias
+        source: "/vad/:file*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=2592000, immutable" }],
+      },
+      {
         source: "/sw.js",
         headers: [
           { key: "Content-Type", value: "application/javascript; charset=utf-8" },

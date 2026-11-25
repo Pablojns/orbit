@@ -5,85 +5,77 @@ import { Mic, Send } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { type QuickState, quickText } from "@/app/app/actions";
 import { Modal, ModalHeader } from "./modal";
-import { choiceFromSpeech, mergeVoice, spokenConfirm } from "@/lib/voice-text";
+import { choiceFromSpeech, cleanTranscript, firstSentence, spokenConfirm } from "@/lib/voice-text";
+import { createVad, transcribe, voiceSupported, type VadHandle } from "@/lib/voice-vad";
 
-// Conversa por voz (Rodada 13). Abre pelo microfone, Alt+V, "Dimeta" ou palmas.
-// Mostra o texto ao vivo, registra a frase completa e confirma falando; se faltar algo,
-// pergunta falando um dado por vez e abre o microfone sozinha. Sem fala em ~8 s, fecha.
+// Conversa por voz (Rodada 14). Abre pelo microfone, Alt+V, "Dimeta" ou palmas.
+// O detector de voz (VAD) percebe quando a pessoa começa e para de falar; o áudio vai para o
+// Whisper (Groq) no servidor. Registra a frase completa e confirma falando em 1 frase; se faltar
+// algo, pergunta. Depois de responder, continua ouvindo ~5 s ("e mais 20 de uber") e fecha no silêncio.
 
-type Recognition = {
-  lang: string;
-  interimResults: boolean;
-  continuous: boolean;
-  maxAlternatives: number;
-  start: () => void;
-  stop: () => void;
-  abort: () => void;
-  onresult:
-    | ((e: { results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> }) => void)
-    | null;
-  onerror: ((e: { error: string }) => void) | null;
-  onend: (() => void) | null;
-};
+const FIRST_SILENCE_MS = 8000; // ao abrir
+const NEXT_SILENCE_MS = 5000; // modo conversa, depois de cada resposta
+const MAX_TURNS = 8;
 
-function getRecognition(): (new () => Recognition) | null {
-  if (typeof window === "undefined") return null;
-  const w = window as unknown as {
-    SpeechRecognition?: new () => Recognition;
-    webkitSpeechRecognition?: new () => Recognition;
-  };
-  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
-}
+type Phase = "loading" | "ready" | "listening" | "thinking" | "speaking" | "idle";
+type Times = { gravar: number; transcrever: number; entender: number; salvar: number; falar: number; total: number };
 
-const SILENCE_MS = 8000;
-const MAX_TURNS = 5;
-
-type Phase = "listening" | "thinking" | "speaking" | "idle";
-
-function speak(text: string): Promise<void> {
+function speak(text: string, onStart?: () => void): Promise<void> {
   return new Promise((resolve) => {
     try {
       if (!("speechSynthesis" in window)) return resolve();
       const u = new SpeechSynthesisUtterance(text);
       u.lang = "pt-BR";
-      u.rate = 1.05;
+      u.rate = 1.1;
+      u.onstart = () => onStart?.();
       u.onend = () => resolve();
       u.onerror = () => resolve();
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(u);
-      setTimeout(resolve, 6000); // alguns navegadores não avisam o fim
+      setTimeout(resolve, 5000); // alguns navegadores não avisam o fim
     } catch {
       resolve();
     }
   });
 }
 
+const sec = (ms: number) => `${(ms / 1000).toFixed(1).replace(".", ",")} s`;
+
 export function VoiceChat({ name }: { name: string | null }) {
   const [open, setOpen] = useState(false);
   const [canSpeak, setCanSpeak] = useState(false);
   const [phase, setPhase] = useState<Phase>("idle");
-  const [live, setLive] = useState("");
   const [lines, setLines] = useState<{ who: "eu" | "dimeta"; text: string }[]>([]);
   const [typed, setTyped] = useState("");
-  const recRef = useRef<Recognition | null>(null);
+  const [times, setTimes] = useState<Times | null>(null);
+  const vadRef = useRef<VadHandle | null>(null);
   const pendingRef = useRef(""); // frase que ainda espera um dado
   const lastRef = useRef<QuickState | null>(null);
   const turnsRef = useRef(0);
   const openRef = useRef(false);
-  const listenRef = useRef<() => void>(() => {});
+  const silenceRef = useRef(0);
+  const speechStartRef = useRef(0);
+  const onAudioRef = useRef<(a: Float32Array) => void>(() => {});
+  const listenRef = useRef<(waitMs: number) => void>(() => {});
   const params = useSearchParams();
 
   useEffect(() => {
-    const id = requestAnimationFrame(() => setCanSpeak(getRecognition() !== null));
+    const id = requestAnimationFrame(() => setCanSpeak(voiceSupported()));
     return () => cancelAnimationFrame(id);
   }, []);
 
   const say = useCallback((who: "eu" | "dimeta", text: string) => setLines((l) => [...l.slice(-5), { who, text }]), []);
 
+  const stopVad = useCallback(async () => {
+    clearTimeout(silenceRef.current);
+    const v = vadRef.current;
+    vadRef.current = null;
+    await v?.destroy().catch(() => {});
+  }, []);
+
   const close = useCallback(() => {
     openRef.current = false;
-    recRef.current?.abort();
-    recRef.current = null;
+    void stopVad().then(() => window.dispatchEvent(new Event("dimeta:voz-fim"))); // escuta volta só depois
     try {
       window.speechSynthesis?.cancel();
     } catch {
@@ -91,18 +83,16 @@ export function VoiceChat({ name }: { name: string | null }) {
     }
     setOpen(false);
     setPhase("idle");
-    setLive("");
     setLines([]);
     setTyped("");
     pendingRef.current = "";
     lastRef.current = null;
     turnsRef.current = 0;
-    window.dispatchEvent(new Event("dimeta:voz-fim"));
-  }, []);
+  }, [stopVad]);
 
-  // Manda a frase para o mesmo leitor da barra antiga (regras + IA) e reage à resposta.
+  // Manda a frase para o mesmo leitor do app (regras + IA) e reage à resposta.
   const send = useCallback(
-    async (said: string, byVoice: boolean) => {
+    async (said: string, byVoice: boolean, t?: { gravar: number; transcrever: number; fim: number }) => {
       const text = said.trim();
       if (!text) return;
       say("eu", text);
@@ -117,75 +107,121 @@ export function VoiceChat({ name }: { name: string | null }) {
       }
       fd.set("voice", "1");
       setPhase("thinking");
+      const tq = performance.now();
       const r = await quickText({ status: "idle" }, fd);
+      const quickMs = performance.now() - tq;
       if (!openRef.current) return;
       lastRef.current = r;
       turnsRef.current += 1;
-      const reply = r.status === "saved" ? spokenConfirm(r.message ?? "Pronto.") : (r.message ?? "Não entendi.");
-      say("dimeta", reply);
-      if (r.status === "saved") {
-        pendingRef.current = "";
-        setPhase("speaking");
-        if (byVoice) await speak(reply);
-        else await new Promise((res) => setTimeout(res, 1200));
-        if (openRef.current) close();
-        return;
-      }
-      const isQuestion = Boolean(r.ask) || /\?\s*$/.test(reply);
-      pendingRef.current = isQuestion && r.text ? r.text : "";
+      const shown = r.status === "saved" ? spokenConfirm(r.message ?? "Pronto.") : (r.message ?? "Não entendi.");
+      const reply = firstSentence(shown);
+      say("dimeta", shown);
+      const isQuestion = r.status !== "saved" && (Boolean(r.ask) || /\?\s*$/.test(reply));
+      pendingRef.current = r.status === "saved" ? "" : isQuestion && r.text ? r.text : "";
+
+      setPhase("speaking");
       if (byVoice) {
-        setPhase("speaking");
-        await speak(reply);
-      }
+        await speak(reply, () => {
+          if (!t) return;
+          const now = performance.now();
+          const tm: Times = {
+            gravar: t.gravar,
+            transcrever: t.transcrever,
+            entender: r.ms?.ai ?? 0,
+            salvar: Math.max(0, quickMs - (r.ms?.ai ?? 0)),
+            falar: Math.max(0, now - tq - quickMs),
+            total: now - t.fim,
+          };
+          setTimes(tm);
+          try {
+            const k = "dimeta.voz.tempos";
+            const old = JSON.parse(window.localStorage.getItem(k) ?? "[]") as Times[];
+            window.localStorage.setItem(k, JSON.stringify([...old.slice(-19), tm]));
+          } catch {
+            /* sem armazenamento */
+          }
+          console.info("[Dimeta voz] tempos (ms)", tm);
+        });
+      } else await new Promise((res) => setTimeout(res, 900));
       if (!openRef.current) return;
-      if (isQuestion && byVoice && turnsRef.current < MAX_TURNS) listenRef.current();
+      // Modo conversa: continua ouvindo um pouco para o próximo comando ou a resposta.
+      if (byVoice && canSpeak && turnsRef.current < MAX_TURNS) listenRef.current(NEXT_SILENCE_MS);
+      else if (r.status === "saved") close();
       else setPhase("idle");
     },
-    [close, say],
+    [canSpeak, close, say],
   );
 
-  const listen = useCallback(() => {
-    const Rec = getRecognition();
-    if (!Rec || !openRef.current) return;
-    recRef.current?.abort();
-    const rec = new Rec();
-    rec.lang = "pt-BR";
-    rec.continuous = false;
-    rec.interimResults = true;
-    rec.maxAlternatives = 1;
-    let heard = "";
-    let failed = false;
-    let silence = setTimeout(() => rec.abort(), SILENCE_MS);
-    rec.onresult = (e) => {
-      clearTimeout(silence);
-      silence = setTimeout(() => rec.stop(), SILENCE_MS);
-      heard = mergeVoice(Array.from(e.results, (r) => ({ transcript: r[0]?.transcript ?? "", isFinal: r.isFinal }))).text;
-      setLive(heard);
-    };
-    rec.onerror = (e) => {
-      failed = e.error !== "no-speech" && e.error !== "aborted";
-      if (e.error === "not-allowed") say("dimeta", "Libere o microfone para o Dimeta nas configurações do navegador.");
-    };
-    rec.onend = () => {
-      clearTimeout(silence);
-      if (recRef.current === rec) recRef.current = null;
-      setLive("");
+  // Fim da fala detectado pelo VAD: pausa o microfone, transcreve e manda.
+  const onAudio = useCallback(
+    async (audio: Float32Array) => {
+      const fim = performance.now();
+      clearTimeout(silenceRef.current);
+      await vadRef.current?.pause();
       if (!openRef.current) return;
-      if (heard.trim()) void send(heard, true);
-      else if (failed) setPhase("idle");
-      else close(); // ~8 s sem fala: fecha sem registrar
-    };
-    recRef.current = rec;
-    setPhase("listening");
-    try {
-      rec.start();
-    } catch {
-      setPhase("idle");
-    }
-  }, [close, say, send]);
+      setPhase("thinking");
+      const gravar = speechStartRef.current ? fim - speechStartRef.current : (audio.length / 16000) * 1000;
+      const tt = performance.now();
+      const r = await transcribe(audio, "comando");
+      const transcrever = performance.now() - tt;
+      if (!openRef.current) return;
+      const text = cleanTranscript(r.text);
+      if (r.error === "ocupado") {
+        say("dimeta", "A voz está ocupada agora. Escreva abaixo ou tente em instantes.");
+        setPhase("idle");
+        return;
+      }
+      if (!text) {
+        // não deu para entender: escuta de novo
+        listenRef.current(NEXT_SILENCE_MS);
+        return;
+      }
+      await send(text, true, { gravar, transcrever, fim });
+    },
+    [say, send],
+  );
 
   useEffect(() => {
-    listenRef.current = listen;
+    onAudioRef.current = (a) => void onAudio(a);
+  }, [onAudio]);
+
+  const listen = useCallback(
+    async (waitMs: number) => {
+      if (!openRef.current) return;
+      clearTimeout(silenceRef.current);
+      try {
+        if (!vadRef.current) {
+          setPhase("loading");
+          vadRef.current = await createVad({
+            onSpeechStart: () => {
+              speechStartRef.current = performance.now();
+              clearTimeout(silenceRef.current);
+              setPhase("listening");
+            },
+            onMisfire: () => {
+              // barulho curto: volta a esperar fala
+              setPhase("ready");
+              silenceRef.current = window.setTimeout(close, NEXT_SILENCE_MS);
+            },
+            onSpeechEnd: (a) => onAudioRef.current(a),
+          });
+          if (!openRef.current) return void stopVad();
+        }
+        speechStartRef.current = 0;
+        await vadRef.current.start();
+        setPhase("ready");
+        silenceRef.current = window.setTimeout(close, waitMs); // silêncio: fecha sem registrar
+      } catch (e) {
+        const denied = e instanceof DOMException && (e.name === "NotAllowedError" || e.name === "SecurityError");
+        say("dimeta", denied ? "Libere o microfone para o Dimeta nas configurações do navegador." : "Não consegui abrir o microfone. Escreva abaixo.");
+        setPhase("idle");
+      }
+    },
+    [close, say, stopVad],
+  );
+
+  useEffect(() => {
+    listenRef.current = (ms) => void listen(ms);
   }, [listen]);
 
   const start = useCallback(
@@ -193,6 +229,7 @@ export function VoiceChat({ name }: { name: string | null }) {
       window.dispatchEvent(new Event("dimeta:voz-inicio")); // a escuta de "Dimeta"/palmas solta o microfone
       openRef.current = true;
       setOpen(true);
+      setTimes(null);
       if (opts.text) {
         void send(opts.text, true);
         return;
@@ -203,11 +240,10 @@ export function VoiceChat({ name }: { name: string | null }) {
         setPhase("speaking");
         await speak(hi);
       }
-      // dá tempo de a escuta soltar o microfone antes de abrir o reconhecimento
-      if (getRecognition()) setTimeout(listen, opts.greet ? 0 : 300);
+      if (voiceSupported()) setTimeout(() => listenRef.current(FIRST_SILENCE_MS), opts.greet ? 0 : 250);
       else setPhase("idle");
     },
-    [listen, name, say, send],
+    [name, say, send],
   );
 
   // Alt+V, chamada pelo nome ou palmas (evento), e atalho do ícone do app (?voz=1).
@@ -237,17 +273,22 @@ export function VoiceChat({ name }: { name: string | null }) {
     // abre uma vez ao chegar pelo atalho
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);
+  useEffect(() => () => void stopVad(), [stopVad]);
 
   const status =
-    phase === "listening"
-      ? "Ouvindo…"
-      : phase === "thinking"
-        ? "Entendendo…"
-        : phase === "speaking"
-          ? "Respondendo…"
-          : canSpeak
-            ? "Toque no microfone para falar"
-            : "Este navegador não reconhece voz. Escreva abaixo.";
+    phase === "loading"
+      ? "Ligando o microfone…"
+      : phase === "ready"
+        ? "Pode falar"
+        : phase === "listening"
+          ? "Ouvindo…"
+          : phase === "thinking"
+            ? "Entendendo…"
+            : phase === "speaking"
+              ? "Respondendo…"
+              : canSpeak
+                ? "Toque no microfone para falar"
+                : "Este navegador não grava voz. Escreva abaixo.";
 
   const trigger = (
     <button
@@ -261,6 +302,8 @@ export function VoiceChat({ name }: { name: string | null }) {
     </button>
   );
 
+  const hot = phase === "listening" || phase === "ready";
+
   return (
     <>
       {/* Computador: canto superior direito. Celular: botão flutuante pequeno acima do "+". */}
@@ -273,9 +316,9 @@ export function VoiceChat({ name }: { name: string | null }) {
           <div className="mt-4 flex flex-col items-center gap-3">
             <button
               type="button"
-              onClick={() => (phase === "listening" ? recRef.current?.stop() : listen())}
-              disabled={!canSpeak || phase === "thinking" || phase === "speaking"}
-              aria-label={phase === "listening" ? "Parar de ouvir" : "Falar"}
+              onClick={() => (hot ? close() : listenRef.current(FIRST_SILENCE_MS))}
+              disabled={!canSpeak || phase === "thinking" || phase === "speaking" || phase === "loading"}
+              aria-label={hot ? "Parar" : "Falar"}
               className={`grid h-16 w-16 place-items-center rounded-full text-white transition-colors disabled:opacity-50 ${
                 phase === "listening" ? "animate-pulse bg-[#ff7a93]" : "mic-btn"
               }`}
@@ -285,12 +328,9 @@ export function VoiceChat({ name }: { name: string | null }) {
             <p role="status" className="text-sm font-semibold text-ink-soft">
               {status}
             </p>
-            <p className="min-h-7 text-center text-lg font-bold" aria-live="polite">
-              {live}
-            </p>
           </div>
           {lines.length ? (
-            <ul className="mt-2 space-y-1.5">
+            <ul className="mt-2 space-y-1.5" aria-live="polite">
               {lines.map((l, i) => (
                 <li
                   key={i}
@@ -303,11 +343,18 @@ export function VoiceChat({ name }: { name: string | null }) {
               ))}
             </ul>
           ) : null}
+          {times ? (
+            <p className="mt-2 text-center text-[11px] text-ink-soft">
+              Da sua fala até a resposta: {sec(times.total)} (transcrever {sec(times.transcrever)} · entender{" "}
+              {sec(times.entender)} · salvar {sec(times.salvar)})
+            </p>
+          ) : null}
           <form
             className="mt-4 flex items-center gap-2"
             onSubmit={(e) => {
               e.preventDefault();
-              recRef.current?.abort();
+              clearTimeout(silenceRef.current);
+              void vadRef.current?.pause();
               const t = typed;
               setTyped("");
               void send(t, false);
@@ -315,7 +362,10 @@ export function VoiceChat({ name }: { name: string | null }) {
           >
             <input
               value={typed}
-              onChange={(e) => setTyped(e.target.value)}
+              onChange={(e) => {
+                setTyped(e.target.value);
+                clearTimeout(silenceRef.current); // digitando: não fecha sozinho
+              }}
               maxLength={160}
               aria-label="Escrever"
               placeholder="Ou escreva: mercado 45 pix"

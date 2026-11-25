@@ -131,6 +131,7 @@ export async function interpretWithAI(
   today: CalendarDate,
   categories: string[],
   cards: string[],
+  model: string = AI_MODEL,
 ): Promise<AiIntent | null> {
   const key = process.env.GROQ_API_KEY;
   if (!key) return null;
@@ -150,10 +151,11 @@ export async function interpretWithAI(
             Authorization: `Bearer ${key}`,
           },
           body: JSON.stringify({
-            model: AI_MODEL,
+            model,
             temperature: 0,
             max_tokens: 800,
-            reasoning_effort: "low",
+            // só os modelos gpt-oss aceitam "reasoning_effort"
+            ...(model.startsWith("openai/gpt-oss") ? { reasoning_effort: "low" } : {}),
             response_format: { type: "json_object" },
             messages: [
               {

@@ -1,31 +1,35 @@
 import assert from "node:assert/strict";
-import { mergeVoice } from "../src/lib/voice-text";
-// Enquanto fala: só parcial
-assert.deepEqual(mergeVoice([{ transcript: "mercado", isFinal: false }]), { text: "mercado", confirmed: "" });
-// Parcial crescendo
-assert.equal(mergeVoice([{ transcript: "mercado 45", isFinal: false }]).text, "mercado 45");
-// Trecho confirmado + novo parcial
-assert.deepEqual(
-  mergeVoice([
-    { transcript: "mercado 45", isFinal: true },
-    { transcript: " pix", isFinal: false },
-  ]),
-  { text: "mercado 45 pix", confirmed: "mercado 45" },
-);
-// Espaços extras
-assert.equal(mergeVoice([{ transcript: "  prova  sexta ", isFinal: true }]).text, "prova sexta");
-console.log("test-voice (texto parcial): ok");
-
-import { hasWakeWord, isDoubleClap } from "../src/lib/voice-text";
+import { ClapDetector, cleanTranscript, firstSentence, hasWakeWord } from "../src/lib/voice-text";
 assert.equal(hasWakeWord("Dimeta"), true);
 assert.equal(hasWakeWord("ok di meta"), true);
-assert.equal(hasWakeWord("de meta, quanto posso gastar"), true);
+assert.equal(hasWakeWord("quanto falta de meta"), false);
 assert.equal(hasWakeWord("minha meta de viagem"), false);
 assert.equal(hasWakeWord("mercado 45 pix"), false);
-assert.equal(isDoubleClap([1000, 1300], 1400), true);
-assert.equal(isDoubleClap([1000, 1050], 1100), false); // eco do mesmo estalo
-assert.equal(isDoubleClap([1000, 1900], 2000), false); // longe demais
-assert.equal(isDoubleClap([0, 300], 2000), false); // antigo
+// Palmas: simula pedaços de 20 ms. "c" = batida (alto), "." = silêncio, "~" = som médio (voz).
+const run = (pattern: string) => {
+  const d = new ClapDetector();
+  let fired = false;
+  [...pattern].forEach((ch, i) => {
+    const level = ch === "c" ? 0.8 : ch === "~" ? 0.2 : ch === "V" ? 0.5 : 0.01;
+    if (d.push(i * 20, level)) fired = true;
+  });
+  return fired;
+};
+const sil = (ms: number) => ".".repeat(ms / 20);
+assert.equal(run(sil(400) + "cc" + sil(300) + "cc" + sil(400)), true, "duas palmas secas");
+assert.equal(run(sil(400) + "cc" + sil(60) + "cc" + sil(400)), false, "rápido demais (eco)");
+assert.equal(run(sil(400) + "cc" + sil(800) + "cc" + sil(400)), false, "longe demais");
+assert.equal(run(sil(400) + "cc" + sil(300) + "cc" + "~~~~" + sil(400)), false, "som logo depois");
+assert.equal(run("~~~~~~" + "cc" + sil(300) + "cc" + sil(400)), false, "sem silêncio antes");
+assert.equal(run(sil(400) + "VVVVVVVVVV" + sil(300) + "VVVVVVVVVV" + sil(400)), false, "voz/tosse longa");
+assert.equal(run(sil(400) + "cc" + sil(140) + "~~" + sil(100) + "cc" + sil(400)), false, "barulho entre");
+assert.equal(run(sil(400) + "cc" + sil(400)), false, "uma palma só");
+assert.equal(cleanTranscript("Legendas pela comunidade Amara.org"), "");
+assert.equal(cleanTranscript("Obrigado por assistir!"), "");
+assert.equal(cleanTranscript("  Mercado 45 no pix. "), "Mercado 45 no pix.");
+assert.equal(cleanTranscript("..."), "");
+assert.equal(cleanTranscript("45"), "45");
+assert.equal(firstSentence("Registrei 45 reais. Saldo: 300."), "Registrei 45 reais.");
 console.log("test-voice (palavra Dimeta e palmas): ok");
 
 // Transcrições de exemplo (números e nomes) passam pela mesma leitura da barra.

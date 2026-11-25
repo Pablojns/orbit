@@ -1586,6 +1586,7 @@ export type QuickState = FormState & {
   ask?: boolean; // é uma pergunta: a conversa por voz abre o microfone para a resposta
   options?: { label: string; force: "expense" | "income" | "event" }[];
   text?: string;
+  ms?: { ai: number; total: number }; // tempos (Rodada 14): IA entender e o total no servidor
 };
 
 const capFirst = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
@@ -1614,7 +1615,14 @@ function doubtOptions(ask: string, text: string): QuickState {
   return info(ask, { options, text });
 }
 
-export async function quickText(_prev: QuickState, fd: FormData): Promise<QuickState> {
+export async function quickText(prev: QuickState, fd: FormData): Promise<QuickState> {
+  const t0 = Date.now();
+  const timing = { ai: 0 };
+  const r = await quickTextInner(prev, fd, timing);
+  return { ...r, ms: { ai: timing.ai, total: Date.now() - t0 } };
+}
+
+async function quickTextInner(_prev: QuickState, fd: FormData, timing: { ai: number }): Promise<QuickState> {
   const text = str(fd, "text").slice(0, 200);
   const force = str(fd, "force");
   const voice = str(fd, "voice") === "1"; // conversa por voz: pergunta o que faltar, um dado por vez
@@ -1659,6 +1667,7 @@ export async function quickText(_prev: QuickState, fd: FormData): Promise<QuickS
   const { interpretWithAI, AiBusyError } = await import("@/lib/ai-intent");
   let ai: Awaited<ReturnType<typeof interpretWithAI>> = null;
   let aiBusy = false;
+  const tAi = Date.now();
   try {
     ai = await interpretWithAI(
       text,
@@ -1666,7 +1675,9 @@ export async function quickText(_prev: QuickState, fd: FormData): Promise<QuickS
       (cats ?? []).map((c) => c.name),
       (cards ?? []).map((c) => c.name),
     );
+    timing.ai = Date.now() - tAi;
   } catch (e) {
+    timing.ai = Date.now() - tAi;
     if (!(e instanceof AiBusyError)) throw e;
     aiBusy = true; // segue pelas regras fixas; se elas não entenderem, avisa abaixo
   }
@@ -2103,4 +2114,29 @@ export async function loadExtrato(periodo: string, de?: string, ate?: string) {
     movements: f.movements,
     savedCents: f.summary.savedCents,
   };
+}
+
+// Teste de velocidade da IA (Rodada 14): mesmas frases em modelos diferentes, sem gravar nada.
+const BENCH_MODELS = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "llama-3.1-8b-instant"];
+export async function benchIntent(phrases: string[], model: string) {
+  if (!BENCH_MODELS.includes(model)) return [];
+  const { interpretWithAI } = await import("@/lib/ai-intent");
+  const supabase = await db();
+  const { data: cats } = await supabase
+    .from("categories")
+    .select("name")
+    .eq("user_id", await uid())
+    .eq("is_archived", false);
+  const out: { phrase: string; ms: number; result: unknown }[] = [];
+  for (const phrase of phrases.slice(0, 12)) {
+    const t = Date.now();
+    let result: unknown = null;
+    try {
+      result = await interpretWithAI(phrase.slice(0, 200), todayInSaoPaulo(), (cats ?? []).map((c) => c.name), ["Inter"], model);
+    } catch (e) {
+      result = { erro: String(e) };
+    }
+    out.push({ phrase, ms: Date.now() - t, result });
+  }
+  return out;
 }

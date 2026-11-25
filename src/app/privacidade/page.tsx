@@ -30,8 +30,8 @@ export default function PrivacyPage() {
           guarda só a situação da assinatura e os códigos de cliente e de assinatura do Asaas, sem o CPF.
         </li>
         <li>
-          <strong>Voz:</strong> quando você usa o microfone, o reconhecimento de fala é feito pelo seu navegador. O{" "}
-          {SITE.name} recebe só o texto e não grava áudio.
+          <strong>Voz:</strong> quando você usa o microfone, o trecho da sua fala é enviado à Groq só para virar texto.
+          O {SITE.name} guarda só o texto do que você lançou, nunca o áudio.
         </li>
       </ul>
       <p>O {SITE.name} não pede senha de banco nem número de cartão.</p>
@@ -47,7 +47,7 @@ export default function PrivacyPage() {
       <h2>Onde os dados ficam</h2>
       <p>
         Os dados ficam em provedores contratados para isso: Supabase (banco de dados), Vercel (hospedagem), Groq (leitura
-        das frases que você escreve ou fala) e Asaas (pagamento). Alguns podem armazenar os dados fora do Brasil. Cada
+        das frases que você escreve e transcrição do que você fala) e Asaas (pagamento). Alguns podem armazenar os dados fora do Brasil. Cada
         conta só acessa os próprios dados.
       </p>
 

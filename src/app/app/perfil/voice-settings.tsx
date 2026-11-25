@@ -84,8 +84,9 @@ export function VoiceSettings() {
               palavra “Dimeta” (e, no computador, duas palmas).
             </p>
             <p>
-              O reconhecimento de fala é feito pelo próprio navegador (no Chrome, pelo Google). O Dimeta não grava áudio.
-              Para parar, desligue aqui ou feche a aba.
+              Barulho e tosse são ignorados no próprio aparelho. Só trechos curtos de fala (até 2 s) são enviados para
+              transcrição (Groq); o Dimeta não guarda áudio. Para parar, desligue aqui ou feche
+              a aba.
             </p>
             <p>É experimental: pode falhar com barulho ou chamar sem querer.</p>
           </div>
