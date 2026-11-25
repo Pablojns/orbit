@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { sendWelcome } from "./actions";
 
 // Login por e-mail e senha (Rodada 9). Só é usado com AUTH_ENABLED ligado.
 type Mode = "entrar" | "criar";
@@ -9,7 +10,8 @@ type Mode = "entrar" | "criar";
 const ERRORS: Record<string, string> = {
   "Invalid login credentials": "E-mail ou senha não conferem.",
   "User already registered": "Este e-mail já tem conta. Use Entrar.",
-  "Email not confirmed": "Confirme o e-mail pelo link que enviamos antes de entrar.",
+  "Email not confirmed":
+    "Confirme o e-mail pelo link que enviamos antes de entrar.",
 };
 
 export function LoginForm({ initialMode = "entrar" }: { initialMode?: Mode }) {
@@ -17,7 +19,10 @@ export function LoginForm({ initialMode = "entrar" }: { initialMode?: Mode }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ tone: "error" | "info"; text: string } | null>(null);
+  const [msg, setMsg] = useState<{
+    tone: "error" | "info";
+    text: string;
+  } | null>(null);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -25,15 +30,25 @@ export function LoginForm({ initialMode = "entrar" }: { initialMode?: Mode }) {
     setMsg(null);
     const supabase = createClient();
     if (mode === "entrar") {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
       setBusy(false);
-      if (error) return setMsg({ tone: "error", text: ERRORS[error.message] ?? "Não foi possível entrar agora." });
+      if (error)
+        return setMsg({
+          tone: "error",
+          text: ERRORS[error.message] ?? "Não foi possível entrar agora.",
+        });
       window.location.assign("/app");
       return;
     }
     if (password.length < 8) {
       setBusy(false);
-      return setMsg({ tone: "error", text: "A senha precisa ter pelo menos 8 caracteres." });
+      return setMsg({
+        tone: "error",
+        text: "A senha precisa ter pelo menos 8 caracteres.",
+      });
     }
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -41,12 +56,20 @@ export function LoginForm({ initialMode = "entrar" }: { initialMode?: Mode }) {
       options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
     });
     setBusy(false);
-    if (error) return setMsg({ tone: "error", text: ERRORS[error.message] ?? "Não foi possível criar a conta agora." });
+    if (error)
+      return setMsg({
+        tone: "error",
+        text: ERRORS[error.message] ?? "Não foi possível criar a conta agora.",
+      });
     if (data.session) {
+      await sendWelcome();
       window.location.assign("/app");
       return;
     }
-    setMsg({ tone: "info", text: `Enviamos um link de confirmação para ${email}. Abra e depois entre com sua senha.` });
+    setMsg({
+      tone: "info",
+      text: `Enviamos um link de confirmação para ${email}. Abra e depois entre com sua senha.`,
+    });
   }
 
   const input =
@@ -94,17 +117,35 @@ export function LoginForm({ initialMode = "entrar" }: { initialMode?: Mode }) {
         />
       </label>
       {msg ? (
-        <p role={msg.tone === "error" ? "alert" : "status"} className={`text-sm ${msg.tone === "error" ? "text-[#ff7a93]" : "text-[#b9c6ff]"}`}>
+        <p
+          role={msg.tone === "error" ? "alert" : "status"}
+          className={`text-sm ${msg.tone === "error" ? "text-[#ff7a93]" : "text-[#b9c6ff]"}`}
+        >
           {msg.text}
         </p>
       ) : null}
-      <button type="submit" disabled={busy} className="grad-primary h-12 w-full rounded-2xl text-base font-bold text-white disabled:opacity-60">
-        {busy ? "Um momento…" : mode === "entrar" ? "Entrar" : "Criar conta e começar 7 dias grátis"}
+      <button
+        type="submit"
+        disabled={busy}
+        className="grad-primary h-12 w-full rounded-2xl text-base font-bold text-white disabled:opacity-60"
+      >
+        {busy
+          ? "Um momento…"
+          : mode === "entrar"
+            ? "Entrar"
+            : "Criar conta e começar 7 dias grátis"}
       </button>
       {mode === "criar" ? (
         <p className="text-center text-xs text-[#98a2cc]">
-          Ao criar a conta você aceita os <a href="/termos" className="underline">Termos de uso</a> e a{" "}
-          <a href="/privacidade" className="underline">Política de privacidade</a>.
+          Ao criar a conta você aceita os{" "}
+          <a href="/termos" className="underline">
+            Termos de uso
+          </a>{" "}
+          e a{" "}
+          <a href="/privacidade" className="underline">
+            Política de privacidade
+          </a>
+          .
         </p>
       ) : null}
     </form>

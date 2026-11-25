@@ -22,8 +22,17 @@ export async function GET(request: Request) {
   // O resumo do dia também passa por aqui, para respeitar a hora escolhida no Perfil.
   const daily = await runDailySummary();
   const supabase = await createClient();
-  const { data: prefs } = await supabase.from("profiles").select("notify_hour").eq("id", OWNER_ID).maybeSingle();
-  if (prefs && !prefs.notify_hour) return Response.json({ sent: 0, reason: "aviso de 3 horas desligado", daily });
+  const { data: prefs } = await supabase
+    .from("profiles")
+    .select("notify_hour")
+    .eq("id", OWNER_ID)
+    .maybeSingle();
+  if (prefs && !prefs.notify_hour)
+    return Response.json({
+      sent: 0,
+      reason: "aviso de 3 horas desligado",
+      daily,
+    });
   const now = new Date();
   const limit = new Date(now.getTime() + HOURS_BEFORE * 3_600_000);
   const { data: events } = await supabase
@@ -34,7 +43,8 @@ export async function GET(request: Request) {
     .is("done_at", null)
     .gt("starts_at", now.toISOString())
     .lte("starts_at", limit.toISOString());
-  if (!events?.length) return Response.json({ sent: 0, reason: "nada nas próximas horas" });
+  if (!events?.length)
+    return Response.json({ sent: 0, reason: "nada nas próximas horas" });
 
   const { data: logged } = await supabase
     .from("reminder_log")
@@ -60,8 +70,11 @@ export async function GET(request: Request) {
       minute: "2-digit",
       timeZone: "America/Sao_Paulo",
     }).format(new Date(ev.starts_at));
-    const mins = Math.round((new Date(ev.starts_at).getTime() - now.getTime()) / 60_000);
-    const falta = mins >= 90 ? `em ${Math.round(mins / 60)} horas` : `em ${mins} minutos`;
+    const mins = Math.round(
+      (new Date(ev.starts_at).getTime() - now.getTime()) / 60_000,
+    );
+    const falta =
+      mins >= 90 ? `em ${Math.round(mins / 60)} horas` : `em ${mins} minutos`;
     const payload = JSON.stringify({
       title: `${ev.title} ${falta}`,
       body: `Hoje às ${time}.`,
@@ -69,17 +82,27 @@ export async function GET(request: Request) {
       tag: `dimeta-3h-${ev.id}`,
     });
     // Registra antes de enviar: se duas execuções se cruzarem, só uma avisa.
-    const { error } = await supabase.from("reminder_log").insert({ event_id: ev.id, kind: "3h" });
+    const { error } = await supabase
+      .from("reminder_log")
+      .insert({ event_id: ev.id, kind: "3h" });
     if (error) continue;
     for (const s of subs ?? []) {
       try {
-        await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, {
-          TTL: 60 * 60,
-        });
+        await webpush.sendNotification(
+          { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+          payload,
+          {
+            TTL: 60 * 60,
+          },
+        );
         sent++;
       } catch (err) {
         const code = (err as { statusCode?: number }).statusCode;
-        if (code === 404 || code === 410) await supabase.from("push_subscriptions").delete().eq("endpoint", s.endpoint);
+        if (code === 404 || code === 410)
+          await supabase
+            .from("push_subscriptions")
+            .delete()
+            .eq("endpoint", s.endpoint);
       }
     }
   }
