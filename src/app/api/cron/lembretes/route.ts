@@ -1,4 +1,5 @@
 import webpush from "web-push";
+import { SITE } from "@/lib/site";
 import { runDailySummary } from "@/lib/daily-summary";
 import { AUTH_ENABLED, BILLING_ENABLED } from "@/lib/flags";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -46,7 +47,7 @@ export async function GET(request: Request) {
   const trial = await trialEndingEmails();
   if (!pub || !priv)
     return Response.json({ sent: 0, reason: "sem chaves", ...trial });
-  webpush.setVapidDetails("https://dimeta.vercel.app", pub, priv);
+  webpush.setVapidDetails(SITE.url, pub, priv);
 
   return Response.json({ ...(await runDailySummary()), ...trial });
 }

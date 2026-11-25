@@ -5,8 +5,10 @@ import "@fontsource-variable/manrope";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
+import { SITE } from "@/lib/site";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE.url),
   title: { default: "Dimeta", template: "%s · Dimeta" },
   description: "Seu dinheiro, seus prazos e seus hábitos no mesmo lugar.",
   applicationName: "Dimeta",

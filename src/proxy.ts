@@ -1,12 +1,19 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/proxy";
+import { SITE } from "@/lib/site";
 
-const OLD_HOST = "orbit-orcin-beta.vercel.app";
-const NEW_HOST = "dimeta.vercel.app";
+// Endereços antigos levam para o atual (NEXT_PUBLIC_SITE_URL). Quando o domínio
+// dimeta.com.br for ligado, dimeta.vercel.app também passa a redirecionar.
+const OLD_HOSTS = new Set(["orbit-orcin-beta.vercel.app", "dimeta.vercel.app"]);
+const NEW_HOST = SITE.host;
 
 export async function proxy(request: NextRequest) {
-  // Endereço antigo leva para o novo (menos as rotas internas de aviso).
-  if (request.headers.get("host") === OLD_HOST && !request.nextUrl.pathname.startsWith("/api/")) {
+  const host = request.headers.get("host") ?? "";
+  if (
+    host !== NEW_HOST &&
+    OLD_HOSTS.has(host) &&
+    !request.nextUrl.pathname.startsWith("/api/")
+  ) {
     const url = request.nextUrl.clone();
     url.host = NEW_HOST;
     url.port = "";

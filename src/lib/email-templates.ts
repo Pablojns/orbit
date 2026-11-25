@@ -5,7 +5,9 @@ export type EmailKind =
   "welcome" | "trial_ending" | "payment_ok" | "payment_late" | "canceled";
 export type Email = { subject: string; text: string; html: string };
 
-const APP_URL = "https://dimeta.vercel.app/app";
+import { SITE } from "./site";
+
+const APP_URL = `${SITE.url}/app`;
 
 function wrap(
   title: string,

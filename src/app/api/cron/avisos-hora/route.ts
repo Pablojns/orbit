@@ -1,4 +1,5 @@
 import webpush from "web-push";
+import { SITE } from "@/lib/site";
 import { OWNER_ID } from "@/lib/owner";
 import { createClient } from "@/lib/supabase/server";
 import { runDailySummary } from "@/lib/daily-summary";
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
   const pub = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   const priv = process.env.VAPID_PRIVATE_KEY;
   if (!pub || !priv) return Response.json({ sent: 0, reason: "sem chaves" });
-  webpush.setVapidDetails("https://dimeta.vercel.app", pub, priv);
+  webpush.setVapidDetails(SITE.url, pub, priv);
 
   // O resumo do dia também passa por aqui, para respeitar a hora escolhida no Perfil.
   const daily = await runDailySummary();
